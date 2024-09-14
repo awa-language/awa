@@ -1,4 +1,4 @@
-use crate::parse::error::{LexicalError, LexicalErrorType};
+use crate::parse::lexical_error::{LexicalError, Type};
 use crate::parse::token::Token;
 use std::char;
 
@@ -68,9 +68,9 @@ where
     // TODO: add negative numbers support
     fn consume(&mut self) -> Result<(), LexicalError> {
         if let Some(ch) = self.current_char {
-            if self.is_name_start(ch) {
-                self.lex_name()?;
-            } else if self.is_number_start(ch) {
+            if Self::is_name_start(ch) {
+                self.lex_name();
+            } else if Self::is_number_start(ch) {
                 self.lex_number()?;
             } else {
                 self.consume_character(ch)?;
@@ -90,41 +90,99 @@ where
         match ch {
             '"' => self.lex_string(),
             '\'' => self.lex_char(),
-            '+' => self.lex_plus(),
-            '-' => self.lex_minus(),
-            '*' => self.lex_asterisk(),
-            '/' => self.lex_slash(),
-            '=' => self.lex_equal(),
-            '&' => self.lex_ampersand(),
-            '|' => self.lex_pipe(),
-            '!' => self.lex_bang(),
-            '<' => self.lex_less(),
-            '>' => self.lex_greater(),
-            '.' => self.lex_single_char(Token::Dot),
-            ',' => self.lex_single_char(Token::Comma),
-            '%' => self.lex_single_char(Token::Percent),
-            '(' => self.lex_single_char(Token::LeftParenthesis),
-            ')' => self.lex_single_char(Token::RightParenthesis),
-            '{' => self.lex_single_char(Token::LeftBrace),
-            '}' => self.lex_single_char(Token::RightBrace),
-            '[' => self.lex_single_char(Token::LeftSquare),
-            ']' => self.lex_single_char(Token::RightSquare),
-            ':' => self.lex_single_char(Token::Colon),
-            '\n' | ' ' | '\t' | '\x0c' => self.lex_newline(ch),
-            ch => {
-                return Err(LexicalError {
-                    error: LexicalErrorType::UnrecognizedToken { token: ch },
-                });
+            '+' => {
+                self.lex_plus();
+                Ok(())
             }
+            '-' => {
+                self.lex_minus();
+                Ok(())
+            }
+            '*' => {
+                self.lex_asterisk();
+                Ok(())
+            }
+            '/' => {
+                self.lex_slash();
+                Ok(())
+            }
+            '=' => self.lex_equal(),
+            '&' => {
+                self.lex_ampersand();
+                Ok(())
+            }
+            '|' => {
+                self.lex_pipe();
+                Ok(())
+            }
+            '!' => {
+                self.lex_bang();
+                Ok(())
+            }
+            '<' => {
+                self.lex_less();
+                Ok(())
+            }
+            '>' => {
+                self.lex_greater();
+                Ok(())
+            }
+            '.' => {
+                self.lex_single_char(Token::Dot);
+                Ok(())
+            }
+            ',' => {
+                self.lex_single_char(Token::Comma);
+                Ok(())
+            }
+            '%' => {
+                self.lex_single_char(Token::Percent);
+                Ok(())
+            }
+            '(' => {
+                self.lex_single_char(Token::LeftParenthesis);
+                Ok(())
+            }
+            ')' => {
+                self.lex_single_char(Token::RightParenthesis);
+                Ok(())
+            }
+            '{' => {
+                self.lex_single_char(Token::LeftBrace);
+                Ok(())
+            }
+            '}' => {
+                self.lex_single_char(Token::RightBrace);
+                Ok(())
+            }
+            '[' => {
+                self.lex_single_char(Token::LeftSquare);
+                Ok(())
+            }
+            ']' => {
+                self.lex_single_char(Token::RightSquare);
+                Ok(())
+            }
+            ':' => {
+                self.lex_single_char(Token::Colon);
+                Ok(())
+            }
+            '\n' | ' ' | '\t' | '\x0c' => {
+                self.lex_newline(ch);
+                Ok(())
+            }
+            ch => Err(LexicalError {
+                error: Type::UnrecognizedToken { token: ch },
+            }),
         }
     }
 
-    fn lex_name(&mut self) -> Result<(), LexicalError> {
+    fn lex_name(&mut self) {
         let mut name = String::new();
         let start_location = self.current_location;
 
         while self.is_name_continuation() {
-            name.push(self.advance_char().expect("lex_name continuation"))
+            name.push(self.advance_char().expect("lex_name continuation"));
         }
 
         let end_location = self.current_location;
@@ -139,8 +197,6 @@ where
             _end: end_location,
             token,
         });
-
-        Ok(())
     }
 
     fn lex_number(&mut self) -> Result<(), LexicalError> {
@@ -151,11 +207,11 @@ where
 
         loop {
             match self.advance_char() {
-                Some(ch) if ch.is_digit(10) => number.push(ch),
+                Some(ch) if ch.is_ascii_digit() => number.push(ch),
                 Some('.') => {
-                    if number.len() == 0 || has_floating_point {
+                    if number.is_empty() || has_floating_point {
                         return Err(LexicalError {
-                            error: LexicalErrorType::InvalidNumberFormat,
+                            error: Type::InvalidNumberFormat,
                         });
                     }
 
@@ -165,7 +221,7 @@ where
                 Some(_) => break,
                 None => {
                     return Err(LexicalError {
-                        error: LexicalErrorType::UnexpectedNumberEnd,
+                        error: Type::UnexpectedNumberEnd,
                     });
                 }
             };
@@ -173,7 +229,7 @@ where
 
         if number.is_empty() {
             return Err(LexicalError {
-                error: LexicalErrorType::InvalidNumberFormat,
+                error: Type::InvalidNumberFormat,
             });
         }
 
@@ -213,7 +269,7 @@ where
                 Some(ch) => string.push(ch),
                 None => {
                     return Err(LexicalError {
-                        error: LexicalErrorType::UnexpectedCharEnd,
+                        error: Type::UnexpectedCharEnd,
                     });
                 }
             }
@@ -249,7 +305,7 @@ where
                 Some(ch) => string.push(ch),
                 None => {
                     return Err(LexicalError {
-                        error: LexicalErrorType::UnexpectedStringEnd,
+                        error: Type::UnexpectedStringEnd,
                     });
                 }
             }
@@ -281,13 +337,13 @@ where
                 'u' => self.lex_unicode_escape(string)?,
                 _ => {
                     return Err(LexicalError {
-                        error: LexicalErrorType::BadEscapeCharacter,
+                        error: Type::BadEscapeCharacter,
                     })
                 }
             }
         } else {
             return Err(LexicalError {
-                error: LexicalErrorType::BadEscapeCharacter,
+                error: Type::BadEscapeCharacter,
             });
         }
 
@@ -299,7 +355,7 @@ where
 
         if Some('{') != self.current_char {
             return Err(LexicalError {
-                error: LexicalErrorType::InvalidUnicodeEscape,
+                error: Type::InvalidUnicodeEscape,
             });
         }
 
@@ -307,7 +363,7 @@ where
 
         if Some('}') != self.current_char {
             return Err(LexicalError {
-                error: LexicalErrorType::InvalidUnicodeEscape,
+                error: Type::InvalidUnicodeEscape,
             });
         }
 
@@ -315,7 +371,7 @@ where
 
         if !(1..=6).contains(&hex_digits.len()) {
             return Err(LexicalError {
-                error: LexicalErrorType::InvalidUnicodeEscape,
+                error: Type::InvalidUnicodeEscape,
             });
         }
 
@@ -326,7 +382,7 @@ where
         .is_none()
         {
             return Err(LexicalError {
-                error: LexicalErrorType::InvalidUnicodeEscape,
+                error: Type::InvalidUnicodeEscape,
             });
         }
 
@@ -355,7 +411,7 @@ where
 
             if !chr.is_ascii_hexdigit() {
                 return Err(LexicalError {
-                    error: LexicalErrorType::InvalidUnicodeEscape,
+                    error: Type::InvalidUnicodeEscape,
                 });
             }
         }
@@ -367,39 +423,36 @@ where
         let token_start = self.current_location;
         let _ = self.advance_char();
 
-        match self.current_char {
-            Some('=') => {
-                let _ = self.advance_char();
-                let token_end = self.current_location;
+        if let Some('=') = self.current_char {
+            let _ = self.advance_char();
+            let token_end = self.current_location;
 
-                if let Some('=') = self.current_char {
-                    return Err(LexicalError {
-                        error: LexicalErrorType::InvalidTripleEqual,
-                    });
-                };
-
-                self.emit(TokenSpan {
-                    _start: token_start,
-                    _end: token_end,
-                    token: Token::EqualEqual,
+            if let Some('=') = self.current_char {
+                return Err(LexicalError {
+                    error: Type::InvalidTripleEqual,
                 });
+            };
 
-                Ok(())
-            }
-            _ => {
-                let token_end = self.current_location;
-                self.emit(TokenSpan {
-                    _start: token_start,
-                    _end: token_end,
-                    token: Token::Equal,
-                });
+            self.emit(TokenSpan {
+                _start: token_start,
+                _end: token_end,
+                token: Token::EqualEqual,
+            });
 
-                Ok(())
-            }
+            Ok(())
+        } else {
+            let token_end = self.current_location;
+            self.emit(TokenSpan {
+                _start: token_start,
+                _end: token_end,
+                token: Token::Equal,
+            });
+
+            Ok(())
         }
     }
 
-    fn lex_plus(&mut self) -> Result<(), LexicalError> {
+    fn lex_plus(&mut self) {
         let token_start = self.current_location;
         let _ = self.advance_char();
 
@@ -434,11 +487,9 @@ where
                 });
             }
         }
-
-        Ok(())
     }
 
-    fn lex_minus(&mut self) -> Result<(), LexicalError> {
+    fn lex_minus(&mut self) {
         let token_start = self.current_location;
         let _ = self.advance_char();
 
@@ -473,11 +524,9 @@ where
                 });
             }
         }
-
-        Ok(())
     }
 
-    fn lex_asterisk(&mut self) -> Result<(), LexicalError> {
+    fn lex_asterisk(&mut self) {
         let token_start = self.current_location;
         let _ = self.advance_char();
 
@@ -499,11 +548,9 @@ where
                 token: Token::Asterisk,
             });
         }
-
-        Ok(())
     }
 
-    fn lex_slash(&mut self) -> Result<(), LexicalError> {
+    fn lex_slash(&mut self) {
         let token_start = self.current_location;
         let _ = self.advance_char();
 
@@ -533,8 +580,6 @@ where
                 });
             }
         }
-
-        Ok(())
     }
 
     fn lex_comment(&mut self) {
@@ -558,7 +603,7 @@ where
         });
     }
 
-    fn lex_ampersand(&mut self) -> Result<(), LexicalError> {
+    fn lex_ampersand(&mut self) {
         let token_start = self.current_location;
         let _ = self.advance_char();
 
@@ -580,11 +625,9 @@ where
                 token: Token::Ampersand,
             });
         }
-
-        Ok(())
     }
 
-    fn lex_pipe(&mut self) -> Result<(), LexicalError> {
+    fn lex_pipe(&mut self) {
         let token_start = self.current_location;
         let _ = self.advance_char();
 
@@ -606,11 +649,9 @@ where
                 token: Token::Pipe,
             });
         }
-
-        Ok(())
     }
 
-    fn lex_bang(&mut self) -> Result<(), LexicalError> {
+    fn lex_bang(&mut self) {
         let token_start = self.current_location;
         let _ = self.advance_char();
 
@@ -632,11 +673,9 @@ where
                 token: Token::Bang,
             });
         }
-
-        Ok(())
     }
 
-    fn lex_less(&mut self) -> Result<(), LexicalError> {
+    fn lex_less(&mut self) {
         let token_start = self.current_location;
         let _ = self.advance_char();
 
@@ -699,11 +738,9 @@ where
                 });
             }
         }
-
-        Ok(())
     }
 
-    fn lex_greater(&mut self) -> Result<(), LexicalError> {
+    fn lex_greater(&mut self) {
         let token_start = self.current_location;
         let _ = self.advance_char();
 
@@ -756,11 +793,9 @@ where
                 });
             }
         }
-
-        Ok(())
     }
 
-    fn lex_single_char(&mut self, t: Token) -> Result<(), LexicalError> {
+    fn lex_single_char(&mut self, t: Token) {
         let token_start = self.current_location;
         let _ = self.advance_char().expect("lex_single_char");
         let token_end = self.current_location;
@@ -770,11 +805,9 @@ where
             _end: token_end,
             token: t,
         });
-
-        Ok(())
     }
 
-    fn lex_newline(&mut self, ch: char) -> Result<(), LexicalError> {
+    fn lex_newline(&mut self, ch: char) {
         let token_start = self.current_location;
         let _ = self.advance_char();
 
@@ -787,11 +820,9 @@ where
                 token: Token::NewLine,
             });
         }
-
-        Ok(())
     }
 
-    fn is_name_start(&mut self, ch: char) -> bool {
+    fn is_name_start(ch: char) -> bool {
         matches!(ch, '_' | 'a'..='z' | 'A'..='Z')
     }
 
@@ -802,8 +833,8 @@ where
         }
     }
 
-    fn is_number_start(&mut self, ch: char) -> bool {
-        matches!(ch, '0'..='9')
+    fn is_number_start(ch: char) -> bool {
+        ch.is_ascii_digit()
     }
 }
 

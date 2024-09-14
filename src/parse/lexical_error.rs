@@ -1,11 +1,11 @@
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
 pub struct LexicalError {
-    pub error: LexicalErrorType,
+    pub error: Type,
     // TODO: add error location
 }
 
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
-pub enum LexicalErrorType {
+pub enum Type {
     UnrecognizedToken { token: char },
     InvalidTripleEqual,
     UnexpectedStringEnd,
