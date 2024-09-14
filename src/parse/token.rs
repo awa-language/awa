@@ -3,7 +3,7 @@ use std::fmt;
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Token {
-    Name { name: EcoString },
+    Name { value: EcoString },
     IntLiteral { value: EcoString },
     FloatLiteral { value: EcoString },
     StringLiteral { value: EcoString },
@@ -71,8 +71,8 @@ impl Token {}
 impl fmt::Display for Token {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let s = match self {
-            Token::Name { name } => name.as_str(),
-            Token::IntLiteral { value }
+            Token::Name { value }
+            | Token::IntLiteral { value }
             | Token::FloatLiteral { value }
             | Token::CharLiteral { value }
             | Token::StringLiteral { value } => value.as_str(),

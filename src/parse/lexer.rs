@@ -13,8 +13,8 @@ pub struct Lexer<T: Iterator<Item = (u32, char)>> {
 #[derive(Debug)]
 pub struct TokenSpan {
     _start: u32,
-    token: Token,
     _end: u32,
+    token: Token,
 }
 
 pub type LexResult = Result<TokenSpan, LexicalError>;
@@ -78,8 +78,8 @@ where
         } else {
             self.emit(TokenSpan {
                 _start: self.current_location,
-                token: Token::EndOfFile,
                 _end: self.current_location,
+                token: Token::EndOfFile,
             });
         }
 
@@ -90,15 +90,19 @@ where
         match ch {
             '"' => self.lex_string(),
             '\'' => self.lex_char(),
-            '=' => self.lex_equal(),
             '+' => self.lex_plus(),
             '-' => self.lex_minus(),
             '*' => self.lex_asterisk(),
             '/' => self.lex_slash(),
-            '%' => self.lex_single_char(Token::Percent),
+            '=' => self.lex_equal(),
             '&' => self.lex_ampersand(),
             '|' => self.lex_pipe(),
             '!' => self.lex_bang(),
+            '<' => self.lex_less(),
+            '>' => self.lex_greater(),
+            '.' => self.lex_single_char(Token::Dot),
+            ',' => self.lex_single_char(Token::Comma),
+            '%' => self.lex_single_char(Token::Percent),
             '(' => self.lex_single_char(Token::LeftParenthesis),
             ')' => self.lex_single_char(Token::RightParenthesis),
             '{' => self.lex_single_char(Token::LeftBrace),
@@ -106,14 +110,10 @@ where
             '[' => self.lex_single_char(Token::LeftSquare),
             ']' => self.lex_single_char(Token::RightSquare),
             ':' => self.lex_single_char(Token::Colon),
-            '<' => self.lex_less(),
-            '>' => self.lex_greater(),
-            '.' => self.lex_single_char(Token::Dot),
-            ',' => self.lex_single_char(Token::Comma),
             '\n' | ' ' | '\t' | '\x0c' => self.lex_newline(ch),
             ch => {
                 return Err(LexicalError {
-                    error: LexicalErrorType::UnrecognizedToken { tok: ch },
+                    error: LexicalErrorType::UnrecognizedToken { token: ch },
                 });
             }
         }
@@ -131,13 +131,13 @@ where
 
         let token = match to_keyword(&name) {
             Some(tok) => tok,
-            None => Token::Name { name: name.into() },
+            None => Token::Name { value: name.into() },
         };
 
         self.emit(TokenSpan {
             _start: start_location,
-            token,
             _end: end_location,
+            token,
         });
 
         Ok(())
@@ -191,8 +191,8 @@ where
 
         self.emit(TokenSpan {
             _start: start_location,
-            token,
             _end: end_location,
+            token,
         });
 
         Ok(())
@@ -227,8 +227,8 @@ where
 
         self.emit(TokenSpan {
             _start: start_location,
-            token,
             _end: end_location,
+            token,
         });
 
         Ok(())
@@ -263,8 +263,8 @@ where
 
         self.emit(TokenSpan {
             _start: start_location,
-            token,
             _end: end_location,
+            token,
         });
 
         Ok(())
@@ -380,8 +380,8 @@ where
 
                 self.emit(TokenSpan {
                     _start: token_start,
-                    token: Token::EqualEqual,
                     _end: token_end,
+                    token: Token::EqualEqual,
                 });
 
                 Ok(())
@@ -390,8 +390,8 @@ where
                 let token_end = self.current_location;
                 self.emit(TokenSpan {
                     _start: token_start,
-                    token: Token::Equal,
                     _end: token_end,
+                    token: Token::Equal,
                 });
 
                 Ok(())
@@ -410,8 +410,8 @@ where
 
                 self.emit(TokenSpan {
                     _start: token_start,
-                    token: Token::PlusPlus,
                     _end: token_end,
+                    token: Token::PlusPlus,
                 });
             }
             Some('.') => {
@@ -420,8 +420,8 @@ where
 
                 self.emit(TokenSpan {
                     _start: token_start,
-                    token: Token::PlusFloat,
                     _end: token_end,
+                    token: Token::PlusFloat,
                 });
             }
             _ => {
@@ -429,8 +429,8 @@ where
 
                 self.emit(TokenSpan {
                     _start: token_start,
-                    token: Token::Plus,
                     _end: token_end,
+                    token: Token::Plus,
                 });
             }
         }
@@ -449,8 +449,8 @@ where
 
                 self.emit(TokenSpan {
                     _start: token_start,
-                    token: Token::MinusMinus,
                     _end: token_end,
+                    token: Token::MinusMinus,
                 });
             }
             Some('.') => {
@@ -459,8 +459,8 @@ where
 
                 self.emit(TokenSpan {
                     _start: token_start,
-                    token: Token::MinusFloat,
                     _end: token_end,
+                    token: Token::MinusFloat,
                 });
             }
             _ => {
@@ -468,8 +468,8 @@ where
 
                 self.emit(TokenSpan {
                     _start: token_start,
-                    token: Token::Minus,
                     _end: token_end,
+                    token: Token::Minus,
                 });
             }
         }
@@ -487,16 +487,16 @@ where
 
             self.emit(TokenSpan {
                 _start: token_start,
-                token: Token::AsteriskFloat,
                 _end: token_end,
+                token: Token::AsteriskFloat,
             });
         } else {
             let token_end = self.current_location;
 
             self.emit(TokenSpan {
                 _start: token_start,
-                token: Token::Asterisk,
                 _end: token_end,
+                token: Token::Asterisk,
             });
         }
 
@@ -514,8 +514,8 @@ where
 
                 self.emit(TokenSpan {
                     _start: token_start,
-                    token: Token::SlashFloat,
                     _end: token_end,
+                    token: Token::SlashFloat,
                 });
             }
             Some('/') => {
@@ -528,8 +528,8 @@ where
 
                 self.emit(TokenSpan {
                     _start: token_start,
-                    token: Token::Slash,
                     _end: token_end,
+                    token: Token::Slash,
                 });
             }
         }
@@ -553,8 +553,8 @@ where
 
         self.emit(TokenSpan {
             _start: start_location,
-            token: Token::Comment,
             _end: end_location,
+            token: Token::Comment,
         });
     }
 
@@ -568,16 +568,16 @@ where
 
             self.emit(TokenSpan {
                 _start: token_start,
-                token: Token::AmpersandAmpersand,
                 _end: token_end,
+                token: Token::AmpersandAmpersand,
             });
         } else {
             let token_end = self.current_location;
 
             self.emit(TokenSpan {
                 _start: token_start,
-                token: Token::Ampersand,
                 _end: token_end,
+                token: Token::Ampersand,
             });
         }
 
@@ -594,16 +594,16 @@ where
 
             self.emit(TokenSpan {
                 _start: token_start,
-                token: Token::PipePipe,
                 _end: token_end,
+                token: Token::PipePipe,
             });
         } else {
             let token_end = self.current_location;
 
             self.emit(TokenSpan {
                 _start: token_start,
-                token: Token::Pipe,
                 _end: token_end,
+                token: Token::Pipe,
             });
         }
 
@@ -620,16 +620,16 @@ where
 
             self.emit(TokenSpan {
                 _start: token_start,
-                token: Token::NotEqual,
                 _end: token_end,
+                token: Token::NotEqual,
             });
         } else {
             let token_end = self.current_location;
 
             self.emit(TokenSpan {
                 _start: token_start,
-                token: Token::Bang,
                 _end: token_end,
+                token: Token::Bang,
             });
         }
 
@@ -647,8 +647,8 @@ where
 
                 self.emit(TokenSpan {
                     _start: token_start,
-                    token: Token::Concat,
                     _end: token_end,
+                    token: Token::Concat,
                 });
             }
             Some('<') => {
@@ -657,8 +657,8 @@ where
 
                 self.emit(TokenSpan {
                     _start: token_start,
-                    token: Token::LessLess,
                     _end: token_end,
+                    token: Token::LessLess,
                 });
             }
             Some('.') => {
@@ -667,8 +667,8 @@ where
 
                 self.emit(TokenSpan {
                     _start: token_start,
-                    token: Token::LessFloat,
                     _end: token_end,
+                    token: Token::LessFloat,
                 });
             }
             Some('=') => {
@@ -678,14 +678,14 @@ where
                 if let Some('.') = self.current_char {
                     self.emit(TokenSpan {
                         _start: token_start,
-                        token: Token::LessEqualFloat,
                         _end: token_end,
+                        token: Token::LessEqualFloat,
                     });
                 } else {
                     self.emit(TokenSpan {
                         _start: token_start,
-                        token: Token::LessEqual,
                         _end: token_end,
+                        token: Token::LessEqual,
                     });
                 }
             }
@@ -694,8 +694,8 @@ where
 
                 self.emit(TokenSpan {
                     _start: token_start,
-                    token: Token::Less,
                     _end: token_end,
+                    token: Token::Less,
                 });
             }
         }
@@ -714,8 +714,8 @@ where
 
                 self.emit(TokenSpan {
                     _start: token_start,
-                    token: Token::GreaterGreater,
                     _end: token_end,
+                    token: Token::GreaterGreater,
                 });
             }
             Some('.') => {
@@ -724,8 +724,8 @@ where
 
                 self.emit(TokenSpan {
                     _start: token_start,
-                    token: Token::GreaterFloat,
                     _end: token_end,
+                    token: Token::GreaterFloat,
                 });
             }
             Some('=') => {
@@ -735,14 +735,14 @@ where
                 if let Some('.') = self.current_char {
                     self.emit(TokenSpan {
                         _start: token_start,
-                        token: Token::GreaterEqualFloat,
                         _end: token_end,
+                        token: Token::GreaterEqualFloat,
                     });
                 } else {
                     self.emit(TokenSpan {
                         _start: token_start,
-                        token: Token::GreaterEqual,
                         _end: token_end,
+                        token: Token::GreaterEqual,
                     });
                 }
             }
@@ -751,8 +751,8 @@ where
 
                 self.emit(TokenSpan {
                     _start: token_start,
-                    token: Token::Greater,
                     _end: token_end,
+                    token: Token::Greater,
                 });
             }
         }
@@ -767,8 +767,8 @@ where
 
         self.emit(TokenSpan {
             _start: token_start,
-            token: t,
             _end: token_end,
+            token: t,
         });
 
         Ok(())
@@ -783,8 +783,8 @@ where
         if ch == '\n' {
             self.emit(TokenSpan {
                 _start: token_start,
-                token: Token::NewLine,
                 _end: token_end,
+                token: Token::NewLine,
             });
         }
 
@@ -839,8 +839,8 @@ where
         match token {
             Ok(TokenSpan {
                 _start: _,
-                token: Token::EndOfFile,
                 _end: _,
+                token: Token::EndOfFile,
             }) => None,
             r => Some(r),
         }

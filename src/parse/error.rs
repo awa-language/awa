@@ -6,7 +6,7 @@ pub struct LexicalError {
 
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
 pub enum LexicalErrorType {
-    UnrecognizedToken { tok: char },
+    UnrecognizedToken { token: char },
     InvalidTripleEqual,
     UnexpectedStringEnd,
     BadEscapeCharacter,
