@@ -52,6 +52,8 @@ pub enum Token {
     NewLine,            // 'NEWLINE'
     Int32,              // 'int32'
     Int64,              // 'int64'
+    Float32,            // 'float32'
+    Float64,            // 'float64'
     Char,               // 'char'
     String,             // 'string'
     Var,                // 'var'
@@ -130,6 +132,8 @@ impl fmt::Display for Token {
             Self::PipePipe => "||",
             Self::Int32 => "int32",
             Self::Int64 => "int64",
+            Self::Float32 => "float32",
+            Self::Float64 => "float64",
             Self::Char => "char",
             Self::String => "string",
         };

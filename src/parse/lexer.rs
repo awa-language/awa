@@ -852,6 +852,8 @@ fn to_keyword(word: &str) -> Option<Token> {
         "todo" => Some(Token::Todo),
         "int32" => Some(Token::Int32),
         "int64" => Some(Token::Int64),
+        "float32" => Some(Token::Float32),
+        "float64" => Some(Token::Float64),
         "char" => Some(Token::Char),
         "string" => Some(Token::String),
         _ => None,
