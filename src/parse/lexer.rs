@@ -1,7 +1,6 @@
 use crate::parse::lexical_error::{LexicalError, Type};
 use crate::parse::token::Token;
 use std::char;
-use std::intrinsics::mir::Checked;
 
 #[derive(Debug)]
 pub struct Lexer<T: Iterator<Item = (u32, char)>> {
@@ -856,15 +855,11 @@ where
     }
 
     fn is_number_start(&mut self, ch: char) -> bool {
-        if ch.is_ascii_digit() {
-            true
-        } else if ch == '-' {
-            match self.peek_char() {
-                Some(ch) => ch.is_ascii_digit(),
-                None => false,
-            }
+        let copy = self.copied();
+        if ch == '-' {
+            copy.peek_chart().is_ascii_digit()
         } else {
-            false
+            ch.is_ascii_digit()
         }
     }
 }
