@@ -1,6 +1,7 @@
 use crate::parse::lexical_error::{LexicalError, Type};
 use crate::parse::token::Token;
 use std::char;
+use std::intrinsics::mir::Checked;
 
 #[derive(Debug)]
 pub struct Lexer<T: Iterator<Item = (u32, char)>> {
@@ -79,12 +80,22 @@ where
 
     fn consume(&mut self) -> Result<(), LexicalError> {
         if let Some(ch) = self.current_char {
+            let mut check_for_binary_minus = false;
+
             if Self::is_name_start(ch) {
                 self.lex_name();
+                check_for_binary_minus = true;
             } else if self.is_number_start(ch) {
                 self.lex_number()?;
+                check_for_binary_minus = true;
             } else {
                 self.consume_character(ch)?;
+            }
+
+            if check_for_binary_minus {
+                if Some('-') == self.current_char && self.is_number_start('-') {
+                    self.lex_single_char(Token::Minus)
+                }
             }
         } else {
             self.emit(TokenSpan {
