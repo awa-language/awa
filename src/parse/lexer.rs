@@ -53,6 +53,18 @@ where
         char
     }
 
+    fn peek_char(&mut self) -> Option<char> {
+        let current_char = self.current_char;
+        let current_location = self.current_location;
+
+        let next_char = self.advance_char();
+
+        self.current_char = current_char;
+        self.current_location = current_location;
+
+        next_char
+    }
+
     fn inner_next(&mut self) -> LexResult {
         while self.pending_tokens.is_empty() {
             self.consume()?;
@@ -65,12 +77,11 @@ where
         self.pending_tokens.push(token_span);
     }
 
-    // TODO: add negative numbers support
     fn consume(&mut self) -> Result<(), LexicalError> {
         if let Some(ch) = self.current_char {
             if Self::is_name_start(ch) {
                 self.lex_name();
-            } else if Self::is_number_start(ch) {
+            } else if self.is_number_start(ch) {
                 self.lex_number()?;
             } else {
                 self.consume_character(ch)?;
@@ -207,7 +218,7 @@ where
 
         loop {
             match self.advance_char() {
-                Some(ch) if ch.is_ascii_digit() => number.push(ch),
+                Some(ch) if ch.is_ascii_digit() || ch == '-' => number.push(ch),
                 Some('.') => {
                     if number.is_empty() || has_floating_point {
                         return Err(LexicalError {
@@ -833,8 +844,17 @@ where
         }
     }
 
-    fn is_number_start(ch: char) -> bool {
-        ch.is_ascii_digit()
+    fn is_number_start(&mut self, ch: char) -> bool {
+        if ch.is_ascii_digit() {
+            true
+        } else if ch == '-' {
+            match self.peek_char() {
+                Some(ch) => ch.is_ascii_digit(),
+                None => false,
+            }
+        } else {
+            false
+        }
     }
 }
 
