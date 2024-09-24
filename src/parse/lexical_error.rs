@@ -1,7 +1,7 @@
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
 pub struct LexicalError {
     pub error: Type,
-    pub location: SrcSpan,
+    pub location: Location,
 }
 
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]

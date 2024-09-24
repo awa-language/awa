@@ -1,10 +1,10 @@
 #[derive(Debug, PartialEq, Eq, Default, Clone, Copy, serde::Serialize, serde::Deserialize)]
-pub struct SrcSpan {
+pub struct Location {
     pub start: u32,
     pub end: u32,
 }
 
-impl SrcSpan {
+impl Location {
     pub fn new(start: u32, end: u32) -> Self {
         Self { start, end }
     }

@@ -87,7 +87,7 @@ where
     }
 
     fn consume_character(&mut self, ch: char) -> Result<(), LexicalError> {
-        let tok_start = self.get_pos(); 
+        let tok_start = self.current_location(); 
         match ch {
             '"' => self.lex_string(),
             '\'' => self.lex_char(),
@@ -174,7 +174,7 @@ where
             }
             ch => Err(LexicalError {
                 error: Type::UnrecognizedToken { token: ch },
-                location: SrcSpan {
+                location: Location {
                             start: tok_start,
                             end: tok_start,
                         },
@@ -205,7 +205,7 @@ where
     }
 
     fn lex_number(&mut self) -> Result<(), LexicalError> {
-        let location = self.get_pos();
+        let location = self.current_location();
         let start_location = self.current_location;
         let mut number = String::new();
 
@@ -215,11 +215,11 @@ where
             match self.advance_char() {
                 Some(ch) if ch.is_ascii_digit() => number.push(ch),
                 Some('.') => {
-                    location = self.get_pos();
+                    location = self.current_location();
                     if number.is_empty() || has_floating_point {
                         return Err(LexicalError {
                             error: Type::InvalidNumberFormat,
-                            location: SrcSpan {
+                            location: Location {
                                 start: location,
                                 end: location,
                             },
@@ -233,7 +233,7 @@ where
                 None => {
                     return Err(LexicalError {
                         error: Type::UnexpectedNumberEnd,
-                        location: SrcSpan {
+                        location: Location {
                                 start: location,
                                 end: location,
                             },
@@ -244,12 +244,12 @@ where
         }
 
         if number.is_empty() {
-            let token_start = selt.get_pos();
+            let token_start = self.current_location();
             return Err(LexicalError {
                 error: Type::InvalidNumberFormat,
-                location: SrcSpan {
-                            start: toket_start,
-                            end: toket_start,
+                location: Location {
+                            start: token_start,
+                            end: token_start,
                         },
  
             });
@@ -277,7 +277,7 @@ where
     }
 
     fn lex_char(&mut self) -> Result<(), LexicalError> {
-        let toket_start = self.get_pos();
+        let token_start = self.current_location();
         let start_location = self.current_location;
 
         let _ = self.advance_char();
@@ -293,9 +293,9 @@ where
                 None => {
                     return Err(LexicalError {
                         error: Type::UnexpectedCharEnd,
-                        location: SrcSpan {
-                            start: toket_start,
-                            end: toket_start,
+                        location: Location {
+                            start: token_start,
+                            end: token_start,
                         },
 
                     });
@@ -319,7 +319,7 @@ where
     }
 
     fn lex_string(&mut self) -> Result<(), LexicalError> {
-        let toket_start = self.get_pos();
+        let token_start = self.current_location();
         let start_location = self.current_location;
 
         let _ = self.advance_char();
@@ -335,9 +335,9 @@ where
                 None => {
                     return Err(LexicalError {
                         error: Type::UnexpectedStringEnd,
-                        location: SrcSpan {
-                            start: toket_start,
-                            end: toket_start,
+                        location: Location {
+                            start: token_start,
+                            end: token_start,
                         },
                     });
                 }
@@ -360,9 +360,9 @@ where
     }
 
     fn lex_escape_character(&mut self, string: &mut String) -> Result<(), LexicalError> {
-        let token_start = self.get_pos();
+        let token_start = self.current_location();
         if let Some(ch) = self.current_char {
-            let location = self.get_pos();
+            let location = self.current_location();
             match ch {
                 'f' | 'n' | 'r' | 't' | '"' | '\\' => {
                     let _ = self.advance_char();
@@ -373,7 +373,7 @@ where
                 _ => {
                     return Err(LexicalError {
                         error: Type::BadEscapeCharacter,
-                        location: SrcSpan {
+                        location: Location {
                             start: location,
                             end: location,
                         },
@@ -383,7 +383,7 @@ where
         } else {
             return Err(LexicalError {
                 error: Type::BadEscapeCharacter,
-                location: SrcSpan {
+                location: Location {
                             start: token_start,
                             end: token_start,
                         },
@@ -398,10 +398,10 @@ where
         let _ = self.advance_char();
     
         if Some('{') != self.current_char {
-            let location = self.get_pos();
+            let location = self.current_location();
             return Err(LexicalError {
                 error: Type::InvalidUnicodeEscape,
-                location: SrcSpan {
+                location: Location {
                     start : location,
                     end: location,
                 },
@@ -411,10 +411,10 @@ where
         let hex_digits = self.read_hex_digits()?;
 
         if Some('}') != self.current_char {
-            let location = self.get_pos();
+            let location = self.current_location();
             return Err(LexicalError {
                 error: Type::InvalidUnicodeEscape,
-                location: SrcSpan {
+                location: Location {
                     start : location,
                     end: location,
                 },
@@ -424,10 +424,10 @@ where
         let _ = self.advance_char();
 
         if !(1..=6).contains(&hex_digits.len()) {
-           let location = self.get_pos();
+           let location = self.current_location();
             return Err(LexicalError {
                 error: Type::InvalidUnicodeEscape,
-                location: SrcSpan {
+                location: Location {
                     start : location,
                     end: location,
                 },
@@ -469,10 +469,10 @@ where
             hex_digits.push(chr);
 
             if !chr.is_ascii_hexdigit() {
-               let location = self.get_pos();
+               let location = self.current_location();
             return Err(LexicalError {
                 error: Type::InvalidUnicodeEscape,
-                location: SrcSpan {
+                location: Location {
                     start : location,
                     end: location,
                 },
@@ -492,10 +492,10 @@ where
             let token_end = self.current_location;
 
             if let Some('=') = self.current_char {
-                let location = self.get_pos();
+                let location = self.current_location();
                 return Err(LexicalError {
                     error: Type::InvalidTripleEqual,
-                    location: SrcSpan {
+                    location: Location {
                         start : location,
                         end: location,
                     },
@@ -904,10 +904,6 @@ where
 
     fn is_number_start(ch: char) -> bool {
         ch.is_ascii_digit()
-    }
-
-    fn get_pos(&self) -> u32 {
-        self.loc0
     }
 }
 
