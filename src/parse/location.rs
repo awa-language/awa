@@ -1,4 +1,4 @@
-#[derive(Debug, PartialEq, Eq, Default, Clone, Copy, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, PartialEq, Eq, Default, Clone, Copy)]
 pub struct Location {
     pub start: u32,
     pub end: u32,

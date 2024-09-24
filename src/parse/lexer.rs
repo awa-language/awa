@@ -2,6 +2,8 @@ use crate::parse::lexical_error::{LexicalError, Type};
 use crate::parse::token::Token;
 use std::char;
 
+use super::location::Location;
+
 #[derive(Debug)]
 pub struct Lexer<T: Iterator<Item = (u32, char)>> {
     input_chars: T,
@@ -175,9 +177,9 @@ where
             ch => Err(LexicalError {
                 error: Type::UnrecognizedToken { token: ch },
                 location: Location {
-                            start: token_start,
-                            end: token_start,
-                        },
+                    start: token_start,
+                    end: token_start,
+                },
             }),
         }
     }
@@ -214,7 +216,7 @@ where
             match self.advance_char() {
                 Some(ch) if ch.is_ascii_digit() => number.push(ch),
                 Some('.') => {
-                    end_location = self.current_location;
+                    let end_location = self.current_location;
                     if number.is_empty() || has_floating_point {
                         return Err(LexicalError {
                             error: Type::InvalidNumberFormat,
@@ -233,22 +235,22 @@ where
                     return Err(LexicalError {
                         error: Type::UnexpectedNumberEnd,
                         location: Location {
-                                start: start_location,
-                                end: start_location,
-                            },
+                            start: start_location,
+                            end: start_location,
+                        },
                     });
                 }
             };
         }
 
         if number.is_empty() {
-            let start_location = self.current_location();
+            let start_location = self.current_location;
             return Err(LexicalError {
                 error: Type::InvalidNumberFormat,
                 location: Location {
-                            start: start_location,
-                            end: start_location,
-                        },
+                    start: start_location,
+                    end: start_location,
+                },
             });
         }
 
@@ -274,7 +276,6 @@ where
     }
 
     fn lex_char(&mut self) -> Result<(), LexicalError> {
-        let token_start = self.current_location;
         let start_location = self.current_location;
 
         let _ = self.advance_char();
@@ -315,7 +316,6 @@ where
     }
 
     fn lex_string(&mut self) -> Result<(), LexicalError> {
-        let token_start = self.current_location;
         let start_location = self.current_location;
 
         let _ = self.advance_char();
@@ -380,9 +380,9 @@ where
             return Err(LexicalError {
                 error: Type::BadEscapeCharacter,
                 location: Location {
-                            start: start_location,
-                            end: start_location,
-                        },
+                    start: start_location,
+                    end: start_location,
+                },
             });
         }
 
@@ -391,13 +391,13 @@ where
 
     fn lex_unicode_escape(&mut self, string: &mut String) -> Result<(), LexicalError> {
         let _ = self.advance_char();
-    
+        let start_location = self.current_location;
+
         if Some('{') != self.current_char {
-            let start_location = self.current_location;
             return Err(LexicalError {
                 error: Type::InvalidUnicodeEscape,
                 location: Location {
-                    start : start_location,
+                    start: start_location,
                     end: start_location,
                 },
             });
@@ -410,23 +410,24 @@ where
             return Err(LexicalError {
                 error: Type::InvalidUnicodeEscape,
                 location: Location {
-                    start : start_location,
+                    start: start_location,
                     end: end_location,
                 },
-            }); 
+            });
         }
 
         let _ = self.advance_char();
 
         if !(1..=6).contains(&hex_digits.len()) {
-           let end_location = self.current_location;
+            let end_location = self.current_location;
+
             return Err(LexicalError {
                 error: Type::InvalidUnicodeEscape,
                 location: Location {
-                    start : start_location,
+                    start: start_location,
                     end: end_location,
                 },
-            }); 
+            });
         }
 
         if char::from_u32(
@@ -435,8 +436,14 @@ where
         )
         .is_none()
         {
+            let end_location = self.current_location;
+
             return Err(LexicalError {
                 error: Type::InvalidUnicodeEscape,
+                location: Location {
+                    start: start_location,
+                    end: end_location,
+                },
             });
         }
 
@@ -449,6 +456,7 @@ where
 
     fn read_hex_digits(&mut self) -> Result<String, LexicalError> {
         let mut hex_digits = String::new();
+        let start_location = self.current_location;
 
         loop {
             self.advance_char();
@@ -464,14 +472,14 @@ where
             hex_digits.push(chr);
 
             if !chr.is_ascii_hexdigit() {
-               let end_location = self.current_location;
-            return Err(LexicalError {
-                error: Type::InvalidUnicodeEscape,
-                location: Location {
-                    start : start_location,
-                    end: end_location,
-                },
-            }); 
+                let end_location = self.current_location;
+                return Err(LexicalError {
+                    error: Type::InvalidUnicodeEscape,
+                    location: Location {
+                        start: start_location,
+                        end: end_location,
+                    },
+                });
             }
         }
 
@@ -488,11 +496,12 @@ where
             let token_end = self.current_location;
 
             if let Some('=') = self.current_char {
-                let end_location = self.current_location();
+                let end_location = self.current_location;
+
                 return Err(LexicalError {
                     error: Type::InvalidTripleEqual,
                     location: Location {
-                        start : start_location,
+                        start: start_location,
                         end: end_location,
                     },
                 });
