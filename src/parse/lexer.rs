@@ -237,7 +237,6 @@ where
                                 start: location,
                                 end: location,
                             },
-
                     });
                 }
             };
@@ -251,7 +250,6 @@ where
                             start: token_start,
                             end: token_start,
                         },
- 
             });
         }
 
@@ -297,7 +295,6 @@ where
                             start: token_start,
                             end: token_start,
                         },
-
                     });
                 }
             }
@@ -387,7 +384,6 @@ where
                             start: token_start,
                             end: token_start,
                         },
- 
             });
         }
 
