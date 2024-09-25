@@ -1,5 +1,5 @@
 use crate::lexer::{
-    lexer::{self, get_lexer, TokenSpan},
+    lexer::{get_lexer, TokenSpan},
     token::Token,
 };
 
