@@ -1,7 +1,8 @@
 use crate::parse::lexical_error::{LexicalError, Type};
 use crate::parse::token::Token;
 use std::char;
-use std::intrinsics::mir::Checked;
+
+use super::location::Location;
 
 #[derive(Debug)]
 pub struct Lexer<T: Iterator<Item = (u32, char)>> {
@@ -109,6 +110,7 @@ where
     }
 
     fn consume_character(&mut self, ch: char) -> Result<(), LexicalError> {
+        let token_start = self.current_location;
         match ch {
             '"' => self.lex_string(),
             '\'' => self.lex_char(),
@@ -195,6 +197,10 @@ where
             }
             ch => Err(LexicalError {
                 error: Type::UnrecognizedToken { token: ch },
+                location: Location {
+                    start: token_start,
+                    end: token_start,
+                },
             }),
         }
     }
@@ -231,9 +237,14 @@ where
             match self.advance_char() {
                 Some(ch) if ch.is_ascii_digit() || ch == '-' => number.push(ch),
                 Some('.') => {
+                    let end_location = self.current_location;
                     if number.is_empty() || has_floating_point {
                         return Err(LexicalError {
                             error: Type::InvalidNumberFormat,
+                            location: Location {
+                                start: start_location,
+                                end: end_location,
+                            },
                         });
                     }
 
@@ -244,14 +255,23 @@ where
                 None => {
                     return Err(LexicalError {
                         error: Type::UnexpectedNumberEnd,
+                        location: Location {
+                            start: start_location,
+                            end: start_location,
+                        },
                     });
                 }
             };
         }
 
         if number.is_empty() {
+            let start_location = self.current_location;
             return Err(LexicalError {
                 error: Type::InvalidNumberFormat,
+                location: Location {
+                    start: start_location,
+                    end: start_location,
+                },
             });
         }
 
@@ -292,6 +312,10 @@ where
                 None => {
                     return Err(LexicalError {
                         error: Type::UnexpectedCharEnd,
+                        location: Location {
+                            start: start_location,
+                            end: start_location,
+                        },
                     });
                 }
             }
@@ -328,6 +352,10 @@ where
                 None => {
                     return Err(LexicalError {
                         error: Type::UnexpectedStringEnd,
+                        location: Location {
+                            start: start_location,
+                            end: start_location,
+                        },
                     });
                 }
             }
@@ -349,7 +377,9 @@ where
     }
 
     fn lex_escape_character(&mut self, string: &mut String) -> Result<(), LexicalError> {
+        let start_location = self.current_location;
         if let Some(ch) = self.current_char {
+            let end_location = self.current_location;
             match ch {
                 'f' | 'n' | 'r' | 't' | '"' | '\\' => {
                     let _ = self.advance_char();
@@ -360,12 +390,20 @@ where
                 _ => {
                     return Err(LexicalError {
                         error: Type::BadEscapeCharacter,
+                        location: Location {
+                            start: start_location,
+                            end: end_location,
+                        },
                     })
                 }
             }
         } else {
             return Err(LexicalError {
                 error: Type::BadEscapeCharacter,
+                location: Location {
+                    start: start_location,
+                    end: start_location,
+                },
             });
         }
 
@@ -374,26 +412,42 @@ where
 
     fn lex_unicode_escape(&mut self, string: &mut String) -> Result<(), LexicalError> {
         let _ = self.advance_char();
+        let start_location = self.current_location;
 
         if Some('{') != self.current_char {
             return Err(LexicalError {
                 error: Type::InvalidUnicodeEscape,
+                location: Location {
+                    start: start_location,
+                    end: start_location,
+                },
             });
         }
 
         let hex_digits = self.read_hex_digits()?;
 
         if Some('}') != self.current_char {
+            let end_location = self.current_location;
             return Err(LexicalError {
                 error: Type::InvalidUnicodeEscape,
+                location: Location {
+                    start: start_location,
+                    end: end_location,
+                },
             });
         }
 
         let _ = self.advance_char();
 
         if !(1..=6).contains(&hex_digits.len()) {
+            let end_location = self.current_location;
+
             return Err(LexicalError {
                 error: Type::InvalidUnicodeEscape,
+                location: Location {
+                    start: start_location,
+                    end: end_location,
+                },
             });
         }
 
@@ -403,8 +457,14 @@ where
         )
         .is_none()
         {
+            let end_location = self.current_location;
+
             return Err(LexicalError {
                 error: Type::InvalidUnicodeEscape,
+                location: Location {
+                    start: start_location,
+                    end: end_location,
+                },
             });
         }
 
@@ -417,6 +477,7 @@ where
 
     fn read_hex_digits(&mut self) -> Result<String, LexicalError> {
         let mut hex_digits = String::new();
+        let start_location = self.current_location;
 
         loop {
             self.advance_char();
@@ -432,8 +493,13 @@ where
             hex_digits.push(chr);
 
             if !chr.is_ascii_hexdigit() {
+                let end_location = self.current_location;
                 return Err(LexicalError {
                     error: Type::InvalidUnicodeEscape,
+                    location: Location {
+                        start: start_location,
+                        end: end_location,
+                    },
                 });
             }
         }
@@ -442,6 +508,7 @@ where
     }
 
     fn lex_equal(&mut self) -> Result<(), LexicalError> {
+        let start_location = self.current_location;
         let token_start = self.current_location;
         let _ = self.advance_char();
 
@@ -450,8 +517,14 @@ where
             let token_end = self.current_location;
 
             if let Some('=') = self.current_char {
+                let end_location = self.current_location;
+
                 return Err(LexicalError {
                     error: Type::InvalidTripleEqual,
+                    location: Location {
+                        start: start_location,
+                        end: end_location,
+                    },
                 });
             };
 
