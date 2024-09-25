@@ -1,18 +1,22 @@
-use crate::parse::lexical_error::{LexicalError, Type};
-use crate::parse::token::Token;
+use crate::lexer::lexical_error::{LexicalError, Type};
+use crate::lexer::token::Token;
+use itertools::{peek_nth, PeekNth};
 use std::char;
 
 use super::location::Location;
+use super::newline_handler::NewlineHandler;
 
 pub fn get_lexer(input: &str) -> impl Iterator<Item = LexResult> + '_ {
     let chars = input.char_indices().map(|(i, c)| (i as u32, c));
 
-    Lexer::new(chars)
+    let newline_handler = NewlineHandler::new(chars);
+
+    Lexer::new(newline_handler)
 }
 
 #[derive(Debug)]
 pub struct Lexer<T: Iterator<Item = (u32, char)>> {
-    input_chars: T,
+    input: PeekNth<T>,
     pending_tokens: Vec<TokenSpan>,
     current_char: Option<char>,
     current_location: u32,
@@ -33,7 +37,7 @@ where
 {
     pub fn new(input: T) -> Self {
         let mut lexer = Lexer {
-            input_chars: input,
+            input: peek_nth(input),
             pending_tokens: Vec::new(),
             current_char: None,
             current_location: 0,
@@ -47,7 +51,7 @@ where
     fn advance_char(&mut self) -> Option<char> {
         let char = self.current_char;
 
-        match self.input_chars.next() {
+        match self.input.next() {
             Some((location, ch)) => {
                 self.current_location = location;
                 self.current_char = Some(ch);
@@ -61,15 +65,11 @@ where
     }
 
     fn peek_char(&mut self) -> Option<char> {
-        let current_char = self.current_char;
-        let current_location = self.current_location;
-
-        let next_char = self.advance_char();
-
-        self.current_char = current_char;
-        self.current_location = current_location;
-
-        next_char
+        if let Some((_, ch)) = self.input.peek_nth(0) {
+            Some(*ch)
+        } else {
+            None
+        }
     }
 
     fn inner_next(&mut self) -> LexResult {
