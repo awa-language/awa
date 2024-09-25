@@ -29,7 +29,11 @@ jobs:
           toolchain: stable
       - uses: Swatinem/rust-cache@v2
 
-      - run: |
-          cargo check
-          cargo test
-          cargo build --release
+      - name: Cargo check
+        run: cargo check
+
+      - name: Cargo test
+        run: cargo test
+
+      - name: Cargo build release
+        run: cargo build --release
