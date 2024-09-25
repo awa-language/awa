@@ -1,7 +1,6 @@
 use crate::parse::lexical_error::{LexicalError, Type};
 use crate::parse::token::Token;
 use std::char;
-use std::intrinsics::mir::Checked;
 
 use super::location::Location;
 
