@@ -5,3 +5,5 @@ edition = "2021"
 
 [dependencies]
 ecow = "0.2.2"
+itertools = "0.13.0"
+pretty_assertions = "1.4.1"
