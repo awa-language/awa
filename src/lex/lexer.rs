@@ -14,10 +14,10 @@ use super::newline_handler::NewlineHandler;
 pub fn lex(input: &str) -> Result<impl Iterator<Item = LexResult> + '_, String> {
     let chars = input
         .char_indices()
-        .map(|(i, c)| {
-            u32::try_from(i)
-                .map_err(|e| format!("Failed to convert index: {e}"))
-                .map(|index| (index, c))
+        .map(|(byte_index, char)| {
+            u32::try_from(byte_index)
+                .map_err(|err| format!("Failed to convert index: {err}"))
+                .map(|index| (index, char))
         })
         .collect::<Result<Vec<_>, _>>()?;
 
@@ -911,7 +911,7 @@ where
         }
     }
 
-    fn lex_single_char(&mut self, t: Token) {
+    fn lex_single_char(&mut self, token: Token) {
         let token_start = self.current_location;
         let _ = self.advance_char().expect("lex_single_char");
         let token_end = self.current_location;
@@ -919,7 +919,7 @@ where
         self.emit(TokenSpan {
             start: token_start,
             end: token_end,
-            token: t,
+            token,
         });
     }
 
@@ -1000,7 +1000,7 @@ where
                 end: _,
                 token: Token::EndOfFile,
             }) => None,
-            r => Some(r),
+            result => Some(result),
         }
     }
 }
