@@ -1,4 +1,4 @@
-name: Cargo test
+name: Cargo CI
 
 on:
   pull_request:
@@ -29,11 +29,17 @@ jobs:
           toolchain: stable
       - uses: Swatinem/rust-cache@v2
 
+      - name: Install Clippy
+        run: rustup component add clippy
+
       - name: Cargo check
         run: cargo check
 
       - name: Cargo test
         run: cargo test
+
+      - name: Run Clippy
+        run: cargo clippy
 
       - name: Cargo build release
         run: cargo build --release
