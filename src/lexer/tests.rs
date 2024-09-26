@@ -94,25 +94,25 @@ fn test_int_lexing() {
 }
 
 #[test]
-fn test_number_lexing_failed() {
-    let inputs = ["123.", "123.."];
-    let expected_errors = vec![
-        vec![Err(LexicalError {
-            error: Type::InvalidNumberFormat,
-            location: Location { start: 3, end: 3 },
-        })],
-        vec![
-            Err(LexicalError {
-                error: Type::InvalidNumberFormat,
-                location: Location { start: 0, end: 4 },
-            }),
-        ],
+fn test_int_lexing_failed() {
+    let input = "123a456";
+    let lex = get_lexer(&input).collect_vec();
+
+    let expected_error = [
+        Err(LexicalError {
+            error: Type::UnexpectedNumberEnd,
+            location: Location { start: 4, end: 4 },
+        }),
+        Ok(TokenSpan {
+            token: Token::IntLiteral {
+                value: "456".into(),
+            },
+            start: 4,
+            end: 6,
+        }),
     ];
 
-    for (i, input) in inputs.iter().enumerate() {
-        let lex: Vec<Result<TokenSpan, LexicalError>> = get_lexer(input).collect();
-        assert_eq!(lex, expected_errors[i], "Test failed for input: {}", input);
-    }
+    assert_eq!(lex, expected_error, "Test failed for input: {}", input);
 }
 
 #[test]
@@ -133,19 +133,16 @@ fn test_float_lexing() {
 
 #[test]
 fn test_float_lexing_failed() {
-    let inputs = ["123a456", "123.123.123"];
+    let inputs = ["123.", "123..", "123.123.123"];
     let expected_errors = vec![
+        vec![Err(LexicalError {
+            error: Type::InvalidNumberFormat,
+            location: Location { start: 3, end: 3 },
+        })],
         vec![
             Err(LexicalError {
-            error: Type::UnexpectedNumberEnd,
-            location: Location { start: 4, end: 4 },
-            }),
-            Ok(TokenSpan {
-                token: Token::IntLiteral {
-                    value: "456".into(),
-                },
-                start: 4,
-                end: 6,
+                error: Type::InvalidNumberFormat,
+                location: Location { start: 0, end: 4 },
             }),
         ],
         vec![
