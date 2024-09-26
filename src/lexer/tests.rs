@@ -1,5 +1,7 @@
 use crate::lexer::{
     lexer::{get_lexer, TokenSpan},
+    lexical_error::{LexicalError, Type},
+    location::Location,
     token::Token,
 };
 
@@ -48,9 +50,7 @@ fn test_newlines() {
         Ok(TokenSpan {
             start: 0,
             end: 1,
-            token: Token::Name {
-                value: "a".into(),
-            },
+            token: Token::Name { value: "a".into() },
         }),
         Ok(TokenSpan {
             start: 1,
@@ -65,11 +65,63 @@ fn test_newlines() {
         Ok(TokenSpan {
             start: 4,
             end: 4,
-            token: Token::Name {
-                value: "b".into(),
-            },
+            token: Token::Name { value: "b".into() },
         }),
     ];
 
     assert_eq!(lex, expected);
+}
+
+#[test]
+fn test_int_lexing() {
+    let input = "123";
+    let lex = get_lexer(&input).collect_vec();
+
+    let expected = [Ok(TokenSpan {
+        token: Token::IntLiteral {
+            value: "123".into(),
+        },
+        start: 0,
+        end: 2,
+    })];
+
+    assert_eq!(lex, expected);
+}
+
+#[test]
+fn test_number_lexing_failed() {
+    let inputs = ["123.", "123.."];
+    let expected_errors = vec![
+        vec![Err(LexicalError {
+            error: Type::InvalidNumberFormat,
+            location: Location { start: 3, end: 3 },
+        })],
+        vec![
+            Err(LexicalError {
+                error: Type::InvalidNumberFormat,
+                location: Location { start: 0, end: 4 },
+            }),
+        ],
+    ];
+
+    for (i, input) in inputs.iter().enumerate() {
+        let lex: Vec<Result<TokenSpan, LexicalError>> = get_lexer(input).collect();
+        assert_eq!(lex, expected_errors[i], "Test failed for input: {}", input);
+    }
+}
+
+#[test]
+fn test_float_lexing() {
+    let input = "123.123";
+    let lex = get_lexer(&input).collect_vec();
+
+    let expected = [Ok(TokenSpan {
+        token: Token::FloatLiteral {
+            value: "123.123".into(),
+        },
+        start: 0,
+        end: 6,
+    })];
+
+    assert_eq!(lex, expected)
 }
