@@ -285,12 +285,12 @@ where
             });
         }
 
-        let token = if !has_floating_point {
-            Token::IntLiteral {
+        let token = if has_floating_point {
+            Token::FloatLiteral {
                 value: number.into(),
             }
         } else {
-            Token::FloatLiteral {
+            Token::IntLiteral {
                 value: number.into(),
             }
         };
