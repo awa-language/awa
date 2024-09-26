@@ -116,6 +116,22 @@ fn test_int_lexing_failed() {
 }
 
 #[test]
+fn test_negative_int_lexing() {
+    let input = "-123";
+    let lex = get_lexer(&input).collect_vec();
+
+    let expected = [Ok(TokenSpan {
+        token: Token::IntLiteral {
+            value: "-123".into(),
+        },
+        start: 0,
+        end: 3,
+    })];
+
+    assert_eq!(lex, expected);
+}
+
+#[test]
 fn test_float_lexing() {
     let input = "123.123";
     let lex = get_lexer(&input).collect_vec();
@@ -164,4 +180,20 @@ fn test_float_lexing_failed() {
         let lex: Vec<Result<TokenSpan, LexicalError>> = get_lexer(input).collect();
         assert_eq!(lex, expected_errors[i], "Test failed for input: {}", input);
     }
+}
+
+#[test]
+fn test_negative_float_lexing() {
+    let input = "-123.123";
+    let lex = get_lexer(&input).collect_vec();
+
+    let expected = [Ok(TokenSpan {
+        token: Token::FloatLiteral {
+            value: "-123.123".into(),
+        },
+        start: 0,
+        end: 7,
+    })];
+
+    assert_eq!(lex, expected);
 }
