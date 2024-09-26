@@ -3,6 +3,13 @@ name = "awa"
 version = "0.1.0"
 edition = "2021"
 
+[lints.rust]
+unsafe_code = "forbid"
+
+[lints.clippy]
+all = "deny"
+pedantic = "warn"
+
 [dependencies]
 ecow = "0.2.2"
 itertools = "0.13.0"

@@ -1,17 +1,20 @@
-use crate::lexer::{
-    lexer::{get_lexer, TokenSpan},
-    lexical_error::{LexicalError, Type},
-    location::Location,
-    token::Token,
-};
-
 use itertools::Itertools;
 use pretty_assertions::assert_eq;
 
+use crate::lex::{
+    lexer::{lex, TokenSpan},
+    token::Token,
+};
+
+use super::{
+    lexical_error::{LexicalError, Type},
+    location::Location,
+};
+
 #[test]
-fn test_int32_var() {
+fn test_int32_var() -> Result<(), String> {
     let input = "var name int32 =";
-    let lex = get_lexer(&input).collect_vec();
+    let lex = lex(input)?.collect_vec();
 
     let expected = [
         Ok(TokenSpan {
@@ -39,12 +42,13 @@ fn test_int32_var() {
     ];
 
     assert_eq!(lex, expected);
+    Ok(())
 }
 
 #[test]
-fn test_newlines() {
+fn test_newlines() -> Result<(), String> {
     let input = "a\r\n\nb";
-    let lex = get_lexer(&input).collect_vec();
+    let lex = lex(input)?.collect_vec();
 
     let expected = [
         Ok(TokenSpan {
@@ -70,12 +74,13 @@ fn test_newlines() {
     ];
 
     assert_eq!(lex, expected);
+    Ok(())
 }
 
 #[test]
-fn test_int_lexing() {
+fn test_int_lexing() -> Result<(), String> {
     let input = "123";
-    let lex = get_lexer(&input).collect_vec();
+    let lex = lex(input)?.collect_vec();
 
     let expected = [Ok(TokenSpan {
         token: Token::IntLiteral {
@@ -86,34 +91,34 @@ fn test_int_lexing() {
     })];
 
     assert_eq!(lex, expected);
+    Ok(())
 }
 
 #[test]
-fn test_number_lexing_failed() {
+fn test_number_lexing_failed() -> Result<(), String> {
     let inputs = ["123.", "123.."];
-    let expected_errors = vec![
+    let expected_errors = [
         vec![Err(LexicalError {
             error: Type::InvalidNumberFormat,
             location: Location { start: 3, end: 3 },
         })],
-        vec![
-            Err(LexicalError {
-                error: Type::InvalidNumberFormat,
-                location: Location { start: 0, end: 4 },
-            }),
-        ],
+        vec![Err(LexicalError {
+            error: Type::InvalidNumberFormat,
+            location: Location { start: 0, end: 4 },
+        })],
     ];
 
     for (i, input) in inputs.iter().enumerate() {
-        let lex: Vec<Result<TokenSpan, LexicalError>> = get_lexer(input).collect();
+        let lex: Vec<Result<TokenSpan, LexicalError>> = lex(input)?.collect();
         assert_eq!(lex, expected_errors[i], "Test failed for input: {}", input);
     }
+    Ok(())
 }
 
 #[test]
-fn test_float_lexing() {
+fn test_float_lexing() -> Result<(), String> {
     let input = "123.123";
-    let lex = get_lexer(&input).collect_vec();
+    let lex = lex(input)?.collect_vec();
 
     let expected = [Ok(TokenSpan {
         token: Token::FloatLiteral {
@@ -123,5 +128,6 @@ fn test_float_lexing() {
         end: 6,
     })];
 
-    assert_eq!(lex, expected)
+    assert_eq!(lex, expected);
+    Ok(())
 }

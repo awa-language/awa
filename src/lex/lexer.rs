@@ -1,17 +1,29 @@
-use crate::lexer::lexical_error::{LexicalError, Type};
-use crate::lexer::token::Token;
+use crate::lex::lexical_error::{LexicalError, Type};
+use crate::lex::token::Token;
 use itertools::{peek_nth, PeekNth};
 use std::char;
 
 use super::location::Location;
 use super::newline_handler::NewlineHandler;
 
-pub fn get_lexer(input: &str) -> impl Iterator<Item = LexResult> + '_ {
-    let chars = input.char_indices().map(|(i, c)| (i as u32, c));
+/// Lexes the input string into tokens.
+///
+/// # Errors
+/// This function returns an error if the input string character indices cannot be
+/// converted into `u32`. This would happen if the string is too large for the conversion.
+pub fn lex(input: &str) -> Result<impl Iterator<Item = LexResult> + '_, String> {
+    let chars = input
+        .char_indices()
+        .map(|(i, c)| {
+            u32::try_from(i)
+                .map_err(|e| format!("Failed to convert index: {e}"))
+                .map(|index| (index, c))
+        })
+        .collect::<Result<Vec<_>, _>>()?;
 
-    let newline_handler = NewlineHandler::new(chars);
+    let newline_handler = NewlineHandler::new(chars.into_iter());
 
-    Lexer::new(newline_handler)
+    Ok(Lexer::new(newline_handler))
 }
 
 #[derive(Debug)]
@@ -98,10 +110,9 @@ where
                 self.consume_character(ch)?;
             }
 
-            if check_for_binary_minus {
-                if Some('-') == self.current_char && self.is_number_start('-') {
-                    self.lex_single_char(Token::Minus)
-                }
+            if check_for_binary_minus && Some('-') == self.current_char && self.is_number_start('-')
+            {
+                self.lex_single_char(Token::Minus);
             }
         } else {
             self.emit(TokenSpan {

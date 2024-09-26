@@ -9,7 +9,7 @@ impl Location {
         Self { start, end }
     }
 
-    pub fn contains(&self, byte_index: u32) -> bool {
+    pub fn contains(self, byte_index: u32) -> bool {
         byte_index >= self.start && byte_index <= self.end
     }
 }
