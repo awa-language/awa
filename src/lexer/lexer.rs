@@ -237,10 +237,14 @@ where
         let mut number = String::new();
 
         let mut has_floating_point = false;
+        let mut last_is_digit = true;
 
         loop {
             match self.advance_char() {
-                Some(ch) if ch.is_ascii_digit() || ch == '-' => number.push(ch),
+                Some(ch) if ch.is_ascii_digit() || ch == '-' => {
+                    number.push(ch);
+                    last_is_digit = true;
+                }
                 Some('.') => {
                     let end_location = self.current_location;
                     if number.is_empty() || has_floating_point {
@@ -254,10 +258,10 @@ where
                     }
 
                     has_floating_point = true;
+                    last_is_digit = false;
                     number.push('.');
                 }
-                Some(_) => break,
-                None => {
+                Some(_) => {
                     return Err(LexicalError {
                         error: Type::UnexpectedNumberEnd,
                         location: Location {
@@ -266,10 +270,11 @@ where
                         },
                     });
                 }
+                None => break,
             };
         }
 
-        if number.is_empty() {
+        if number.is_empty() || !last_is_digit {
             let start_location = self.current_location;
             return Err(LexicalError {
                 error: Type::InvalidNumberFormat,
@@ -280,7 +285,7 @@ where
             });
         }
 
-        let token = if has_floating_point {
+        let token = if !has_floating_point {
             Token::IntLiteral {
                 value: number.into(),
             }
