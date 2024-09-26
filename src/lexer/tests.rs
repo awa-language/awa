@@ -78,7 +78,7 @@ fn test_newlines() {
 }
 
 #[test]
-fn test_int_lexing() {
+fn test_int_literal_lexing() {
     let input = "123";
     let lex = get_lexer(&input).collect_vec();
 
@@ -94,7 +94,7 @@ fn test_int_lexing() {
 }
 
 #[test]
-fn test_int_lexing_failed() {
+fn test_int_literal_lexing_failed() {
     let input = "123a456";
     let lex = get_lexer(&input).collect_vec();
 
@@ -116,7 +116,7 @@ fn test_int_lexing_failed() {
 }
 
 #[test]
-fn test_negative_int_lexing() {
+fn test_negative_int_literal_lexing() {
     let input = "-123";
     let lex = get_lexer(&input).collect_vec();
 
@@ -132,7 +132,7 @@ fn test_negative_int_lexing() {
 }
 
 #[test]
-fn test_float_lexing() {
+fn test_float_literal_lexing() {
     let input = "123.123";
     let lex = get_lexer(&input).collect_vec();
 
@@ -148,7 +148,7 @@ fn test_float_lexing() {
 }
 
 #[test]
-fn test_float_lexing_failed() {
+fn test_float_literal_lexing_failed() {
     let inputs = ["123.", "123..", "123.123.123"];
     let expected_errors = vec![
         vec![Err(LexicalError {
@@ -183,7 +183,7 @@ fn test_float_lexing_failed() {
 }
 
 #[test]
-fn test_negative_float_lexing() {
+fn test_negative_float_literal_lexing() {
     let input = "-123.123";
     let lex = get_lexer(&input).collect_vec();
 
