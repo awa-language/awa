@@ -262,11 +262,12 @@ where
                     number.push('.');
                 }
                 Some(_) => {
+                    let end_location = self.current_location;
                     return Err(LexicalError {
                         error: Type::UnexpectedNumberEnd,
                         location: Location {
-                            start: start_location,
-                            end: start_location,
+                            start: end_location,
+                            end: end_location,
                         },
                     });
                 }
