@@ -1,15 +1,28 @@
-use crate::lexer::lexical_error::{LexicalError, Type};
-use crate::lexer::token::Token;
+use crate::lex::lexical_error::{LexicalError, Type};
+use crate::lex::token::Token;
 use itertools::{peek_nth, PeekNth};
 use std::char;
 
 use super::location::Location;
 use super::newline_handler::NewlineHandler;
 
-pub fn get_lexer(input: &str) -> impl Iterator<Item = LexResult> + '_ {
-    let chars = input.char_indices().map(|(i, c)| (i as u32, c));
+/// Lexes the input string into tokens.
+///
+/// # Panics
+///
+/// This function will panic if the input string length exceeds the maximum value
+/// of `u32`, as it is the largest supported character count. This would only occur
+/// if a single source file is approximately 4 GB in size, which is highly unlikely.
+pub fn lex(input: &str) -> impl Iterator<Item = LexResult> + '_ {
+    let chars = input
+        .char_indices()
+        .map(|(byte_index, char)| {
+            let index = u32::try_from(byte_index).expect("Lex input string is too long");
+            (index, char)
+        })
+        .collect::<Vec<_>>();
 
-    let newline_handler = NewlineHandler::new(chars);
+    let newline_handler = NewlineHandler::new(chars.into_iter());
 
     Lexer::new(newline_handler)
 }
@@ -98,10 +111,9 @@ where
                 self.consume_character(ch)?;
             }
 
-            if check_for_binary_minus {
-                if Some('-') == self.current_char && self.is_number_start('-') {
-                    self.lex_single_char(Token::Minus)
-                }
+            if check_for_binary_minus && Some('-') == self.current_char && self.is_number_start('-')
+            {
+                self.lex_single_char(Token::Minus);
             }
         } else {
             self.emit(TokenSpan {
@@ -901,7 +913,7 @@ where
         }
     }
 
-    fn lex_single_char(&mut self, t: Token) {
+    fn lex_single_char(&mut self, token: Token) {
         let token_start = self.current_location;
         let _ = self.advance_char().expect("lex_single_char");
         let token_end = self.current_location;
@@ -909,7 +921,7 @@ where
         self.emit(TokenSpan {
             start: token_start,
             end: token_end,
-            token: t,
+            token,
         });
     }
 
@@ -990,7 +1002,7 @@ where
                 end: _,
                 token: Token::EndOfFile,
             }) => None,
-            r => Some(r),
+            result => Some(result),
         }
     }
 }

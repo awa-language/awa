@@ -71,8 +71,8 @@ pub enum Token {
 impl Token {}
 
 impl fmt::Display for Token {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let s = match self {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let str = match self {
             Self::Name { value }
             | Self::IntLiteral { value }
             | Self::FloatLiteral { value }
@@ -137,6 +137,7 @@ impl fmt::Display for Token {
             Self::Char => "char",
             Self::String => "string",
         };
-        write!(f, "`{s}`")
+
+        write!(formatter, "`{str}`")
     }
 }

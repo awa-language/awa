@@ -29,10 +29,7 @@ where
     }
 
     pub fn peek_next(&mut self) -> Option<(u32, char)> {
-        match self.input.peek_nth(0) {
-            Some(next_item) => Some(*next_item),
-            None => None,
-        }
+        self.input.peek_nth(0).copied()
     }
 }
 
