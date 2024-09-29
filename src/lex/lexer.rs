@@ -8,22 +8,23 @@ use super::newline_handler::NewlineHandler;
 
 /// Lexes the input string into tokens.
 ///
-/// # Errors
-/// This function returns an error if the input string character indices cannot be
-/// converted into `u32`. This would happen if the string is too large for the conversion.
-pub fn lex(input: &str) -> Result<impl Iterator<Item = LexResult> + '_, String> {
+/// # Panics
+///
+/// This function will panic if the input string length exceeds the maximum value
+/// of `u32`, as it is the largest supported character count. This would only occur
+/// if a single source file is approximately 4 GB in size, which is highly unlikely.
+pub fn lex(input: &str) -> impl Iterator<Item = LexResult> + '_ {
     let chars = input
         .char_indices()
         .map(|(byte_index, char)| {
-            u32::try_from(byte_index)
-                .map_err(|err| format!("Failed to convert index: {err}"))
-                .map(|index| (index, char))
+            let index = u32::try_from(byte_index).expect("Lex input string is too long");
+            (index, char)
         })
-        .collect::<Result<Vec<_>, _>>()?;
+        .collect::<Vec<_>>();
 
     let newline_handler = NewlineHandler::new(chars.into_iter());
 
-    Ok(Lexer::new(newline_handler))
+    Lexer::new(newline_handler)
 }
 
 #[derive(Debug)]

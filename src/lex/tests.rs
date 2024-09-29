@@ -12,9 +12,9 @@ use super::{
 };
 
 #[test]
-fn test_int32_var() -> Result<(), String> {
+fn test_int32_var() {
     let input = "var name int32 =";
-    let lex = lex(input)?.collect_vec();
+    let lex = lex(input).collect_vec();
 
     let expected = [
         Ok(TokenSpan {
@@ -42,13 +42,12 @@ fn test_int32_var() -> Result<(), String> {
     ];
 
     assert_eq!(lex, expected);
-    Ok(())
 }
 
 #[test]
-fn test_newlines() -> Result<(), String> {
+fn test_newlines() {
     let input = "a\r\n\nb";
-    let lex = lex(input)?.collect_vec();
+    let lex = lex(input).collect_vec();
 
     let expected = [
         Ok(TokenSpan {
@@ -74,13 +73,12 @@ fn test_newlines() -> Result<(), String> {
     ];
 
     assert_eq!(lex, expected);
-    Ok(())
 }
 
 #[test]
-fn test_int_lexing() -> Result<(), String> {
+fn test_int_lexing() {
     let input = "123";
-    let lex = lex(input)?.collect_vec();
+    let lex = lex(input).collect_vec();
 
     let expected = [Ok(TokenSpan {
         token: Token::IntLiteral {
@@ -91,11 +89,10 @@ fn test_int_lexing() -> Result<(), String> {
     })];
 
     assert_eq!(lex, expected);
-    Ok(())
 }
 
 #[test]
-fn test_number_lexing_failed() -> Result<(), String> {
+fn test_number_lexing_failed() {
     let inputs = ["123.", "123.."];
     let expected_errors = [
         vec![Err(LexicalError {
@@ -109,16 +106,15 @@ fn test_number_lexing_failed() -> Result<(), String> {
     ];
 
     for (i, input) in inputs.iter().enumerate() {
-        let lex: Vec<Result<TokenSpan, LexicalError>> = lex(input)?.collect();
+        let lex: Vec<Result<TokenSpan, LexicalError>> = lex(input).collect();
         assert_eq!(lex, expected_errors[i], "Test failed for input: {}", input);
     }
-    Ok(())
 }
 
 #[test]
-fn test_float_lexing() -> Result<(), String> {
+fn test_float_lexing() {
     let input = "123.123";
-    let lex = lex(input)?.collect_vec();
+    let lex = lex(input).collect_vec();
 
     let expected = [Ok(TokenSpan {
         token: Token::FloatLiteral {
@@ -129,5 +125,4 @@ fn test_float_lexing() -> Result<(), String> {
     })];
 
     assert_eq!(lex, expected);
-    Ok(())
 }
