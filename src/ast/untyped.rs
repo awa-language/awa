@@ -4,17 +4,7 @@ use vec1::Vec1;
 
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub enum UntypedExpression {
-    Int32 {
-        location: Location,
-        value: EcoString,
-    },
-
-    Int64 {
-        location: Location,
-        value: EcoString,
-    },
-
-    Float32 {
+    Int {
         location: Location,
         value: EcoString,
     },
@@ -30,7 +20,7 @@ pub enum UntypedExpression {
         location: Location,
         name: EcoString,
     },
-    Float64 {
+    Float {
         location: Location,
         value: EcoString,
     },
