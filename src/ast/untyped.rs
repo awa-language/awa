@@ -1,10 +1,9 @@
-use crate::ast::location::Location;
-use vec1::Vec1;
+use crate::ast::{location::Location, statement::UntypedStatement};
 use ecow::EcoString;
-
+use vec1::Vec1;
 
 #[derive(Debug, PartialEq, Eq, Clone)]
-pub enum UntypedExpression{
+pub enum UntypedExpression {
     Int32 {
         location: Location,
         value: EcoString,
@@ -44,4 +43,3 @@ pub enum UntypedExpression{
         statements: Vec1<UntypedStatement>,
     },
 }
-
