@@ -2,7 +2,7 @@ use crate::ast::{location::Location, statement::Untyped};
 use ecow::EcoString;
 use vec1::Vec1;
 
-use super::{argument::Untyped as UntypedArgument, assignment::TypeAst};
+use super::{argument::Untyped as UntypedArgument, types::Type};
 
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub enum Expression {
@@ -30,7 +30,7 @@ pub enum Expression {
         location: Location,
         arguments: Vec<UntypedArgument>,
         body: Vec1<Untyped>,
-        return_annotation: Option<TypeAst>,
+        return_annotation: Option<Type>,
     },
     Todo {
         location: Location,

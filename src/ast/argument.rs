@@ -1,6 +1,6 @@
 use ecow::EcoString;
 
-use super::{assignment::TypeAst, location::Location};
+use super::{location::Location, types::Type};
 
 // pub type Typed = Arg<Arc<Type>>;
 pub type Untyped = Argument<()>;
@@ -9,7 +9,7 @@ pub type Untyped = Argument<()>;
 pub struct Argument<T> {
     pub name: Name,
     pub location: Location,
-    pub annotation: Option<TypeAst>,
+    pub annotation: Option<Type>,
     pub type_: T,
 }
 
