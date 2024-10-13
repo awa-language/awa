@@ -36,12 +36,12 @@ fn test_int32_var() {
             Ok(TokenSpan {
                 token: Token::Int,
                 start: 9,
-                end: 14,
+                end: 12,
             }),
             Ok(TokenSpan {
                 token: Token::Equal,
-                start: 15,
-                end: 15,
+                start: 13,
+                end: 13,
             }),
         ],
     }];
