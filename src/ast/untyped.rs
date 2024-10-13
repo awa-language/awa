@@ -1,11 +1,11 @@
-use crate::ast::{location::Location, statement::UntypedStatement};
+use crate::ast::{location::Location, statement::Untyped};
 use ecow::EcoString;
 use vec1::Vec1;
 
-use super::{argument::UntypedArgument, assignment::TypeAst};
+use super::{argument::Untyped as UntypedArgument, assignment::TypeAst};
 
 #[derive(Debug, PartialEq, Eq, Clone)]
-pub enum UntypedExpression {
+pub enum Expression {
     Int {
         location: Location,
         value: EcoString,
@@ -29,7 +29,7 @@ pub enum UntypedExpression {
     Func {
         location: Location,
         arguments: Vec<UntypedArgument>,
-        body: Vec1<UntypedStatement>,
+        body: Vec1<Untyped>,
         return_annotation: Option<TypeAst>,
     },
     Todo {

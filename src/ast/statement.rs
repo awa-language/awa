@@ -1,4 +1,4 @@
-use super::{assignment::Assignment, untyped::UntypedExpression};
+use super::{assignment::Assignment, untyped::Expression};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Statement<TypeT, ExpressionT> {
@@ -6,5 +6,5 @@ pub enum Statement<TypeT, ExpressionT> {
     Assignment(Assignment<TypeT, ExpressionT>),
 }
 
-// pub type TypedStatement = Statement<Arc<Type>, TypedExpression>;
-pub type UntypedStatement = Statement<(), UntypedExpression>;
+// pub type Typed = Statement<Arc<Type>, TypedExpression>;
+pub type Untyped = Statement<(), Expression>;

@@ -2,18 +2,18 @@ use ecow::EcoString;
 
 use super::{assignment::TypeAst, location::Location};
 
-// pub type TypedArgument = Arg<Arc<Type>>;
-pub type UntypedArgument = Argument<()>;
+// pub type Typed = Arg<Arc<Type>>;
+pub type Untyped = Argument<()>;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Argument<T> {
-    pub name: ArgName,
+    pub name: Name,
     pub location: Location,
     pub annotation: Option<TypeAst>,
     pub type_: T,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub enum ArgName {
+pub enum Name {
     Named { name: EcoString, location: Location },
 }
