@@ -26,14 +26,22 @@ pub enum UntypedExpression {
         location: Location,
         name: EcoString,
     },
-    Todo {
-        location: Location,
-        message: Option<Box<Self>>,
-    },
     Func {
         location: Location,
         arguments: Vec<UntypedArgument>,
         body: Vec1<UntypedStatement>,
         return_annotation: Option<TypeAst>,
+    },
+    Todo {
+        location: Location,
+        message: Option<Box<Self>>,
+    },
+    Panic {
+        location: Location,
+        message: Option<Box<Self>>,
+    },
+    Exit {
+        location: Location,
+        code: i32,
     },
 }
