@@ -36,6 +36,7 @@ pub enum Pattern<Type> {
     },
 }
 
+// TODO: move them to some more appropriate location
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum TypeAst {
     Func(TypeAstFunc),
