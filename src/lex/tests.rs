@@ -19,7 +19,7 @@ struct TestCase<'a> {
 #[test]
 fn test_int32_var() {
     let cases = vec![TestCase {
-        input: "var name int32 =",
+        input: "var name int =",
         expected: vec![
             Ok(TokenSpan {
                 token: Token::Var,
@@ -34,14 +34,14 @@ fn test_int32_var() {
                 end: 8,
             }),
             Ok(TokenSpan {
-                token: Token::Int32,
+                token: Token::Int,
                 start: 9,
-                end: 14,
+                end: 12,
             }),
             Ok(TokenSpan {
                 token: Token::Equal,
-                start: 15,
-                end: 15,
+                start: 13,
+                end: 13,
             }),
         ],
     }];

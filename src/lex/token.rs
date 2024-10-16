@@ -50,10 +50,8 @@ pub enum Token {
     Comment,            // '//'
     EndOfFile,          // 'EOF'
     NewLine,            // 'NEWLINE'
-    Int32,              // 'int32'
-    Int64,              // 'int64'
-    Float32,            // 'float32'
-    Float64,            // 'float64'
+    Int,                // 'int'
+    Float,              // 'float'
     Char,               // 'char'
     String,             // 'string'
     Var,                // 'var'
@@ -130,10 +128,8 @@ impl fmt::Display for Token {
             Self::Todo => "todo",
             Self::Pipe => "|",
             Self::PipePipe => "||",
-            Self::Int32 => "int32",
-            Self::Int64 => "int64",
-            Self::Float32 => "float32",
-            Self::Float64 => "float64",
+            Self::Int => "int",
+            Self::Float => "float",
             Self::Char => "char",
             Self::String => "string",
         };
