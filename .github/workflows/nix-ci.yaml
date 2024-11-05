@@ -1,0 +1,29 @@
+name: Nix CI
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+    paths:
+      - '.github/workflows/nix-ci.yaml'
+      - 'flake.nix'
+      - 'flake.lock'
+concurrency:
+  group: "${{ github.workflow }}-${{ github.ref }}"
+  cancel-in-progress: true
+jobs:
+  nix-ci:
+    name: Nix Check
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check Nixpkgs input
+        uses: DeterminateSystems/flake-checker-action@v8
+      - name: Install Nix
+        uses: DeterminateSystems/nix-installer-action@v13
+      - uses: DeterminateSystems/magic-nix-cache-action@main
+      - name: Check flake
+        run: |
+          nix flake check \
+            --all-systems \
+            --no-build
