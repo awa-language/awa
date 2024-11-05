@@ -29,13 +29,13 @@ pub fn lex(input: &str) -> impl Iterator<Item = LexResult> + '_ {
 
 #[derive(Debug)]
 pub struct Lexer<T: Iterator<Item = (u32, char)>> {
-    input: PeekNth<T>,
+    input_chars: PeekNth<T>,
     pending_tokens: Vec<TokenSpan>,
     current_char: Option<char>,
     current_location: u32,
 }
 
-#[derive(Debug, Eq, PartialEq)]
+#[derive(Debug, Eq, PartialEq, Clone)]
 pub struct TokenSpan {
     pub start: u32,
     pub end: u32,
@@ -50,7 +50,7 @@ where
 {
     pub fn new(input: T) -> Self {
         let mut lexer = Lexer {
-            input: peek_nth(input),
+            input_chars: peek_nth(input),
             pending_tokens: Vec::new(),
             current_char: None,
             current_location: 0,
@@ -64,7 +64,7 @@ where
     fn advance_char(&mut self) -> Option<char> {
         let char = self.current_char;
 
-        match self.input.next() {
+        match self.input_chars.next() {
             Some((location, ch)) => {
                 self.current_location = location;
                 self.current_char = Some(ch);
@@ -78,7 +78,7 @@ where
     }
 
     fn peek_char(&mut self) -> Option<char> {
-        if let Some((_, ch)) = self.input.peek_nth(0) {
+        if let Some((_, ch)) = self.input_chars.peek_nth(0) {
             Some(*ch)
         } else {
             None

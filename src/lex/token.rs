@@ -1,7 +1,7 @@
 use ecow::EcoString;
 use std::fmt;
 
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Debug, PartialEq, Eq, Clone)]
 pub enum Token {
     Name { value: EcoString },
     IntLiteral { value: EcoString },
