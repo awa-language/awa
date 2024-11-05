@@ -1,8 +1,6 @@
 use ecow::EcoString;
 
-use crate::ast::location::Location;
-
-use super::types::Type;
+use crate::{ast::location::Location, type_::Type};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Assignment<TypeT, ExpressionT> {

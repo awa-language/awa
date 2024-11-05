@@ -1,8 +1,9 @@
-use crate::{ast::location::Location, type_::Type};
 use ecow::EcoString;
 use vec1::Vec1;
 
-use super::{argument, statement};
+use crate::type_::Type;
+
+use super::{argument, location::Location, statement};
 
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub enum Expression {
@@ -28,8 +29,8 @@ pub enum Expression {
     },
     Func {
         location: Location,
-        arguments: Vec<argument::Untyped>,
-        body: Vec1<statement::Untyped>,
+        arguments: Vec<argument::Typed>,
+        body: Vec1<statement::Typed>,
         return_annotation: Option<Type>,
     },
     Todo {
