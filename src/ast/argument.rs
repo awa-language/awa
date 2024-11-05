@@ -1,8 +1,12 @@
+use std::sync::Arc;
+
 use ecow::EcoString;
 
-use super::{location::Location, types::Type};
+use crate::type_::Type;
 
-// pub type Typed = Arg<Arc<Type>>;
+use super::location::Location;
+
+pub type Typed = Argument<Arc<Type>>;
 pub type Untyped = Argument<()>;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
