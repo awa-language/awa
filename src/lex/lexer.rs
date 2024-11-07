@@ -1,4 +1,4 @@
-use crate::lex::lexical_error::{LexicalError, Type};
+use crate::lex::error::{LexicalError, Type};
 use crate::lex::token::Token;
 use itertools::{peek_nth, PeekNth};
 use std::char;

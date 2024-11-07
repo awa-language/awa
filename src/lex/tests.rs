@@ -7,7 +7,7 @@ use crate::lex::{
 };
 
 use super::{
-    lexical_error::{LexicalError, Type},
+    error::{LexicalError, Type},
     location::Location,
 };
 
