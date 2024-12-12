@@ -4,11 +4,11 @@ use error::{ParsingError, Type::OperatorNakedRight};
 use itertools::PeekNth;
 
 use crate::{
-    ast::{operator::BinaryOperator, untyped},
+    ast::{argument, location::Location as AstLocation, operator::BinaryOperator, untyped},
     lex::{
         error::LexicalError,
         lexer::{LexResult, TokenSpan},
-        location::Location,
+        location::Location as LexLocation,
         token::Token,
     },
 };
@@ -49,7 +49,7 @@ impl<T: Iterator<Item = LexResult>> Parser<T> {
                 _ => {
                     return Err(ParsingError {
                         error: OperatorNakedRight,
-                        location: Location {
+                        location: LexLocation {
                             start: last_operator_start,
                             end: last_operator_end,
                         },
@@ -89,13 +89,49 @@ impl<T: Iterator<Item = LexResult>> Parser<T> {
     }
 
     fn parse_expression_unit(&mut self) -> Result<Option<untyped::Expression>, ParsingError> {
-        let mut expression = match &self.current_token {
-            Some(token_span) => match &token_span.token {
+        let mut expression = match self.current_token.take() {
+            Some(token_span) => match token_span.token {
                 Token::Name { value } => todo!(),
-                Token::IntLiteral { value } => todo!(),
-                Token::FloatLiteral { value } => todo!(),
-                Token::StringLiteral { value } => todo!(),
-                Token::CharLiteral { value } => todo!(),
+                Token::IntLiteral { value } => {
+                    let _ = self.advance_token();
+                    untyped::Expression::Int {
+                        location: AstLocation {
+                            start: token_span.start,
+                            end: token_span.end,
+                        },
+                        value,
+                    }
+                }
+                Token::FloatLiteral { value } => {
+                    let _ = self.advance_token();
+                    untyped::Expression::Float {
+                        location: AstLocation {
+                            start: token_span.start,
+                            end: token_span.end,
+                        },
+                        value,
+                    }
+                }
+                Token::StringLiteral { value } => {
+                    let _ = self.advance_token();
+                    untyped::Expression::String {
+                        location: AstLocation {
+                            start: token_span.start,
+                            end: token_span.end,
+                        },
+                        value,
+                    }
+                }
+                Token::CharLiteral { value } => {
+                    let _ = self.advance_token();
+                    untyped::Expression::Char {
+                        location: AstLocation {
+                            start: token_span.start,
+                            end: token_span.end,
+                        },
+                        value,
+                    }
+                }
                 Token::LeftParenthesis => todo!(),
                 Token::RightParenthesis => todo!(),
                 Token::LeftSquare => todo!(),
@@ -145,16 +181,152 @@ impl<T: Iterator<Item = LexResult>> Parser<T> {
                 Token::Var => todo!(),
                 Token::If => todo!(),
                 Token::Else => todo!(),
-                Token::Func => todo!(),
+                Token::Func => {
+                    let _ = self.advance_token();
+                    self.parse_function()?
+                }
                 Token::For => todo!(),
                 Token::While => todo!(),
-                Token::Return => todo!(),
-                Token::Exit => todo!(),
-                Token::Panic => todo!(),
-                Token::Todo => todo!(),
+                Token::Return => {
+                    let _ = self.advance_token();
+
+                    let mut value = None;
+                    let mut end = token_span.end;
+
+                    if let Some(expression) = self.parse_expression_unit()? {
+                        end = expression.get_location().end;
+                        value = Some(Box::new(expression));
+                    }
+
+                    untyped::Expression::Return {
+                        location: AstLocation {
+                            start: token_span.start,
+                            end: token_span.end,
+                        },
+                        value,
+                    }
+                }
+                Token::Exit => {
+                    let _ = self.advance_token();
+                    untyped::Expression::Exit {
+                        location: AstLocation {
+                            start: token_span.start,
+                            end: token_span.end,
+                        },
+                    }
+                }
+                Token::Panic => {
+                    let _ = self.advance_token();
+                    untyped::Expression::Panic {
+                        location: AstLocation {
+                            start: token_span.start,
+                            end: token_span.end,
+                        },
+                    }
+                }
+                Token::Todo => {
+                    let _ = self.advance_token();
+                    untyped::Expression::Todo {
+                        location: AstLocation {
+                            start: token_span.start,
+                            end: token_span.end,
+                        },
+                    }
+                }
             },
             None => todo!(),
         };
+
+        todo!()
+    }
+
+    fn parse_function(&self) -> Result<untyped::Expression, ParsingError> {
+        let name_token = self.advance_token().ok_or_else(|| ParsingError {
+            error: error::Type::UnexpectedEof,
+            location: LexLocation { start: 0, end: 0 },
+        })?;
+
+        let name = if let Token::Name { value } = name_token.token {
+            value
+        } else {
+            return Err(ParsingError {
+                error: error::Type::UnexpectedToken {
+                    token: name_token.token,
+                    expected: vec!["function name".to_string().into()],
+                },
+                location: LexLocation {
+                    start: name_token.start,
+                    end: name_token.end,
+                },
+            });
+        };
+
+        let _ = self.expect_token(&Token::LeftParenthesis)?;
+
+        let arguments = self.parse_series(&Self::parse_function_parameter, Some(&Token::Comma));
+
+        self.expect_token(&Token::RightParenthesis)?;
+
+        Ok(())
+    }
+
+    fn parse_function_parameter(&mut self) -> Result<Option<argument::Untyped>, ParsingError> {
+        todo!()
+    }
+
+    fn parse_series<A>(
+        &mut self,
+        parser: &impl Fn(&mut Self) -> Result<Option<A>, ParsingError>,
+        separator: Option<&Token>,
+    ) -> Result<Vec<A>, ParsingError> {
+        let mut results = vec![];
+
+        while let Some(result) = parser(self)? {
+            results.push(result);
+
+            if let Some(separator) = separator {
+                if self.maybe_token(separator).is_none() {
+                    break;
+                }
+            }
+        }
+
+        Ok(results)
+    }
+
+    fn expect_token(&mut self, token: &Token) -> Result<TokenSpan, ParsingError> {
+        match self.maybe_token(token) {
+            Some(token_span) => Ok(token_span),
+            None => match self.current_token.take() {
+                Some(current_token) => Err(ParsingError {
+                    error: error::Type::UnexpectedToken {
+                        token: current_token.token,
+                        expected: vec![token.to_string().into()],
+                    },
+                    location: LexLocation {
+                        start: current_token.start,
+                        end: current_token.end,
+                    },
+                }),
+                None => Err(ParsingError {
+                    error: error::Type::UnexpectedEof,
+                    location: LexLocation { start: 0, end: 0 },
+                }),
+            },
+        }
+    }
+
+    fn maybe_token(&mut self, token: &Token) -> Option<TokenSpan> {
+        match self.current_token.take() {
+            Some(token_span) if token_span.token == *token => {
+                let _ = self.advance_token();
+                Some(token_span)
+            }
+            other => {
+                self.current_token = other;
+                None
+            }
+        }
     }
 
     fn advance_token(&mut self) -> Option<TokenSpan> {
@@ -237,7 +409,9 @@ fn handle_operator<T>(
     loop {
         match (operator_stack.pop(), operator_token.take()) {
             (Some(lhs), Some(rhs)) => match lhs.precedence.cmp(&rhs.precedence) {
-                std::cmp::Ordering::Equal | std::cmp::Ordering::Greater => todo!(),
+                std::cmp::Ordering::Equal | std::cmp::Ordering::Greater => {
+                    operator_token = Some(rhs)
+                }
                 std::cmp::Ordering::Less => {
                     operator_stack.push(lhs);
                     operator_stack.push(rhs);

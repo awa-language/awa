@@ -34,14 +34,32 @@ pub enum Expression {
     },
     Todo {
         location: Location,
-        message: Option<Box<Self>>,
     },
     Panic {
         location: Location,
-        message: Option<Box<Self>>,
     },
     Exit {
         location: Location,
-        code: i32,
     },
+    Return {
+        location: Location,
+        value: Option<Box<Self>>,
+    },
+}
+
+impl Expression {
+    pub fn get_location(&self) -> Location {
+        match self {
+            Expression::Int { location, .. }
+            | Expression::Float { location, .. }
+            | Expression::Char { location, .. }
+            | Expression::String { location, .. }
+            | Expression::Var { location, .. }
+            | Expression::Func { location, .. }
+            | Expression::Todo { location, .. }
+            | Expression::Panic { location, .. }
+            | Expression::Exit { location, .. }
+            | Expression::Return { location, .. } => *location,
+        }
+    }
 }
