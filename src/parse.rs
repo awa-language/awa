@@ -2,9 +2,13 @@ pub mod error;
 
 use error::{ParsingError, Type::OperatorNakedRight};
 use itertools::PeekNth;
+use vec1::{vec1, Vec1};
 
 use crate::{
-    ast::{argument, location::Location as AstLocation, operator::BinaryOperator, untyped},
+    ast::{
+        argument, location::Location as AstLocation, operator::BinaryOperator,
+        statement::Statement, untyped,
+    },
     lex::{
         error::LexicalError,
         lexer::{LexResult, TokenSpan},
@@ -74,6 +78,7 @@ impl<T: Iterator<Item = LexResult>> Parser<T> {
                         &mut expression_stack,
                     );
                 } else {
+                    // TODO: figure whether to advance here?
                     break;
                 }
             } else {
@@ -240,34 +245,69 @@ impl<T: Iterator<Item = LexResult>> Parser<T> {
         todo!()
     }
 
-    fn parse_function(&self) -> Result<untyped::Expression, ParsingError> {
-        let name_token = self.advance_token().ok_or_else(|| ParsingError {
+    fn parse_function(&mut self) -> Result<untyped::Expression, ParsingError> {
+        let name_token_span = self.advance_token().ok_or_else(|| ParsingError {
             error: error::Type::UnexpectedEof,
             location: LexLocation { start: 0, end: 0 },
         })?;
 
-        let name = if let Token::Name { value } = name_token.token {
+        let name = if let Token::Name { value } = name_token_span.token {
             value
         } else {
             return Err(ParsingError {
                 error: error::Type::UnexpectedToken {
-                    token: name_token.token,
+                    token: name_token_span.token,
                     expected: vec!["function name".to_string().into()],
                 },
                 location: LexLocation {
-                    start: name_token.start,
-                    end: name_token.end,
+                    start: name_token_span.start,
+                    end: name_token_span.end,
                 },
             });
         };
 
         let _ = self.expect_token(&Token::LeftParenthesis)?;
 
-        let arguments = self.parse_series(&Self::parse_function_parameter, Some(&Token::Comma));
+        let arguments = self.parse_series(&Self::parse_function_parameter, Some(&Token::Comma))?;
 
         self.expect_token(&Token::RightParenthesis)?;
 
-        Ok(())
+        let return_annotation = self.parse_type_annotation()?;
+
+        let (body, end) = match self.maybe_token(&Token::LeftBrace) {
+            Some(left_brace_token_span) => {
+                let some_body = self.parse_statement_sequence()?;
+
+                let right_brace_token_span = self.expect_token(&Token::RightBrace)?;
+                let end_location = right_brace_token_span.end;
+
+                let body = match some_body {
+                    Some((body, _)) => body,
+                    None => {
+                        vec1![Statement::Expression(untyped::Expression::Todo {
+                            location: AstLocation {
+                                start: left_brace_token_span.start,
+                                end: end_location
+                            },
+                        })]
+                    }
+                };
+
+                (body, end_location)
+            }
+            None => todo!(),
+        };
+
+        Ok(untyped::Expression::Func {
+            location: AstLocation {
+                start: name_token_span.start,
+                end,
+            },
+            name,
+            arguments,
+            body,
+            return_annotation,
+        })
     }
 
     fn parse_function_parameter(&mut self) -> Result<Option<argument::Untyped>, ParsingError> {
@@ -292,6 +332,17 @@ impl<T: Iterator<Item = LexResult>> Parser<T> {
         }
 
         Ok(results)
+    }
+
+    fn parse_type_annotation(&mut self) -> Result<Option<crate::type_::Type>, ParsingError> {
+        match self.current_token.take() {
+            Some(token_span) => match token_span.token {
+                Token::Func => todo!(),
+                Token::Var => todo!(),
+                _ => todo!(),
+            },
+            None => todo!(),
+        }
     }
 
     fn expect_token(&mut self, token: &Token) -> Result<TokenSpan, ParsingError> {
@@ -358,6 +409,12 @@ impl<T: Iterator<Item = LexResult>> Parser<T> {
             }
             None => None,
         }
+    }
+
+    fn parse_statement_sequence(
+        &self,
+    ) -> Result<Option<(Vec1<crate::ast::statement::Untyped>, u32)>, ParsingError> {
+        todo!()
     }
 }
 

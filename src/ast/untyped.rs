@@ -28,6 +28,7 @@ pub enum Expression {
     },
     Func {
         location: Location,
+        name: EcoString,
         arguments: Vec<argument::Untyped>,
         body: Vec1<statement::Untyped>,
         return_annotation: Option<Type>,

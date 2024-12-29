@@ -23,7 +23,7 @@ pub type UntypedFunction = Function<(), untyped::Expression>;
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Function<T, Expr> {
     pub location: Location,
-    pub end_position: u32,
+    pub end_location: u32,
     pub name: StringSpan,
     pub arguments: Vec<Argument<T>>,
     pub body: Vec1<Statement<T, Expr>>,
@@ -36,7 +36,7 @@ pub type UntypedCustomType = CustomType<()>;
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct CustomType<T> {
     pub location: Location,
-    pub end_position: u32,
+    pub end_location: u32,
     pub name: EcoString,
     pub name_location: Location,
     pub parameter_names: Vec<StringSpan>,
