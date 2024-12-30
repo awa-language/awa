@@ -146,7 +146,8 @@ impl<T: Iterator<Item = LexResult>> Parser<T> {
                 // would be immmideately called
                 Token::Func => {
                     let _ = self.advance_token();
-                    self.parse_function_call()?
+                    let function = self.parse_function()?;
+                    self.parse_function_call(function)?
                 }
                 _ => todo!(),
             },
@@ -156,8 +157,10 @@ impl<T: Iterator<Item = LexResult>> Parser<T> {
         todo!()
     }
 
-    fn parse_function_call(&mut self) -> Result<untyped::Expression, ParsingError> {
-        let function = self.parse_function()?;
+    fn parse_function_call(
+        &mut self,
+        function: untyped::Expression,
+    ) -> Result<untyped::Expression, ParsingError> {
         let untyped::Expression::Func {
             location: function_location,
             ..
