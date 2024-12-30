@@ -24,4 +24,7 @@ pub enum Type {
     // TODO: rename
     OperatorNakedRight,
     UnexpectedEof,
+    InvalidName {
+        token: Token,
+    },
 }

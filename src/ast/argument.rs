@@ -21,3 +21,10 @@ pub struct Argument<T> {
 pub enum Name {
     Named { name: EcoString, location: Location },
 }
+
+// TODO: perhaps move somewhere else?
+#[derive(Debug, PartialEq, Eq, Clone)]
+pub struct CallArgument<A> {
+    pub location: Location,
+    pub value: A,
+}

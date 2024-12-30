@@ -94,8 +94,9 @@ impl<T: Iterator<Item = LexResult>> Parser<T> {
     }
 
     fn parse_expression_unit(&mut self) -> Result<Option<untyped::Expression>, ParsingError> {
-        let mut expression = match self.current_token.take() {
+        let mut expression_unit = match self.current_token.take() {
             Some(token_span) => match token_span.token {
+                // only variable value, function call, field access?
                 Token::Name { value } => todo!(),
                 Token::IntLiteral { value } => {
                     let _ = self.advance_token();
@@ -137,112 +138,40 @@ impl<T: Iterator<Item = LexResult>> Parser<T> {
                         value,
                     }
                 }
-                Token::LeftParenthesis => todo!(),
-                Token::RightParenthesis => todo!(),
-                Token::LeftSquare => todo!(),
-                Token::RightSquare => todo!(),
-                Token::LeftBrace => todo!(),
-                Token::RightBrace => todo!(),
-                Token::Plus => todo!(),
-                Token::Minus => todo!(),
-                Token::Asterisk => todo!(),
-                Token::Slash => todo!(),
-                Token::PlusPlus => todo!(),
-                Token::MinusMinus => todo!(),
-                Token::Less => todo!(),
-                Token::Greater => todo!(),
-                Token::LessEqual => todo!(),
-                Token::GreaterEqual => todo!(),
-                Token::Percent => todo!(),
-                Token::PlusFloat => todo!(),
-                Token::MinusFloat => todo!(),
-                Token::AsteriskFloat => todo!(),
-                Token::SlashFloat => todo!(),
-                Token::LessFloat => todo!(),
-                Token::GreaterFloat => todo!(),
-                Token::LessEqualFloat => todo!(),
-                Token::GreaterEqualFloat => todo!(),
-                Token::Concat => todo!(),
-                Token::Colon => todo!(),
-                Token::Comma => todo!(),
-                Token::Bang => todo!(),
-                Token::Equal => todo!(),
-                Token::EqualEqual => todo!(),
-                Token::NotEqual => todo!(),
-                Token::Pipe => todo!(),
-                Token::PipePipe => todo!(),
-                Token::Ampersand => todo!(),
-                Token::AmpersandAmpersand => todo!(),
-                Token::LessLess => todo!(),
-                Token::GreaterGreater => todo!(),
-                Token::Dot => todo!(),
-                Token::Comment => todo!(),
-                Token::EndOfFile => todo!(),
-                Token::NewLine => todo!(),
-                Token::Int => todo!(),
-                Token::Float => todo!(),
-                Token::Char => todo!(),
-                Token::String => todo!(),
-                Token::Var => todo!(),
-                Token::If => todo!(),
-                Token::Else => todo!(),
                 Token::Func => {
                     let _ = self.advance_token();
-                    self.parse_function()?
+                    self.parse_function_call()?
                 }
-                Token::For => todo!(),
-                Token::While => todo!(),
-                Token::Return => {
-                    let _ = self.advance_token();
-
-                    let mut value = None;
-                    let mut end = token_span.end;
-
-                    if let Some(expression) = self.parse_expression_unit()? {
-                        end = expression.get_location().end;
-                        value = Some(Box::new(expression));
-                    }
-
-                    untyped::Expression::Return {
-                        location: AstLocation {
-                            start: token_span.start,
-                            end: token_span.end,
-                        },
-                        value,
-                    }
-                }
-                Token::Exit => {
-                    let _ = self.advance_token();
-                    untyped::Expression::Exit {
-                        location: AstLocation {
-                            start: token_span.start,
-                            end: token_span.end,
-                        },
-                    }
-                }
-                Token::Panic => {
-                    let _ = self.advance_token();
-                    untyped::Expression::Panic {
-                        location: AstLocation {
-                            start: token_span.start,
-                            end: token_span.end,
-                        },
-                    }
-                }
-                Token::Todo => {
-                    let _ = self.advance_token();
-                    untyped::Expression::Todo {
-                        location: AstLocation {
-                            start: token_span.start,
-                            end: token_span.end,
-                        },
-                    }
-                }
+                _ => todo!(),
             },
             None => todo!(),
         };
 
         todo!()
+    }
+
+    fn parse_function_call(&mut self) -> Result<untyped::Expression, ParsingError> {
+        let function = self.parse_function()?;
+        let function_location = match function {
+            untyped::Expression::Func { location, .. } => location,
+            _ => todo!(),
+        };
+
+        let _ = self.expect_token(&Token::LeftParenthesis)?;
+
+        let call_arguments =
+            self.parse_series(&Self::parse_function_call_argument, Some(&Token::Comma))?;
+
+        let right_parenthesis_token_span = self.expect_token(&Token::RightParenthesis)?;
+
+        Ok(untyped::Expression::Call {
+            location: AstLocation {
+                start: function_location.start,
+                end: right_parenthesis_token_span.end,
+            },
+            function: Box::new(function),
+            arguments: call_arguments, // TODO: i'm pretty sure this won't work this way
+        })
     }
 
     fn parse_function(&mut self) -> Result<untyped::Expression, ParsingError> {
@@ -268,11 +197,11 @@ impl<T: Iterator<Item = LexResult>> Parser<T> {
 
         let _ = self.expect_token(&Token::LeftParenthesis)?;
 
-        let arguments = self.parse_series(&Self::parse_function_parameter, Some(&Token::Comma))?;
+        let arguments = self.parse_series(&Self::parse_function_argument, Some(&Token::Comma))?;
 
         self.expect_token(&Token::RightParenthesis)?;
 
-        let return_annotation = self.parse_type_annotation()?;
+        let return_type_annotation = self.parse_type_annotation()?;
 
         let (body, end) = match self.maybe_token(&Token::LeftBrace) {
             Some(left_brace_token_span) => {
@@ -306,11 +235,17 @@ impl<T: Iterator<Item = LexResult>> Parser<T> {
             name,
             arguments,
             body,
-            return_annotation,
+            return_type_annotation,
         })
     }
 
-    fn parse_function_parameter(&mut self) -> Result<Option<argument::Untyped>, ParsingError> {
+    fn parse_function_call_argument(
+        &mut self,
+    ) -> Result<Option<argument::CallArgument<untyped::Expression>>, ParsingError> {
+        todo!()
+    }
+
+    fn parse_function_argument(&mut self) -> Result<Option<argument::Untyped>, ParsingError> {
         todo!()
     }
 

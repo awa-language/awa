@@ -3,6 +3,7 @@ pub mod assignment;
 pub mod definition;
 pub mod location;
 pub mod operator;
+pub mod pattern;
 pub mod statement;
 pub mod typed;
 pub mod untyped;

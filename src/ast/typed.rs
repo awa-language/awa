@@ -31,7 +31,7 @@ pub enum Expression {
         location: Location,
         arguments: Vec<argument::Typed>,
         body: Vec1<statement::Typed>,
-        return_annotation: Option<Type>,
+        return_type_annotation: Option<Type>,
     },
     Todo {
         location: Location,

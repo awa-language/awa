@@ -2,7 +2,11 @@ use crate::{ast::location::Location, type_::Type};
 use ecow::EcoString;
 use vec1::Vec1;
 
-use super::{argument, statement};
+use super::{
+    argument::{self, CallArgument},
+    operator::BinaryOperator,
+    statement,
+};
 
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub enum Expression {
@@ -14,11 +18,11 @@ pub enum Expression {
         location: Location,
         value: EcoString,
     },
-    Char {
+    String {
         location: Location,
         value: EcoString,
     },
-    String {
+    Char {
         location: Location,
         value: EcoString,
     },
@@ -31,7 +35,18 @@ pub enum Expression {
         name: EcoString,
         arguments: Vec<argument::Untyped>,
         body: Vec1<statement::Untyped>,
-        return_annotation: Option<Type>,
+        return_type_annotation: Option<Type>,
+    },
+    Call {
+        location: Location,
+        function: Box<Self>,
+        arguments: Vec<CallArgument<Self>>,
+    },
+    BinaryOperator {
+        location: Location,
+        operator: BinaryOperator,
+        lhs: Box<Self>,
+        rhs: Box<Self>,
     },
     Todo {
         location: Location,
@@ -46,6 +61,7 @@ pub enum Expression {
         location: Location,
         value: Option<Box<Self>>,
     },
+    // TODO: add field access
 }
 
 impl Expression {

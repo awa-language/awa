@@ -27,7 +27,7 @@ pub struct Function<T, Expr> {
     pub name: StringSpan,
     pub arguments: Vec<Argument<T>>,
     pub body: Vec1<Statement<T, Expr>>,
-    pub return_annotation: Option<Type>,
+    pub return_type_annotation: Option<Type>,
     pub return_type: T,
 }
 
