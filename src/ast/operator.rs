@@ -25,6 +25,7 @@ pub enum BinaryOperator {
 }
 
 impl BinaryOperator {
+    #[must_use]
     pub fn get_precedence(&self) -> u8 {
         match self {
             BinaryOperator::Or => 1,

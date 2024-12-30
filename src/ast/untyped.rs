@@ -65,6 +65,7 @@ pub enum Expression {
 }
 
 impl Expression {
+    #[must_use]
     pub fn get_location(&self) -> Location {
         match self {
             Expression::Int { location, .. }

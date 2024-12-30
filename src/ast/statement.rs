@@ -10,7 +10,7 @@ pub type Typed = Statement<typed::Expression>;
 pub type Untyped = Statement<untyped::Expression>;
 
 impl Untyped {
-    pub fn get_location(&self) -> Location {
+    #[must_use] pub fn get_location(&self) -> Location {
         match self {
             Statement::Expression(expression) => expression.get_location(),
             Statement::Assignment(assignment) => assignment.location,

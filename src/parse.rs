@@ -75,7 +75,7 @@ impl<T: Iterator<Item = LexResult>> Parser<T> {
 
                     let _ = handle_operator(
                         Some(OperatorToken {
-                            token_span,
+                            _token_span: token_span,
                             precedence,
                         }),
                         &mut operator_stack,
@@ -142,6 +142,8 @@ impl<T: Iterator<Item = LexResult>> Parser<T> {
                         value,
                     }
                 }
+                // NOTE: assuming the only functions that would appear in expression unit
+                // would be immmideately called
                 Token::Func => {
                     let _ = self.advance_token();
                     self.parse_function_call()?
@@ -156,9 +158,12 @@ impl<T: Iterator<Item = LexResult>> Parser<T> {
 
     fn parse_function_call(&mut self) -> Result<untyped::Expression, ParsingError> {
         let function = self.parse_function()?;
-        let function_location = match function {
-            untyped::Expression::Func { location, .. } => location,
-            _ => todo!(),
+        let untyped::Expression::Func {
+            location: function_location,
+            ..
+        } = function
+        else {
+            todo!()
         };
 
         let _ = self.expect_token(&Token::LeftParenthesis)?;
@@ -184,9 +189,7 @@ impl<T: Iterator<Item = LexResult>> Parser<T> {
             location: LexLocation { start: 0, end: 0 },
         })?;
 
-        let name = if let Token::Name { value } = name_token_span.token {
-            value
-        } else {
+        let Token::Name { value: name } = name_token_span.token else {
             return Err(ParsingError {
                 error: error::Type::UnexpectedToken {
                     token: name_token_span.token,
@@ -297,18 +300,17 @@ impl<T: Iterator<Item = LexResult>> Parser<T> {
 
     fn parse_statement(&mut self) -> Result<Option<statement::Untyped>, ParsingError> {
         match self.current_token.take() {
-            Some(token_span) => match token_span.token {
-                Token::Var => {
+            Some(token_span) => {
+                if token_span.token == Token::Var {
                     self.advance_token();
                     Ok(Some(self.parse_assignment(token_span.start)?))
-                }
-                _ => {
+                } else {
                     self.current_token = Some(token_span);
 
                     let expression = self.parse_expression()?.map(Statement::Expression);
                     Ok(expression)
                 }
-            },
+            }
             None => todo!(),
         }
     }
@@ -319,9 +321,7 @@ impl<T: Iterator<Item = LexResult>> Parser<T> {
             location: LexLocation { start: 0, end: 0 },
         })?;
 
-        let name = if let Token::Name { ref value } = name_token_span.token {
-            value
-        } else {
+        let Token::Name { value: ref name } = name_token_span.token else {
             return Err(ParsingError {
                 error: error::Type::UnexpectedToken {
                     token: name_token_span.token,
@@ -346,9 +346,7 @@ impl<T: Iterator<Item = LexResult>> Parser<T> {
             });
         };
 
-        let type_annotation = if let Some(value) = self.parse_type_annotation()? {
-            value
-        } else {
+        let Some(type_annotation) = self.parse_type_annotation()? else {
             return Err(ParsingError {
                 error: error::Type::UnexpectedToken {
                     token: self.current_token.clone().unwrap().token,
@@ -363,9 +361,7 @@ impl<T: Iterator<Item = LexResult>> Parser<T> {
 
         let _ = self.expect_token(&Token::Equal)?;
 
-        let value = if let Some(value) = self.parse_expression()? {
-            value
-        } else {
+        let Some(value) = self.parse_expression()? else {
             return Err(ParsingError {
                 error: error::Type::UnexpectedToken {
                     token: self.current_token.clone().unwrap().token,
@@ -451,7 +447,7 @@ impl<T: Iterator<Item = LexResult>> Parser<T> {
         token
     }
 
-    fn peek_char(&mut self) -> Option<TokenSpan> {
+    fn _peek_token(&mut self) -> Option<TokenSpan> {
         match self.input_tokens.peek_nth(0) {
             Some(Ok(token)) => Some(token.clone()),
             // TODO: it may insert the same lexical error twice, need tests
@@ -498,7 +494,7 @@ fn token_to_binary_operator(token: &Token) -> Option<BinaryOperator> {
 }
 
 struct OperatorToken {
-    token_span: TokenSpan,
+    _token_span: TokenSpan,
     precedence: u8,
 }
 
@@ -513,7 +509,7 @@ fn handle_operator<T>(
         match (operator_stack.pop(), operator_token.take()) {
             (Some(lhs), Some(rhs)) => match lhs.precedence.cmp(&rhs.precedence) {
                 std::cmp::Ordering::Equal | std::cmp::Ordering::Greater => {
-                    operator_token = Some(rhs)
+                    operator_token = Some(rhs);
                 }
                 std::cmp::Ordering::Less => {
                     operator_stack.push(lhs);
@@ -531,8 +527,6 @@ fn handle_operator<T>(
                 if let Some(expression) = expression_stack.pop() {
                     if expression_stack.is_empty() {
                         return Some(expression);
-                    } else {
-                        unreachable!();
                     }
                 } else {
                     return None;

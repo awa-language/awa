@@ -10,6 +10,7 @@ unsafe_code = "forbid"
 all = { level = "deny", priority = -1 }
 pedantic = { level = "warn", priority = -1 }
 min_ident_chars = "warn"
+module_name_repetitions = "allow"
 
 [dependencies]
 ecow = "0.2.2"
