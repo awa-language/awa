@@ -6,8 +6,12 @@ use vec1::{vec1, Vec1};
 
 use crate::{
     ast::{
-        argument, location::Location as AstLocation, operator::BinaryOperator,
-        statement::Statement, untyped,
+        argument,
+        assignment::Assignment,
+        location::Location as AstLocation,
+        operator::BinaryOperator,
+        statement::{self, Statement},
+        untyped,
     },
     lex::{
         error::LexicalError,
@@ -94,10 +98,10 @@ impl<T: Iterator<Item = LexResult>> Parser<T> {
     }
 
     fn parse_expression_unit(&mut self) -> Result<Option<untyped::Expression>, ParsingError> {
-        let mut expression_unit = match self.current_token.take() {
+        let mut _expression_unit = match self.current_token.take() {
             Some(token_span) => match token_span.token {
                 // only variable value, function call, field access?
-                Token::Name { value } => todo!(),
+                Token::Name { .. } => todo!(),
                 Token::IntLiteral { value } => {
                     let _ = self.advance_token();
                     untyped::Expression::Int {
@@ -170,7 +174,7 @@ impl<T: Iterator<Item = LexResult>> Parser<T> {
                 end: right_parenthesis_token_span.end,
             },
             function: Box::new(function),
-            arguments: call_arguments, // TODO: i'm pretty sure this won't work this way
+            arguments: call_arguments,
         })
     }
 
@@ -269,6 +273,119 @@ impl<T: Iterator<Item = LexResult>> Parser<T> {
         Ok(results)
     }
 
+    fn parse_statement_sequence(
+        &mut self,
+    ) -> Result<Option<(Vec1<crate::ast::statement::Untyped>, u32)>, ParsingError> {
+        let mut statements = vec![];
+        let mut start = None;
+        let mut end = 0;
+
+        while let Some(statement) = self.parse_statement()? {
+            if start.is_none() {
+                start = Some(statement.get_location().start);
+            }
+
+            end = statement.get_location().end;
+            statements.push(statement);
+        }
+
+        match Vec1::try_from_vec(statements) {
+            Ok(statements) => Ok(Some((statements, end))),
+            Err(_) => Ok(None),
+        }
+    }
+
+    fn parse_statement(&mut self) -> Result<Option<statement::Untyped>, ParsingError> {
+        match self.current_token.take() {
+            Some(token_span) => match token_span.token {
+                Token::Var => {
+                    self.advance_token();
+                    Ok(Some(self.parse_assignment(token_span.start)?))
+                }
+                _ => {
+                    self.current_token = Some(token_span);
+
+                    let expression = self.parse_expression()?.map(Statement::Expression);
+                    Ok(expression)
+                }
+            },
+            None => todo!(),
+        }
+    }
+
+    fn parse_assignment(&mut self, start: u32) -> Result<statement::Untyped, ParsingError> {
+        let name_token_span = self.advance_token().ok_or_else(|| ParsingError {
+            error: error::Type::UnexpectedEof,
+            location: LexLocation { start: 0, end: 0 },
+        })?;
+
+        let name = if let Token::Name { ref value } = name_token_span.token {
+            value
+        } else {
+            return Err(ParsingError {
+                error: error::Type::UnexpectedToken {
+                    token: name_token_span.token,
+                    expected: vec!["variable name".to_string().into()],
+                },
+                location: LexLocation {
+                    start: name_token_span.start,
+                    end: name_token_span.end,
+                },
+            });
+        };
+
+        if let "true" | "false" = name.as_str() {
+            return Err(ParsingError {
+                error: error::Type::InvalidName {
+                    token: name_token_span.token,
+                },
+                location: LexLocation {
+                    start: name_token_span.start,
+                    end: name_token_span.end,
+                },
+            });
+        };
+
+        let type_annotation = if let Some(value) = self.parse_type_annotation()? {
+            value
+        } else {
+            return Err(ParsingError {
+                error: error::Type::UnexpectedToken {
+                    token: self.current_token.clone().unwrap().token,
+                    expected: vec!["variable type".to_string().into()],
+                },
+                location: LexLocation {
+                    start: self.current_token.clone().unwrap().start,
+                    end: self.current_token.clone().unwrap().end,
+                },
+            });
+        };
+
+        let _ = self.expect_token(&Token::Equal)?;
+
+        let value = if let Some(value) = self.parse_expression()? {
+            value
+        } else {
+            return Err(ParsingError {
+                error: error::Type::UnexpectedToken {
+                    token: self.current_token.clone().unwrap().token,
+                    expected: vec!["variable assignment expression".to_string().into()],
+                },
+                location: LexLocation {
+                    start: self.current_token.clone().unwrap().start,
+                    end: self.current_token.clone().unwrap().end,
+                },
+            });
+        };
+        let end = value.get_location().end;
+
+        Ok(Statement::Assignment(Assignment {
+            location: AstLocation { start, end },
+            value: Box::new(value),
+            annotation: type_annotation,
+        }))
+    }
+
     fn parse_type_annotation(&mut self) -> Result<Option<crate::type_::Type>, ParsingError> {
         match self.current_token.take() {
             Some(token_span) => match token_span.token {
@@ -344,12 +461,6 @@ impl<T: Iterator<Item = LexResult>> Parser<T> {
             }
             None => None,
         }
-    }
-
-    fn parse_statement_sequence(
-        &self,
-    ) -> Result<Option<(Vec1<crate::ast::statement::Untyped>, u32)>, ParsingError> {
-        todo!()
     }
 }
 

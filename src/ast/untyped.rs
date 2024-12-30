@@ -76,6 +76,8 @@ impl Expression {
             | Expression::Todo { location, .. }
             | Expression::Panic { location, .. }
             | Expression::Exit { location, .. }
+            | Expression::Call { location, .. }
+            | Expression::BinaryOperator { location, .. }
             | Expression::Return { location, .. } => *location,
         }
     }

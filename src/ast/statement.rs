@@ -1,12 +1,19 @@
-use crate::type_::Type;
-
-use super::{assignment::Assignment, typed, untyped};
+use super::{assignment::Assignment, location::Location, typed, untyped};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub enum Statement<TypeT, ExpressionT> {
+pub enum Statement<ExpressionT> {
     Expression(ExpressionT),
-    Assignment(Assignment<TypeT, ExpressionT>),
+    Assignment(Assignment<ExpressionT>),
 }
 
-pub type Typed = Statement<std::sync::Arc<Type>, typed::Expression>;
-pub type Untyped = Statement<(), untyped::Expression>;
+pub type Typed = Statement<typed::Expression>;
+pub type Untyped = Statement<untyped::Expression>;
+
+impl Untyped {
+    pub fn get_location(&self) -> Location {
+        match self {
+            Statement::Expression(expression) => expression.get_location(),
+            Statement::Assignment(assignment) => assignment.location,
+        }
+    }
+}

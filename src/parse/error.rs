@@ -17,6 +17,9 @@ pub enum Type {
         token: Token,
         expected: Vec<EcoString>,
     },
+    NoVarBinding {
+        token: Token,
+    },
     // remove?
     UnrecognizedToken {
         token: char,

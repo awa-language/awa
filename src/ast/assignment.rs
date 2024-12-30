@@ -1,14 +1,13 @@
 use crate::{ast::location::Location, type_::Type};
 
-use super::{pattern::Pattern, typed, untyped};
+use super::{typed, untyped};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct Assignment<TypeT, ExpressionT> {
+pub struct Assignment<ExpressionT> {
     pub location: Location,
     pub value: Box<ExpressionT>,
-    pub pattern: Pattern<TypeT>,
-    pub annotation: Option<Type>,
+    pub annotation: Type,
 }
 
-pub type Typed = Assignment<std::sync::Arc<Type>, typed::Expression>;
-pub type Untyped = Assignment<(), untyped::Expression>;
+pub type Typed = Assignment<typed::Expression>;
+pub type Untyped = Assignment<untyped::Expression>;
