@@ -19,6 +19,7 @@ use crate::{
         location::Location as LexLocation,
         token::Token,
     },
+    type_::Type,
 };
 
 pub struct Parser<T: Iterator<Item = LexResult>> {
@@ -143,11 +144,56 @@ impl<T: Iterator<Item = LexResult>> Parser<T> {
                     }
                 }
                 // NOTE: assuming the only functions that would appear in expression unit
-                // would be immmideately called
+                // would be immmideately called. this might be wrong.
                 Token::Func => {
                     let _ = self.advance_token();
                     let function = self.parse_function()?;
                     self.parse_function_call(function)?
+                }
+                Token::Return => {
+                    let _ = self.advance_token();
+                    let mut value = None;
+                    let mut end = token_span.end;
+
+                    if let Some(expression) = self.parse_expression_unit()? {
+                        end = expression.get_location().end;
+                        value = Some(Box::new(expression));
+                    }
+
+                    untyped::Expression::Return {
+                        location: AstLocation {
+                            start: token_span.start,
+                            end,
+                        },
+                        value,
+                    }
+                }
+                Token::Exit => {
+                    let _ = self.advance_token();
+                    untyped::Expression::Exit {
+                        location: AstLocation {
+                            start: token_span.start,
+                            end: token_span.end,
+                        },
+                    }
+                }
+                Token::Panic => {
+                    let _ = self.advance_token();
+                    untyped::Expression::Panic {
+                        location: AstLocation {
+                            start: token_span.start,
+                            end: token_span.end,
+                        },
+                    }
+                }
+                Token::Todo => {
+                    let _ = self.advance_token();
+                    untyped::Expression::Todo {
+                        location: AstLocation {
+                            start: token_span.start,
+                            end: token_span.end,
+                        },
+                    }
                 }
                 _ => todo!(),
             },
@@ -281,7 +327,7 @@ impl<T: Iterator<Item = LexResult>> Parser<T> {
 
     fn parse_statement_sequence(
         &mut self,
-    ) -> Result<Option<(Vec1<crate::ast::statement::Untyped>, u32)>, ParsingError> {
+    ) -> Result<Option<(Vec1<statement::Untyped>, u32)>, ParsingError> {
         let mut statements = vec![];
         let mut start = None;
         let mut end = 0;
@@ -385,7 +431,7 @@ impl<T: Iterator<Item = LexResult>> Parser<T> {
         }))
     }
 
-    fn parse_type_annotation(&mut self) -> Result<Option<crate::type_::Type>, ParsingError> {
+    fn parse_type_annotation(&mut self) -> Result<Option<Type>, ParsingError> {
         match self.current_token.take() {
             Some(token_span) => match token_span.token {
                 Token::Func => todo!(),
@@ -524,6 +570,7 @@ fn handle_operator<T>(
             (Some(_), None) => {}
             (None, Some(operator_token)) => {
                 operator_stack.push(operator_token);
+
                 break;
             }
             (None, None) => {

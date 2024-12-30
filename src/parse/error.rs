@@ -1,6 +1,6 @@
 use ecow::EcoString;
 
-use crate::lex::{location::Location, token::Token};
+use crate::lex::{error::LexicalError, location::Location, token::Token};
 
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct ParsingError {
@@ -11,7 +11,7 @@ pub struct ParsingError {
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub enum Type {
     LexicalError {
-        error: crate::lex::error::LexicalError,
+        error: LexicalError,
     },
     UnexpectedToken {
         token: Token,
