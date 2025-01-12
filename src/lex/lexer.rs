@@ -234,7 +234,7 @@ where
 
         let token = match to_keyword(&name) {
             Some(tok) => tok,
-            None => Token::Name { value: name.into() },
+            None => Token::Name { name: name.into() },
         };
 
         self.emit(TokenSpan {
