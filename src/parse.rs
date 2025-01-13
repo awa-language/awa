@@ -212,7 +212,20 @@ impl<T: Iterator<Item = LexResult>> Parser<T> {
             ..
         } = function
         else {
-            todo!()
+            let name_token_span = self.advance_token().ok_or_else(|| ParsingError {
+                error: error::Type::UnexpectedEof,
+                location: LexLocation { start: 0, end: 0 },
+            })?;
+            return Err(ParsingError {
+                error: error::Type::UnexpectedToken {
+                    token: name_token_span.token,
+                    expected: vec!["function call".to_string().into()],
+                },
+                location: LexLocation {
+                    start: name_token_span.start,
+                    end: name_token_span.end,
+                },
+            });
         };
 
         let _ = self.expect_token(&Token::LeftParenthesis)?;
