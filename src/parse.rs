@@ -373,7 +373,10 @@ impl<T: Iterator<Item = LexResult>> Parser<T> {
                     Ok(expression)
                 }
             }
-            None => todo!(),
+            None => Err(ParsingError {
+                error: error::Type::UnexpectedEof,
+                location: LexLocation { start: 0, end: 0 },
+            }),
         }
     }
 
