@@ -102,16 +102,7 @@ impl<T: Iterator<Item = LexResult>> Parser<T> {
         let mut _expression_unit = match self.current_token.take() {
             Some(token_span) => match token_span.token {
                 // only variable value, function call, field access?
-                Token::Name { name } => {
-                    let _ = self.advance_token();
-                    untyped::Expression::Var {
-                        location: AstLocation {
-                            start: token_span.start,
-                            end: token_span.end,
-                        },
-                        name,
-                    }
-                }
+                Token::Name { .. } => todo!(),
                 Token::IntLiteral { value } => {
                     let _ = self.advance_token();
                     untyped::Expression::Int {
@@ -247,7 +238,7 @@ impl<T: Iterator<Item = LexResult>> Parser<T> {
             location: LexLocation { start: 0, end: 0 },
         })?;
 
-        let Token::Name { name } = name_token_span.token else {
+        let Token::Name { value: name } = name_token_span.token else {
             return Err(ParsingError {
                 error: error::Type::UnexpectedToken {
                     token: name_token_span.token,
@@ -379,7 +370,7 @@ impl<T: Iterator<Item = LexResult>> Parser<T> {
             location: LexLocation { start: 0, end: 0 },
         })?;
 
-        let Token::Name { ref name } = name_token_span.token else {
+        let Token::Name { value: ref name } = name_token_span.token else {
             return Err(ParsingError {
                 error: error::Type::UnexpectedToken {
                     token: name_token_span.token,
