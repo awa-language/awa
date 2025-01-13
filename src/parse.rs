@@ -291,10 +291,19 @@ impl<T: Iterator<Item = LexResult>> Parser<T> {
                     }
                 };
 
-                (body, end_location)
+                Ok((body, end_location))
             }
-            None => todo!(),
-        };
+            None => Err(ParsingError {
+                error: error::Type::UnexpectedToken {
+                    token: self.current_token.clone().unwrap().token,
+                    expected: vec!["Left function brace".to_string().into()],
+                },
+                location: LexLocation {
+                    start: self.current_token.clone().unwrap().start,
+                    end: self.current_token.clone().unwrap().end,
+                },
+            }),
+        }?;
 
         Ok(untyped::Expression::Func {
             location: AstLocation {
