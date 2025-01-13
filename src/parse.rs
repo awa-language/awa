@@ -197,7 +197,12 @@ impl<T: Iterator<Item = LexResult>> Parser<T> {
                 }
                 _ => todo!(),
             },
-            None => todo!(),
+            None => {
+                return Err(ParsingError {
+                    error: error::Type::UnexpectedEof,
+                    location: LexLocation { start: 0, end: 0 },
+                })
+            }
         };
 
         todo!()
