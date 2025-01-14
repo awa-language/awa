@@ -575,16 +575,6 @@ where
         let _ = self.advance_char();
 
         match self.current_char {
-            Some('+') => {
-                let _ = self.advance_char();
-                let token_end = self.current_location;
-
-                self.emit(TokenSpan {
-                    start: token_start,
-                    end: token_end,
-                    token: Token::PlusPlus,
-                });
-            }
             Some('.') => {
                 let _ = self.advance_char();
                 let token_end = self.current_location;
@@ -612,16 +602,6 @@ where
         let _ = self.advance_char();
 
         match self.current_char {
-            Some('-') => {
-                let _ = self.advance_char();
-                let token_end = self.current_location;
-
-                self.emit(TokenSpan {
-                    start: token_start,
-                    end: token_end,
-                    token: Token::MinusMinus,
-                });
-            }
             Some('.') => {
                 let _ = self.advance_char();
                 let token_end = self.current_location;

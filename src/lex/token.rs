@@ -18,8 +18,6 @@ pub enum Token {
     Minus,              // '-'
     Asterisk,           // '*'
     Slash,              // '/'
-    PlusPlus,           // '++'
-    MinusMinus,         // '--'
     Less,               // '<'
     Greater,            // '>'
     LessEqual,          // '<='
@@ -107,7 +105,6 @@ impl fmt::Display for Token {
             Self::LessLess => "<<",
             Self::Minus => "-",
             Self::MinusFloat => "-.",
-            Self::MinusMinus => "--",
             Self::NotEqual => "!=",
             Self::Panic => "panic",
             Self::Exit => "exit",
@@ -117,7 +114,6 @@ impl fmt::Display for Token {
             Self::Percent => "%",
             Self::Plus => "+",
             Self::PlusFloat => "+.",
-            Self::PlusPlus => "++",
             Self::RightBrace => "}",
             Self::RightParenthesis => ")",
             Self::RightSquare => "]",
