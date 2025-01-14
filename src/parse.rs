@@ -105,7 +105,7 @@ impl<T: Iterator<Item = LexResult>> Parser<T> {
                 Token::Name { .. } => todo!(),
                 Token::IntLiteral { value } => {
                     let _ = self.advance_token();
-                    untyped::Expression::Int {
+                    untyped::Expression::IntLiteral {
                         location: AstLocation {
                             start: token_span.start,
                             end: token_span.end,
@@ -115,7 +115,7 @@ impl<T: Iterator<Item = LexResult>> Parser<T> {
                 }
                 Token::FloatLiteral { value } => {
                     let _ = self.advance_token();
-                    untyped::Expression::Float {
+                    untyped::Expression::FloatLiteral {
                         location: AstLocation {
                             start: token_span.start,
                             end: token_span.end,
@@ -125,7 +125,7 @@ impl<T: Iterator<Item = LexResult>> Parser<T> {
                 }
                 Token::StringLiteral { value } => {
                     let _ = self.advance_token();
-                    untyped::Expression::String {
+                    untyped::Expression::StringLiteral {
                         location: AstLocation {
                             start: token_span.start,
                             end: token_span.end,
@@ -135,7 +135,7 @@ impl<T: Iterator<Item = LexResult>> Parser<T> {
                 }
                 Token::CharLiteral { value } => {
                     let _ = self.advance_token();
-                    untyped::Expression::Char {
+                    untyped::Expression::CharLiteral {
                         location: AstLocation {
                             start: token_span.start,
                             end: token_span.end,
@@ -240,7 +240,7 @@ impl<T: Iterator<Item = LexResult>> Parser<T> {
 
         let right_parenthesis_token_span = self.expect_token(&Token::RightParenthesis)?;
 
-        Ok(untyped::Expression::Call {
+        Ok(untyped::Expression::FunctionCall {
             location: AstLocation {
                 start: function_location.start,
                 end: right_parenthesis_token_span.end,

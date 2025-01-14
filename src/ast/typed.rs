@@ -7,32 +7,33 @@ use super::{argument, location::Location, statement};
 
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub enum Expression {
-    Int {
+    IntLiteral {
         location: Location,
         value: EcoString,
     },
-    Float {
+    FloatLiteral {
         location: Location,
         value: EcoString,
     },
-    Char {
+    CharLiteral {
         location: Location,
         value: EcoString,
     },
-    String {
+    StringLiteral {
         location: Location,
         value: EcoString,
     },
-    Var {
+    VariableValue {
         location: Location,
         name: EcoString,
     },
-    Func {
+    FunctionCall {
         location: Location,
         arguments: Vec<argument::Typed>,
         body: Vec1<statement::Typed>,
         return_type_annotation: Option<Type>,
     },
+    // TODO: Probably remove??
     Todo {
         location: Location,
         message: Option<Box<Self>>,

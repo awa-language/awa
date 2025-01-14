@@ -1,14 +1,17 @@
-use std::sync::Arc;
-
-use vec1::Vec1;
+use ecow::EcoString;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Type {
-    Func {
-        arguments: Vec1<Arc<Type>>,
-        return_type_annotation: Arc<Type>,
+    Int,
+    Float,
+    String,
+    Char,
+    Custom {
+        name: EcoString,
+        fields: Vec<Box<Type>>,
     },
-    Var {
-        id: u64,
+    Array {
+        type_: Box<Type>, // Needed for empty array
+        values: Vec<Box<Type>>,
     },
 }

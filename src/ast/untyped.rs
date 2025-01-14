@@ -10,26 +10,27 @@ use super::{
 
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub enum Expression {
-    Int {
+    IntLiteral {
         location: Location,
         value: EcoString,
     },
-    Float {
+    FloatLiteral {
         location: Location,
         value: EcoString,
     },
-    String {
+    StringLiteral {
         location: Location,
         value: EcoString,
     },
-    Char {
+    CharLiteral {
         location: Location,
         value: EcoString,
     },
-    Var {
+    VarValue {
         location: Location,
         name: EcoString,
     },
+    // TODO: remove because Func is not expression
     Func {
         location: Location,
         name: EcoString,
@@ -37,17 +38,19 @@ pub enum Expression {
         body: Vec1<statement::Untyped>,
         return_type_annotation: Option<Type>,
     },
-    Call {
+    FunctionCall {
         location: Location,
         function: Box<Self>,
         arguments: Vec<CallArgument<Self>>,
     },
+    // TODO: remove because BinaryOperator is not expression
     BinaryOperator {
         location: Location,
         operator: BinaryOperator,
         lhs: Box<Self>,
         rhs: Box<Self>,
     },
+    // TODO: Probably remove??
     Todo {
         location: Location,
     },
@@ -68,16 +71,16 @@ impl Expression {
     #[must_use]
     pub fn get_location(&self) -> Location {
         match self {
-            Expression::Int { location, .. }
-            | Expression::Float { location, .. }
-            | Expression::Char { location, .. }
-            | Expression::String { location, .. }
-            | Expression::Var { location, .. }
+            Expression::IntLiteral { location, .. }
+            | Expression::FloatLiteral { location, .. }
+            | Expression::CharLiteral { location, .. }
+            | Expression::StringLiteral { location, .. }
+            | Expression::VarValue { location, .. }
             | Expression::Func { location, .. }
             | Expression::Todo { location, .. }
             | Expression::Panic { location, .. }
             | Expression::Exit { location, .. }
-            | Expression::Call { location, .. }
+            | Expression::FunctionCall { location, .. }
             | Expression::BinaryOperator { location, .. }
             | Expression::Return { location, .. } => *location,
         }
