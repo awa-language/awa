@@ -1,6 +1,6 @@
 use crate::{ast::location::Location, type_::Type};
 
-use super::{typed, untyped};
+use super::expression::Expression;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Assignment<ExpressionT> {
@@ -9,5 +9,5 @@ pub struct Assignment<ExpressionT> {
     pub annotation: Type,
 }
 
-pub type Typed = Assignment<typed::Expression>;
-pub type Untyped = Assignment<untyped::Expression>;
+pub type Typed = Assignment<Expression>;
+pub type Untyped = Assignment<Expression>;

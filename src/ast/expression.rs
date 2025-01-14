@@ -1,12 +1,7 @@
-use crate::{ast::location::Location, type_::Type};
+use crate::ast::location::Location;
 use ecow::EcoString;
-use vec1::Vec1;
 
-use super::{
-    argument::{self, CallArgument},
-    operator::BinaryOperator,
-    statement,
-};
+use super::argument::CallArgument;
 
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub enum Expression {
@@ -30,27 +25,11 @@ pub enum Expression {
         location: Location,
         name: EcoString,
     },
-    // TODO: remove because Func is not expression
-    Func {
-        location: Location,
-        name: EcoString,
-        arguments: Vec<argument::Untyped>,
-        body: Vec1<statement::Untyped>,
-        return_type_annotation: Option<Type>,
-    },
     FunctionCall {
         location: Location,
-        function: Box<Self>,
+        function_name: EcoString,
         arguments: Vec<CallArgument<Self>>,
     },
-    // TODO: remove because BinaryOperator is not expression
-    BinaryOperator {
-        location: Location,
-        operator: BinaryOperator,
-        lhs: Box<Self>,
-        rhs: Box<Self>,
-    },
-    // TODO: Probably remove??
     Todo {
         location: Location,
     },
@@ -76,12 +55,10 @@ impl Expression {
             | Expression::CharLiteral { location, .. }
             | Expression::StringLiteral { location, .. }
             | Expression::VarValue { location, .. }
-            | Expression::Func { location, .. }
             | Expression::Todo { location, .. }
             | Expression::Panic { location, .. }
             | Expression::Exit { location, .. }
             | Expression::FunctionCall { location, .. }
-            | Expression::BinaryOperator { location, .. }
             | Expression::Return { location, .. } => *location,
         }
     }

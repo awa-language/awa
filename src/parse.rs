@@ -1,5 +1,6 @@
 pub mod error;
 
+use ecow::EcoString;
 use error::{ParsingError, Type::OperatorNakedRight};
 use itertools::PeekNth;
 use vec1::{vec1, Vec1};
@@ -8,10 +9,10 @@ use crate::{
     ast::{
         argument,
         assignment::Assignment,
+        definition, expression,
         location::Location as AstLocation,
         operator::BinaryOperator,
         statement::{self, Statement},
-        untyped,
     },
     lex::{
         error::LexicalError,
@@ -45,7 +46,7 @@ impl<T: Iterator<Item = LexResult>> Parser<T> {
         parser
     }
 
-    pub fn parse_expression(&mut self) -> Result<Option<untyped::Expression>, ParsingError> {
+    pub fn parse_expression(&mut self) -> Result<Option<expression::Expression>, ParsingError> {
         let mut operator_stack = vec![];
         let mut expression_stack = vec![];
         let mut last_operator_start = 0;
@@ -98,14 +99,14 @@ impl<T: Iterator<Item = LexResult>> Parser<T> {
         ))
     }
 
-    fn parse_expression_unit(&mut self) -> Result<Option<untyped::Expression>, ParsingError> {
+    fn parse_expression_unit(&mut self) -> Result<Option<expression::Expression>, ParsingError> {
         let mut _expression_unit = match self.current_token.take() {
             Some(token_span) => match token_span.token {
                 // only variable value, function call, field access?
                 Token::Name { .. } => todo!(),
                 Token::IntLiteral { value } => {
                     let _ = self.advance_token();
-                    untyped::Expression::IntLiteral {
+                    expression::Expression::IntLiteral {
                         location: AstLocation {
                             start: token_span.start,
                             end: token_span.end,
@@ -115,7 +116,7 @@ impl<T: Iterator<Item = LexResult>> Parser<T> {
                 }
                 Token::FloatLiteral { value } => {
                     let _ = self.advance_token();
-                    untyped::Expression::FloatLiteral {
+                    expression::Expression::FloatLiteral {
                         location: AstLocation {
                             start: token_span.start,
                             end: token_span.end,
@@ -125,7 +126,7 @@ impl<T: Iterator<Item = LexResult>> Parser<T> {
                 }
                 Token::StringLiteral { value } => {
                     let _ = self.advance_token();
-                    untyped::Expression::StringLiteral {
+                    expression::Expression::StringLiteral {
                         location: AstLocation {
                             start: token_span.start,
                             end: token_span.end,
@@ -135,20 +136,13 @@ impl<T: Iterator<Item = LexResult>> Parser<T> {
                 }
                 Token::CharLiteral { value } => {
                     let _ = self.advance_token();
-                    untyped::Expression::CharLiteral {
+                    expression::Expression::CharLiteral {
                         location: AstLocation {
                             start: token_span.start,
                             end: token_span.end,
                         },
                         value,
                     }
-                }
-                // NOTE: assuming the only functions that would appear in expression unit
-                // would be immmideately called. this might be wrong.
-                Token::Func => {
-                    let _ = self.advance_token();
-                    let function = self.parse_function()?;
-                    self.parse_function_call(function)?
                 }
                 Token::Return => {
                     let _ = self.advance_token();
@@ -160,7 +154,7 @@ impl<T: Iterator<Item = LexResult>> Parser<T> {
                         value = Some(Box::new(expression));
                     }
 
-                    untyped::Expression::Return {
+                    expression::Expression::Return {
                         location: AstLocation {
                             start: token_span.start,
                             end,
@@ -170,7 +164,7 @@ impl<T: Iterator<Item = LexResult>> Parser<T> {
                 }
                 Token::Exit => {
                     let _ = self.advance_token();
-                    untyped::Expression::Exit {
+                    expression::Expression::Exit {
                         location: AstLocation {
                             start: token_span.start,
                             end: token_span.end,
@@ -179,7 +173,7 @@ impl<T: Iterator<Item = LexResult>> Parser<T> {
                 }
                 Token::Panic => {
                     let _ = self.advance_token();
-                    untyped::Expression::Panic {
+                    expression::Expression::Panic {
                         location: AstLocation {
                             start: token_span.start,
                             end: token_span.end,
@@ -188,7 +182,7 @@ impl<T: Iterator<Item = LexResult>> Parser<T> {
                 }
                 Token::Todo => {
                     let _ = self.advance_token();
-                    untyped::Expression::Todo {
+                    expression::Expression::Todo {
                         location: AstLocation {
                             start: token_span.start,
                             end: token_span.end,
@@ -210,29 +204,10 @@ impl<T: Iterator<Item = LexResult>> Parser<T> {
 
     fn parse_function_call(
         &mut self,
-        function: untyped::Expression,
-    ) -> Result<untyped::Expression, ParsingError> {
-        let untyped::Expression::Func {
-            location: function_location,
-            ..
-        } = function
-        else {
-            let name_token_span = self.advance_token().ok_or_else(|| ParsingError {
-                error: error::Type::UnexpectedEof,
-                location: LexLocation { start: 0, end: 0 },
-            })?;
-            return Err(ParsingError {
-                error: error::Type::UnexpectedToken {
-                    token: name_token_span.token,
-                    expected: vec!["function call".to_string().into()],
-                },
-                location: LexLocation {
-                    start: name_token_span.start,
-                    end: name_token_span.end,
-                },
-            });
-        };
-
+        function_name: &EcoString,
+        start_location: u32,
+    ) -> Result<expression::Expression, ParsingError> {
+        // TODO: this would most certainly be not here, but on the caller side
         let _ = self.expect_token(&Token::LeftParenthesis)?;
 
         let call_arguments =
@@ -240,17 +215,17 @@ impl<T: Iterator<Item = LexResult>> Parser<T> {
 
         let right_parenthesis_token_span = self.expect_token(&Token::RightParenthesis)?;
 
-        Ok(untyped::Expression::FunctionCall {
+        Ok(expression::Expression::FunctionCall {
             location: AstLocation {
-                start: function_location.start,
+                start: start_location,
                 end: right_parenthesis_token_span.end,
             },
-            function: Box::new(function),
+            function_name: function_name.clone(),
             arguments: call_arguments,
         })
     }
 
-    fn parse_function(&mut self) -> Result<untyped::Expression, ParsingError> {
+    fn parse_function(&mut self) -> Result<definition::Definition, ParsingError> {
         let name_token_span = self.advance_token().ok_or_else(|| ParsingError {
             error: error::Type::UnexpectedEof,
             location: LexLocation { start: 0, end: 0 },
@@ -287,7 +262,7 @@ impl<T: Iterator<Item = LexResult>> Parser<T> {
                 let body = match some_body {
                     Some((body, _)) => body,
                     None => {
-                        vec1![Statement::Expression(untyped::Expression::Todo {
+                        vec1![Statement::Expression(expression::Expression::Todo {
                             location: AstLocation {
                                 start: left_brace_token_span.start,
                                 end: end_location
@@ -310,7 +285,7 @@ impl<T: Iterator<Item = LexResult>> Parser<T> {
             }),
         }?;
 
-        Ok(untyped::Expression::Func {
+        Ok(definition::Definition::Func {
             location: AstLocation {
                 start: name_token_span.start,
                 end,
@@ -324,7 +299,7 @@ impl<T: Iterator<Item = LexResult>> Parser<T> {
 
     fn parse_function_call_argument(
         &mut self,
-    ) -> Result<Option<argument::CallArgument<untyped::Expression>>, ParsingError> {
+    ) -> Result<Option<argument::CallArgument<expression::Expression>>, ParsingError> {
         todo!()
     }
 
