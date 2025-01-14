@@ -8,6 +8,7 @@ pub enum Token {
     FloatLiteral { value: EcoString },
     StringLiteral { value: EcoString },
     CharLiteral { value: EcoString },
+    DiscardName { name: EcoString },
     LeftParenthesis,    // '('
     RightParenthesis,   // ')'
     LeftSquare,         // '['
