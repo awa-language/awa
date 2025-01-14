@@ -407,7 +407,7 @@ impl<T: Iterator<Item = LexResult>> Parser<T> {
             (Some(token_span), _) if matches!(token_span.token, Token::DiscardName { .. }) => {
                 let start = token_span.start;
                 let name = match token_span.token {
-                    Token::DiscardName { name } => name,
+                    Token::DiscardName { value } => value,
                     _ => {
                         return Err(ParsingError {
                             error: error::Type::UnexpectedToken {

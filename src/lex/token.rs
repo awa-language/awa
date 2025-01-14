@@ -8,7 +8,7 @@ pub enum Token {
     FloatLiteral { value: EcoString },
     StringLiteral { value: EcoString },
     CharLiteral { value: EcoString },
-    DiscardName { name: EcoString },
+    DiscardName { value: EcoString },
     LeftParenthesis,    // '('
     RightParenthesis,   // ')'
     LeftSquare,         // '['
@@ -75,6 +75,7 @@ impl fmt::Display for Token {
             | Self::IntLiteral { value }
             | Self::FloatLiteral { value }
             | Self::CharLiteral { value }
+            | Self::DiscardName { value }
             | Self::StringLiteral { value } => value.as_str(),
             Self::Ampersand => "&",
             Self::AmpersandAmpersand => "&&",
