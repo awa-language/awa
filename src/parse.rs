@@ -11,6 +11,7 @@ use crate::{
         assignment::Assignment,
         definition, expression,
         location::Location as AstLocation,
+        module,
         operator::BinaryOperator,
         statement::{self, Statement},
     },
@@ -46,7 +47,50 @@ impl<T: Iterator<Item = LexResult>> Parser<T> {
         parser
     }
 
-    pub fn parse_expression(&mut self) -> Result<Option<expression::Expression>, ParsingError> {
+    fn parse_module(&mut self) -> Result<module::Untyped, ParsingError> {
+        let definitions = self.parse_series(&Self::parse_definition, None);
+        let definitions = self.ensure_no_errors_or_remaining_tokens(definitions)?;
+
+        Ok(module::Untyped {
+            name: "".into(),
+            definitions,
+        })
+    }
+
+    fn ensure_no_errors_or_remaining_tokens<A>(
+        &mut self,
+        parse_result: Result<A, ParsingError>,
+    ) -> Result<A, ParsingError> {
+        let result = self.ensure_no_errors(parse_result)?;
+
+        if let Some(_) = self.current_token {
+            return Err(ParsingError {
+                error: error::Type::UnexpectedToken {
+                    token: self.current_token.clone().unwrap().token,
+                    expected: vec!["function or struct definitions".to_string().into()],
+                },
+                location: LexLocation {
+                    start: self.current_token.clone().unwrap().start,
+                    end: self.current_token.clone().unwrap().end,
+                },
+            });
+        }
+
+        Ok(result)
+    }
+
+    fn ensure_no_errors<A>(&mut self, result: Result<A, ParsingError>) -> Result<A, ParsingError> {
+        if let Some(error) = self.lexical_errors.first() {
+            Err(ParsingError {
+                error: error::Type::LexicalError { error: *error },
+                location: error.location,
+            })
+        } else {
+            result
+        }
+    }
+
+    fn parse_expression(&mut self) -> Result<Option<expression::Expression>, ParsingError> {
         let mut operator_stack = vec![];
         let mut expression_stack = vec![];
         let mut last_operator_start = 0;
