@@ -53,6 +53,7 @@ pub enum Token {
     Char,               // 'char'
     String,             // 'string'
     Var,                // 'var'
+    Struct,             // 'struct'
     If,                 // 'if'
     Else,               // 'else'
     Func,               // 'func'
@@ -101,6 +102,7 @@ impl fmt::Display for Token {
             Self::LessEqual => "<=",
             Self::LessEqualFloat => "<=.",
             Self::Var => "var",
+            Self::Struct => "var",
             Self::Concat => "<>",
             Self::LessLess => "<<",
             Self::Minus => "-",

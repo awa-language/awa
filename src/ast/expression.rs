@@ -21,7 +21,7 @@ pub enum Expression {
         location: Location,
         value: EcoString,
     },
-    VarValue {
+    VariableValue {
         location: Location,
         name: EcoString,
     },
@@ -43,7 +43,7 @@ pub enum Expression {
         location: Location,
         value: Option<Box<Self>>,
     },
-    // TODO: add field access
+    // TODO: add struct field access
 }
 
 impl Expression {
@@ -54,7 +54,7 @@ impl Expression {
             | Expression::FloatLiteral { location, .. }
             | Expression::CharLiteral { location, .. }
             | Expression::StringLiteral { location, .. }
-            | Expression::VarValue { location, .. }
+            | Expression::VariableValue { location, .. }
             | Expression::Todo { location, .. }
             | Expression::Panic { location, .. }
             | Expression::Exit { location, .. }

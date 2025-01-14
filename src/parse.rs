@@ -99,6 +99,31 @@ impl<T: Iterator<Item = LexResult>> Parser<T> {
         ))
     }
 
+    fn parse_definition(&mut self) -> Result<Option<definition::Untyped>, ParsingError> {
+        match self.current_token.take() {
+            // NOTE: no global variables because i'm too lazy to add variable definition
+            // (now they are available only as an expression)
+            Some(token_span) => match token_span.token {
+                Token::Struct => todo!(),
+                Token::Func => match self.parse_function_definition() {
+                    Ok(definition) => Ok(Some(definition)),
+                    Err(parsing_error) => Err(parsing_error),
+                },
+                _ => Err(ParsingError {
+                    error: error::Type::UnexpectedToken {
+                        token: self.current_token.clone().unwrap().token,
+                        expected: vec!["either function or struct definition".to_string().into()],
+                    },
+                    location: LexLocation {
+                        start: self.current_token.clone().unwrap().start,
+                        end: self.current_token.clone().unwrap().end,
+                    },
+                }),
+            },
+            None => Ok(None),
+        }
+    }
+
     fn parse_expression_unit(&mut self) -> Result<Option<expression::Expression>, ParsingError> {
         let mut _expression_unit = match self.current_token.take() {
             Some(token_span) => match token_span.token {
@@ -225,7 +250,7 @@ impl<T: Iterator<Item = LexResult>> Parser<T> {
         })
     }
 
-    fn parse_function(&mut self) -> Result<definition::Definition, ParsingError> {
+    fn parse_function_definition(&mut self) -> Result<definition::Untyped, ParsingError> {
         let name_token_span = self.advance_token().ok_or_else(|| ParsingError {
             error: error::Type::UnexpectedEof,
             location: LexLocation { start: 0, end: 0 },
@@ -276,7 +301,7 @@ impl<T: Iterator<Item = LexResult>> Parser<T> {
             None => Err(ParsingError {
                 error: error::Type::UnexpectedToken {
                     token: self.current_token.clone().unwrap().token,
-                    expected: vec!["Left function brace".to_string().into()],
+                    expected: vec!["opening function brace `{`".to_string().into()],
                 },
                 location: LexLocation {
                     start: self.current_token.clone().unwrap().start,
@@ -285,7 +310,7 @@ impl<T: Iterator<Item = LexResult>> Parser<T> {
             }),
         }?;
 
-        Ok(definition::Definition::Func {
+        Ok(definition::Untyped::Function {
             location: AstLocation {
                 start: name_token_span.start,
                 end,
@@ -404,7 +429,7 @@ impl<T: Iterator<Item = LexResult>> Parser<T> {
             return Err(ParsingError {
                 error: error::Type::UnexpectedToken {
                     token: self.current_token.clone().unwrap().token,
-                    expected: vec!["variable type".to_string().into()],
+                    expected: vec!["variable type annotation".to_string().into()],
                 },
                 location: LexLocation {
                     start: self.current_token.clone().unwrap().start,

@@ -948,6 +948,7 @@ where
 fn to_keyword(word: &str) -> Option<Token> {
     match word {
         "var" => Some(Token::Var),
+        "struct" => Some(Token::Struct),
         "for" => Some(Token::For),
         "while" => Some(Token::While),
         "func" => Some(Token::Func),

@@ -5,8 +5,12 @@ use crate::type_::Type;
 
 use super::{argument, location::Location, statement};
 
-pub enum Definition {
-    Func {
+pub enum Untyped {
+    Struct {
+        location: Location,
+        name: EcoString,
+    },
+    Function {
         location: Location,
         name: EcoString,
         arguments: Vec<argument::Untyped>,
