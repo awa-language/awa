@@ -2,7 +2,7 @@ pub mod error;
 
 use ecow::EcoString;
 use error::{ParsingError, Type::OperatorNakedRight};
-use itertools::PeekNth;
+use itertools::{peek_nth, PeekNth};
 use vec1::{vec1, Vec1};
 
 use crate::{
@@ -17,12 +17,21 @@ use crate::{
     },
     lex::{
         error::LexicalError,
-        lexer::{LexResult, TokenSpan},
+        lexer::{self, LexResult, TokenSpan},
         location::Location as LexLocation,
         token::Token,
     },
     type_::Type,
 };
+
+pub fn parse_module(input: &str) -> Result<module::Untyped, ParsingError> {
+    let tokens = lexer::lex(input);
+
+    let mut parser = Parser::new(peek_nth(tokens));
+    let module = parser.parse_module()?;
+
+    Ok(module)
+}
 
 pub struct Parser<T: Iterator<Item = LexResult>> {
     input_tokens: PeekNth<T>,
@@ -31,15 +40,11 @@ pub struct Parser<T: Iterator<Item = LexResult>> {
 }
 
 impl<T: Iterator<Item = LexResult>> Parser<T> {
-    pub fn new(
-        tokens: PeekNth<T>,
-        lexical_errors: Vec<LexicalError>,
-        current_char: Option<TokenSpan>,
-    ) -> Self {
+    pub fn new(tokens: PeekNth<T>) -> Self {
         let mut parser = Parser {
             input_tokens: tokens,
-            lexical_errors,
-            current_token: current_char,
+            lexical_errors: vec![],
+            current_token: None,
         };
 
         let _ = parser.advance_token();
