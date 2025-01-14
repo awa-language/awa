@@ -15,9 +15,3 @@ pub enum Type {
         values: Vec<Box<Type>>,
     },
 }
-
-impl Type {
-    pub fn get_location(&self) -> Location {
-        self.get_location()
-    }
-}

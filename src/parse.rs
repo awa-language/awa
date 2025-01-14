@@ -380,7 +380,7 @@ impl<T: Iterator<Item = LexResult>> Parser<T> {
     }
 
     fn parse_function_argument(&mut self) -> Result<Option<argument::Untyped>, ParsingError> {
-        let (start, names, mut end) = match (self.current_token.take(), self.input_tokens.peek()) {
+        let (start, name, mut end) = match (self.current_token.take(), self.input_tokens.peek()) {
             // labeled discard
             (
                 Some(token_span),
@@ -503,7 +503,7 @@ impl<T: Iterator<Item = LexResult>> Parser<T> {
             }
         };
         let annotation = if let Some(a) = self.parse_type_annotation()? {
-            end = a.get_location().end;
+            end = end;
             Some(a)
         } else {
             None
