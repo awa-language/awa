@@ -5,7 +5,6 @@ use error::{ParsingError, Type::OperatorNakedRight};
 use itertools::{peek_nth, PeekNth};
 use vec1::{vec1, Vec1};
 
-use crate::ast::argument::{Name, Untyped};
 use crate::ast::location::Location;
 use crate::{
     ast::{
@@ -380,138 +379,48 @@ impl<T: Iterator<Item = LexResult>> Parser<T> {
     }
 
     fn parse_function_argument(&mut self) -> Result<Option<argument::Untyped>, ParsingError> {
-        let (start, name, mut end) = match (self.current_token.take(), self.input_tokens.peek()) {
-            // labeled discard
-            (
-                Some(token_span),
-                Some(Ok(TokenSpan {
-                    token: Token::DiscardName { .. },
-                    ..
-                })),
-            ) => {
-                let start = token_span.start;
-                let label = token_span.token.clone();
-                let end = token_span.end;
-                self.advance_token();
-                self.advance_token();
-                (
-                    start,
-                    Name::Named {
-                        name: "_".into(),
-                        location: Location { start: end, end },
-                    },
-                    end,
-                )
-            }
-            // discard
-            (Some(token_span), _) if matches!(token_span.token, Token::DiscardName { .. }) => {
-                let start = token_span.start;
-                let name = match token_span.token {
-                    Token::DiscardName { value } => value,
-                    _ => {
-                        return Err(ParsingError {
-                            error: error::Type::UnexpectedToken {
-                                token: token_span.token,
-                                expected: vec!["discard name".to_string().into()],
-                            },
-                            location: LexLocation {
-                                start: token_span.start,
-                                end: token_span.end,
-                            },
-                        })
-                    }
-                };
-                let end = token_span.end;
-                self.advance_token();
-                (
-                    start,
-                    Name::Named {
-                        name,
-                        location: Location { start, end },
-                    },
-                    end,
-                )
-            }
-            // labeled name
-            (
-                Some(token_span),
-                Some(Ok(TokenSpan {
-                    token: Token::Name { .. },
-                    ..
-                })),
-            ) => {
-                let start = token_span.start;
-                let label = match token_span.token {
-                    Token::Name { value } => value,
-                    _ => {
-                        return Err(ParsingError {
-                            error: error::Type::UnexpectedToken {
-                                token: token_span.token,
-                                expected: vec!["label".to_string().into()],
-                            },
-                            location: LexLocation {
-                                start: token_span.start,
-                                end: token_span.end,
-                            },
-                        })
-                    }
-                };
-                let end = token_span.end;
-                self.advance_token();
-                self.advance_token();
-                (
-                    start,
-                    Name::Named {
-                        name: label.clone(),
-                        location: Location { start: end, end },
-                    },
-                    end,
-                )
-            }
-            // name
-            (Some(token_span), _) if matches!(token_span.token, Token::Name { .. }) => {
-                let start = token_span.start;
-                let name = match token_span.token {
-                    Token::Name { value } => value,
-                    _ => {
-                        return Err(ParsingError {
-                            error: error::Type::UnexpectedToken {
-                                token: token_span.token,
-                                expected: vec!["name".to_string().into()],
-                            },
-                            location: LexLocation {
-                                start: token_span.start,
-                                end: token_span.end,
-                            },
-                        })
-                    }
-                };
-                let end = token_span.end;
-                self.advance_token();
-                (
-                    start,
-                    Name::Named {
-                        name,
-                        location: Location { start, end },
-                    },
-                    end,
-                )
-            }
-            (t0, t1) => {
-                self.current_token = t0;
-                return Ok(None);
-            }
+        let argument_token_span = self.advance_token().ok_or_else(|| ParsingError {
+            error: error::Type::UnexpectedEof,
+            location: LexLocation { start: 0, end: 0 },
+        })?;
+
+        let Token::Name { value: param_name } = argument_token_span.token else {
+            return Err(ParsingError {
+                error: error::Type::UnexpectedToken {
+                    token: argument_token_span.token,
+                    expected: vec!["argument name".to_string().into()],
+                },
+                location: LexLocation {
+                    start: argument_token_span.start,
+                    end: argument_token_span.end,
+                },
+            });
         };
-        let annotation = if let Some(a) = self.parse_type_annotation()? {
-            end = end;
-            Some(a)
-        } else {
-            None
-        };
-        Ok(Some(Untyped {
-            name,
-            location: Location { start, end },
-            annotation,
+
+        let type_annotation = self.parse_type_annotation()?.ok_or_else(|| ParsingError {
+            error: error::Type::UnexpectedToken {
+                token: self.current_token.clone().unwrap().token,
+                expected: vec!["type annotation".to_string().into()],
+            },
+            location: LexLocation {
+                start: self.current_token.clone().unwrap().start,
+                end: self.current_token.clone().unwrap().end,
+            },
+        })?;
+
+        Ok(Some(argument::Untyped {
+            name: argument::Name::Named {
+                name: param_name,
+                location: Location {
+                    start: argument_token_span.start,
+                    end: argument_token_span.end,
+                },
+            },
+            location: Location {
+                start: argument_token_span.start,
+                end: self.current_token.clone().unwrap().start,
+            },
+            annotation: Some(type_annotation),
             type_: (),
         }))
     }
