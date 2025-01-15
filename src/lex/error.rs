@@ -6,6 +6,21 @@ pub struct LexicalError {
     pub location: Location,
 }
 
+impl LexicalError {
+    pub fn get_description(&self) -> &'static str {
+        match &self.error {
+            Type::UnrecognizedToken { .. } => "unrecognized token",
+            Type::InvalidTripleEqual => "invalid `===`",
+            Type::UnexpectedStringEnd => "unexpected string end",
+            Type::BadEscapeCharacter => "bad escape character",
+            Type::InvalidUnicodeEscape => "invalid unicode escape",
+            Type::InvalidNumberFormat => "invalid number format",
+            Type::UnexpectedNumberEnd => "unexpected number end",
+            Type::UnexpectedCharEnd => "unexpected char end",
+        }
+    }
+}
+
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
 pub enum Type {
     UnrecognizedToken { token: char },

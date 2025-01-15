@@ -5,6 +5,7 @@ use crate::type_::Type;
 
 use super::{argument, location::Location, statement};
 
+#[derive(Debug)]
 pub enum Untyped {
     Struct {
         location: Location,
