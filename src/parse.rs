@@ -1,4 +1,6 @@
 pub mod error;
+
+#[cfg(test)]
 pub mod tests;
 
 use ecow::EcoString;

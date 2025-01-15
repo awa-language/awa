@@ -17,7 +17,7 @@ struct TestCase<'a> {
 }
 
 #[test]
-fn test_int32_var() {
+fn test_var_assignment() {
     let cases = vec![TestCase {
         input: "var name int =",
         expected: vec![
