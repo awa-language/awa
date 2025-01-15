@@ -648,9 +648,42 @@ impl<T: Iterator<Item = LexResult>> Parser<T> {
     fn parse_type_annotation(&mut self) -> Result<Option<Type>, ParsingError> {
         match self.current_token.take() {
             Some(token_span) => match token_span.token {
-                Token::Func => todo!(),
-                Token::Var => todo!(),
-                _ => todo!(),
+                Token::Int => Ok(Some(Type::Int)),
+                Token::Float => Ok(Some(Type::Float)),
+                Token::String => Ok(Some(Type::String)),
+                Token::Char => Ok(Some(Type::Char)),
+                Token::Name { value } => Ok(Some(Type::Custom {
+                    name: value,
+                    fields: None,
+                })),
+                Token::LeftSquare => {
+                    self.advance_token();
+                    let _ = self.expect_token(&Token::RightSquare)?;
+
+                    let Some(array_type) = self.parse_type_annotation()? else {
+                        return Err(ParsingError {
+                            error: error::Type::UnexpectedToken {
+                                token: self.current_token.clone().unwrap().token,
+                                expected: vec!["right square".to_string().into()],
+                            },
+                            location: LexLocation {
+                                start: self.current_token.clone().unwrap().start,
+                                end: self.current_token.clone().unwrap().end,
+                            },
+                        });
+                    };
+
+                    Ok(Some(Type::Array {
+                        type_: Box::new(array_type),
+                    }))
+                }
+                token => Err(ParsingError {
+                    error: error::Type::UnknownType { token },
+                    location: LexLocation {
+                        start: self.current_token.clone().unwrap().start,
+                        end: self.current_token.clone().unwrap().end,
+                    },
+                }),
             },
             None => Err(ParsingError {
                 error: error::Type::UnexpectedEof,

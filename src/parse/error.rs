@@ -24,6 +24,9 @@ pub enum Type {
     UnrecognizedToken {
         token: char,
     },
+    UnknownType {
+        token: Token,
+    },
     // TODO: rename
     OperatorNakedRight,
     UnexpectedEof,
