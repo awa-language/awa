@@ -36,6 +36,122 @@ pub fn expect_error(src: &str) -> String {
 }
 
 #[test]
+fn test_string_literals() {
+    assert_error!(
+        "\"abc",
+        ParsingError {
+            error: crate::parse::error::Type::LexicalError {
+                error: LexicalError {
+                    error: crate::lex::error::Type::UnexpectedStringEnd,
+                    location: Location { start: 0, end: 0 },
+                }
+            },
+            location: Location { start: 0, end: 0 },
+        }
+    );
+    assert_error!(
+        "\"\\a\"",
+        ParsingError {
+            error: crate::parse::error::Type::LexicalError {
+                error: LexicalError {
+                    error: crate::lex::error::Type::BadEscapeCharacter,
+                    location: Location { start: 2, end: 2 },
+                }
+            },
+            location: Location { start: 2, end: 2 },
+        }
+    );
+    assert_error!(
+        "\"\\a",
+        ParsingError {
+            error: crate::parse::error::Type::LexicalError {
+                error: LexicalError {
+                    error: crate::lex::error::Type::BadEscapeCharacter,
+                    location: Location { start: 2, end: 2 },
+                }
+            },
+            location: Location { start: 2, end: 2 },
+        }
+    );
+    assert_error!(
+        "\"\\u123\"",
+        ParsingError {
+            error: crate::parse::error::Type::LexicalError {
+                error: LexicalError {
+                    error: crate::lex::error::Type::InvalidUnicodeEscape,
+                    location: Location { start: 3, end: 3 },
+                }
+            },
+            location: Location { start: 3, end: 3 },
+        }
+    );
+    assert_error!(
+        "\"\\u{123\"",
+        ParsingError {
+            error: crate::parse::error::Type::LexicalError {
+                error: LexicalError {
+                    error: crate::lex::error::Type::InvalidUnicodeEscape,
+                    location: Location { start: 3, end: 7 },
+                }
+            },
+            location: Location { start: 3, end: 7 },
+        }
+    );
+}
+
+#[test]
+fn test_invalid_characters() {
+    assert_error!(
+        "🫧",
+        ParsingError {
+            error: crate::parse::error::Type::LexicalError {
+                error: LexicalError {
+                    error: crate::lex::error::Type::UnrecognizedToken { token: '🫧' },
+                    location: Location { start: 0, end: 0 },
+                }
+            },
+            location: Location { start: 0, end: 0 },
+        }
+    );
+    assert_error!(
+        "ава",
+        ParsingError {
+            error: crate::parse::error::Type::LexicalError {
+                error: LexicalError {
+                    error: crate::lex::error::Type::UnrecognizedToken { token: 'а' },
+                    location: Location { start: 0, end: 0 },
+                }
+            },
+            location: Location { start: 0, end: 0 },
+        }
+    );
+    assert_error!(
+        "洗脳塾",
+        ParsingError {
+            error: crate::parse::error::Type::LexicalError {
+                error: LexicalError {
+                    error: crate::lex::error::Type::UnrecognizedToken { token: '洗' },
+                    location: Location { start: 0, end: 0 },
+                }
+            },
+            location: Location { start: 0, end: 0 },
+        }
+    );
+    assert_error!(
+        "ඞ",
+        ParsingError {
+            error: crate::parse::error::Type::LexicalError {
+                error: LexicalError {
+                    error: crate::lex::error::Type::UnrecognizedToken { token: 'ඞ' },
+                    location: Location { start: 0, end: 0 },
+                }
+            },
+            location: Location { start: 0, end: 0 },
+        }
+    );
+}
+
+#[test]
 fn test_char_literals() {
     assert_error!(
         "'abc",
@@ -115,6 +231,22 @@ fn test_float_literals() {
                 }
             },
             location: Location { start: 0, end: 8 },
+        }
+    );
+}
+
+#[test]
+fn test_triple_equal() {
+    assert_error!(
+        "===",
+        ParsingError {
+            error: crate::parse::error::Type::LexicalError {
+                error: LexicalError {
+                    error: crate::lex::error::Type::InvalidTripleEqual,
+                    location: Location { start: 0, end: 2 },
+                }
+            },
+            location: Location { start: 0, end: 2 },
         }
     );
 }
