@@ -36,7 +36,51 @@ pub fn expect_error(src: &str) -> String {
 }
 
 #[test]
-fn test_number_literals() {
+fn test_char_literals() {
+    assert_error!(
+        "'abc",
+        ParsingError {
+            error: crate::parse::error::Type::LexicalError {
+                error: LexicalError {
+                    error: crate::lex::error::Type::UnexpectedCharEnd,
+                    location: Location { start: 0, end: 0 },
+                }
+            },
+            location: Location { start: 0, end: 0 },
+        }
+    );
+    assert_error!(
+        "'a",
+        ParsingError {
+            error: crate::parse::error::Type::LexicalError {
+                error: LexicalError {
+                    error: crate::lex::error::Type::UnexpectedCharEnd,
+                    location: Location { start: 0, end: 0 },
+                }
+            },
+            location: Location { start: 0, end: 0 },
+        }
+    );
+}
+
+#[test]
+fn test_int_literals() {
+    assert_error!(
+        "123a456",
+        ParsingError {
+            error: crate::parse::error::Type::LexicalError {
+                error: LexicalError {
+                    error: crate::lex::error::Type::UnexpectedNumberEnd,
+                    location: Location { start: 4, end: 4 },
+                }
+            },
+            location: Location { start: 4, end: 4 },
+        }
+    );
+}
+
+#[test]
+fn test_float_literals() {
     assert_error!(
         "123.",
         ParsingError {
