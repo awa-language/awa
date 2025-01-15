@@ -57,8 +57,8 @@ pub enum Token {
     If,                 // 'if'
     Else,               // 'else'
     Func,               // 'func'
-    For,                // 'for'
-    While,              // 'while'
+    Loop,               // 'loop'
+    Break,              // 'break'
     Return,             // 'return'
     Exit,               // 'exit'
     Panic,              // 'panic'
@@ -111,8 +111,8 @@ impl fmt::Display for Token {
             Self::Panic => "panic",
             Self::Exit => "exit",
             Self::Return => "return",
-            Self::For => "for",
-            Self::While => "while",
+            Self::Loop => "loop",
+            Self::Break => "break",
             Self::Percent => "%",
             Self::Plus => "+",
             Self::PlusFloat => "+.",

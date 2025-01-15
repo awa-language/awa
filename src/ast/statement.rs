@@ -4,8 +4,8 @@ use super::{assignment::Assignment, expression::Expression, location::Location};
 pub enum Statement<ExpressionT> {
     Expression(ExpressionT),
     Assignment(Assignment<ExpressionT>),
-    // TODO: add `For`, `While` (perhaps merge them as `Cycle`), `If` (as `IfElse` with Option
-    // else?), `Return`
+    // TODO: add `Loop`, `If` (as `IfElse` with Option<else>?), `Return`
+    // NOTE: we won't support else-if's, only if and else
 }
 
 pub type Typed = Statement<Expression>;

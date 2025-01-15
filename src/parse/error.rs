@@ -20,6 +20,7 @@ impl ParsingError {
             Type::MissingRightOperand => "operator is missing value on the right".to_owned(),
             Type::UnexpectedEof => "unexpected EOF".to_owned(),
             Type::InvalidName { .. } => "invalid name".to_owned(),
+            Type::ExpectedStatementSequence => "expected statement sequence".to_owned(),
         }
     }
 }
@@ -33,4 +34,5 @@ pub enum Type {
     MissingRightOperand,
     UnexpectedEof,
     InvalidName { token: Token },
+    ExpectedStatementSequence,
 }

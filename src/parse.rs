@@ -35,6 +35,23 @@ pub fn parse_module(input: &str) -> Result<module::Untyped, ParsingError> {
     Ok(module)
 }
 
+pub fn parse_statement_sequence(input: &str) -> Result<Vec1<statement::Untyped>, ParsingError> {
+    let lex = lexer::lex(input);
+
+    let mut parser = Parser::new(peek_nth(lex));
+    let statement_sequence = parser.parse_statement_sequence();
+
+    let statement_sequence = parser.ensure_no_errors_or_remaining_tokens(statement_sequence)?;
+    if let Some((e, _)) = statement_sequence {
+        Ok(e)
+    } else {
+        Err(ParsingError {
+            error: error::Type::ExpectedStatementSequence,
+            location: LexLocation { start: 0, end: 0 },
+        })
+    }
+}
+
 pub struct Parser<T: Iterator<Item = LexResult>> {
     input_tokens: PeekNth<T>,
     lexical_errors: Vec<LexicalError>,
@@ -476,7 +493,7 @@ impl<T: Iterator<Item = LexResult>> Parser<T> {
     fn parse_statement(&mut self) -> Result<Option<statement::Untyped>, ParsingError> {
         match self.current_token.take() {
             Some(token_span) => {
-                // TODO: add parsing for `for`, `while`, `if`, `return` here
+                // TODO: add parsing for `loop`, `if`/`else`, `return` here
                 if token_span.token == Token::Var {
                     let _ = self.advance_token();
 

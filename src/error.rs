@@ -17,7 +17,7 @@ pub enum Error {
 }
 
 impl Error {
-    pub fn pretty_string(&self) -> String {
+    pub fn to_pretty_string(&self) -> String {
         let mut nocolor = Buffer::no_color();
         self.pretty(&mut nocolor);
         String::from_utf8(nocolor.into_inner()).unwrap()
