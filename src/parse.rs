@@ -201,7 +201,7 @@ impl<T: Iterator<Item = LexResult>> Parser<T> {
     fn parse_expression_unit(&mut self) -> Result<Option<expression::Expression>, ParsingError> {
         let expression_unit = match self.current_token.take() {
             Some(token_span) => match token_span.token {
-                //   name can be either:
+                // NOTE: name can be either:
                 // - variable value access (varName)
                 // - function call (`funcName()` or `funcName(argFirst, argSecond)`)
                 // - struct field access (`structName.fieldName`)
@@ -266,7 +266,7 @@ impl<T: Iterator<Item = LexResult>> Parser<T> {
 
                                 let right_bracket_span = self.expect_token(&Token::RightSquare)?;
 
-                                expression::Expression::ArrayValueAccess {
+                                expression::Expression::ArrayElementAccess {
                                     location: AstLocation {
                                         start: start_location,
                                         end: right_bracket_span.end,
@@ -503,35 +503,25 @@ impl<T: Iterator<Item = LexResult>> Parser<T> {
     fn parse_function_call_argument(
         &mut self,
     ) -> Result<Option<argument::CallArgument<expression::Expression>>, ParsingError> {
-        let name_token_span = self.advance_token().ok_or_else(|| ParsingError {
-            error: error::Type::UnexpectedEof,
-            location: LexLocation { start: 0, end: 0 },
-        })?;
-
-        let Token::Name {
-            value: _argument_name,
-        } = name_token_span.token
-        else {
-            return Err(ParsingError {
-                error: error::Type::UnexpectedToken {
-                    token: name_token_span.token,
-                    expected: "argument name".to_string().into(),
-                },
-                location: LexLocation {
-                    start: name_token_span.start,
-                    end: name_token_span.end,
-                },
-            });
+        let expression = match self.parse_expression()? {
+            Some(expr) => expr,
+            None => {
+                return Err(ParsingError {
+                    error: error::Type::UnexpectedToken {
+                        token: self.current_token.clone().unwrap().token,
+                        expected: "function call argument expression".to_string().into(),
+                    },
+                    location: LexLocation {
+                        start: self.current_token.clone().unwrap().start,
+                        end: self.current_token.clone().unwrap().end,
+                    },
+                })
+            }
         };
-
-        let expression = self.parse_expression()?.ok_or_else(|| ParsingError {
-            error: error::Type::UnexpectedEof,
-            location: LexLocation { start: 0, end: 0 },
-        })?;
 
         Ok(Some(argument::CallArgument {
             location: Location {
-                start: name_token_span.start,
+                start: expression.get_location().start,
                 end: expression.get_location().end,
             },
             value: expression,

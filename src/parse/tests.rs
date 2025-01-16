@@ -254,6 +254,11 @@ fn test_triple_equal() {
 }
 
 #[test]
+fn test_array_index() {
+    assert_parse_module!("func main() {var value cust = arr[index]}");
+}
+
+#[test]
 fn test_module() {
     assert_parse_module!("func main() {}");
 }
@@ -271,5 +276,16 @@ fn test_if_function() {
 
 #[test]
 fn test_array_index_access_expression() {
-    assert_parse_module!("func main() {awa[i + 2]}");
+    //assert_parse_module!("func main() {arr[i][j]}");
+    assert_parse_module!("func main() {arr[i + 2]}");
+}
+
+#[test]
+fn test_function_call() {
+    assert_parse_module!("func main() {fn(a, 2)}");
+}
+
+#[test]
+fn test_complex_function_definition() {
+    assert_parse_module!("func main(a int, b string, c float, g char, e [][][]int, h custom) {}");
 }

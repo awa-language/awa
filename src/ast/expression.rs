@@ -1,8 +1,8 @@
-use crate::ast::location::Location;
+use crate::{ast::location::Location, type_::Type};
 use ecow::EcoString;
 use vec1::Vec1;
 
-use super::argument::CallArgument;
+use super::{argument::CallArgument, definition::StructField};
 
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub enum Expression {
@@ -36,10 +36,20 @@ pub enum Expression {
         struct_name: EcoString,
         field_name: EcoString,
     },
-    ArrayValueAccess {
+    ArrayElementAccess {
         location: Location,
         array_name: EcoString,
         index_expression: Box<Self>,
+    },
+    ArrayInitialization {
+        location: Location,
+        type_annotation: Type,
+        elements: Option<Vec1<Self>>,
+    },
+    StructInitialization {
+        location: Location,
+        type_annotation: Type,
+        fields: Option<Vec1<StructFieldValue>>,
     },
 }
 
@@ -54,7 +64,15 @@ impl Expression {
             | Expression::VariableValue { location, .. }
             | Expression::FunctionCall { location, .. }
             | Expression::StructFieldAccess { location, .. }
-            | Expression::ArrayValueAccess { location, .. } => *location,
+            | Expression::ArrayElementAccess { location, .. }
+            | Expression::ArrayInitialization { location, .. }
+            | Expression::StructInitialization { location, .. } => *location,
         }
     }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct StructFieldValue {
+    name: EcoString,
+    value: Expression,
 }
