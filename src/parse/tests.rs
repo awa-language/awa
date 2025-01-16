@@ -254,6 +254,6 @@ fn test_triple_equal() {
 }
 
 #[test]
-fn test_uno() {
-    assert_parse_module!("");
+fn test_module() {
+    assert_parse_module!("func main() {}");
 }
