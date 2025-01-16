@@ -47,7 +47,7 @@ fn test_var_assignment() {
     }];
 
     for case in cases {
-        let lex = lex(&case.input).collect_vec();
+        let lex = lex(case.input).collect_vec();
         assert_eq!(lex, case.expected);
     }
 }
@@ -96,7 +96,7 @@ fn test_if_statement() {
     }];
 
     for case in cases {
-        let lex = lex(&case.input).collect_vec();
+        let lex = lex(case.input).collect_vec();
         assert_eq!(lex, case.expected);
     }
 }
@@ -134,7 +134,7 @@ fn test_newlines() {
     }];
 
     for case in cases {
-        let lex = lex(&case.input).collect_vec();
+        let lex = lex(case.input).collect_vec();
         assert_eq!(lex, case.expected);
     }
 }
@@ -165,7 +165,7 @@ fn test_int_literal_lexing() {
     ];
 
     for case in cases {
-        let lex = lex(&case.input).collect_vec();
+        let lex = lex(case.input).collect_vec();
         assert_eq!(lex, case.expected);
     }
 }
@@ -196,7 +196,7 @@ fn test_float_literal_lexing() {
     ];
 
     for case in cases {
-        let lex = lex(&case.input).collect_vec();
+        let lex = lex(case.input).collect_vec();
         assert_eq!(lex, case.expected);
     }
 }
@@ -224,7 +224,7 @@ fn test_invalid_int_literal_lexing() {
     }];
 
     for case in cases {
-        let lex = lex(&case.input).collect_vec();
+        let lex = lex(case.input).collect_vec();
         assert_eq!(lex, case.expected, "Test failed for input: {}", case.input);
     }
 }
@@ -297,7 +297,7 @@ fn test_comment() {
     }];
 
     for case in cases {
-        let lex = lex(&case.input).collect_vec();
+        let lex = lex(case.input).collect_vec();
         assert_eq!(lex, case.expected);
     }
 }

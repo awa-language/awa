@@ -43,13 +43,13 @@ impl Untyped {
         match self {
             Statement::Expression(expression) => expression.get_location(),
             Statement::Assignment(assignment) => assignment.location,
-            Statement::Loop { location, .. } => *location,
-            Statement::If { location, .. } => *location,
-            Statement::Return { location, .. } => *location,
-            Statement::Todo { location, .. } => *location,
-            Statement::Panic { location, .. } => *location,
-            Statement::Exit { location, .. } => *location,
-            Statement::Break { location, .. } => *location,
+            Statement::Loop { location, .. }
+            | Statement::If { location, .. }
+            | Statement::Return { location, .. }
+            | Statement::Todo { location, .. }
+            | Statement::Panic { location, .. }
+            | Statement::Exit { location, .. }
+            | Statement::Break { location, .. } => *location,
         }
     }
 }

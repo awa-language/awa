@@ -30,6 +30,17 @@ use crate::{
     type_::Type,
 };
 
+/// Parses the input string into untyped AST module.
+///
+/// - Modules contain struct and function definitions
+/// - Function definitions contain statements (if-elses, loops, breaks, assignments,
+///   standalone expressions, todos, panics, exits)
+/// - Statements consist of expressions (primitive type literals, value accesses and
+///   initializations)
+///
+/// # Errors
+///
+/// This function will return `ParsingError` if the input cannot be parsed into module.
 pub fn parse_module(input: &str) -> Result<module::Untyped, ParsingError> {
     let tokens = lexer::lex(input);
 
@@ -39,6 +50,7 @@ pub fn parse_module(input: &str) -> Result<module::Untyped, ParsingError> {
     Ok(module)
 }
 
+#[cfg(test)]
 pub fn parse_statement_sequence(input: &str) -> Result<Vec1<statement::Untyped>, ParsingError> {
     let lex = lexer::lex(input);
 
@@ -46,8 +58,8 @@ pub fn parse_statement_sequence(input: &str) -> Result<Vec1<statement::Untyped>,
     let statement_sequence = parser.parse_statement_sequence();
 
     let statement_sequence = parser.ensure_no_errors_or_remaining_tokens(statement_sequence)?;
-    if let Some((e, _)) = statement_sequence {
-        Ok(e)
+    if let Some((stament_sequence, _)) = statement_sequence {
+        Ok(stament_sequence)
     } else {
         Err(ParsingError {
             error: error::Type::ExpectedStatementSequence,
@@ -91,7 +103,7 @@ impl<T: Iterator<Item = LexResult>> Parser<T> {
     ) -> Result<A, ParsingError> {
         let result = self.ensure_no_errors(parse_result)?;
 
-        if let Some(_) = self.current_token {
+        if self.current_token.is_some() {
             return Err(ParsingError {
                 error: error::Type::UnexpectedToken {
                     token: self.current_token.clone().unwrap().token,
@@ -200,7 +212,7 @@ impl<T: Iterator<Item = LexResult>> Parser<T> {
     }
 
     fn parse_expression_unit(&mut self) -> Result<Option<expression::Expression>, ParsingError> {
-        let expression_unit = match self.current_token.take() {
+        match self.current_token.take() {
             Some(token_span) => match token_span.token {
                 // NOTE: name can be either:
                 // - variable value access (varName)
@@ -209,12 +221,12 @@ impl<T: Iterator<Item = LexResult>> Parser<T> {
                 // - array value access (`arrayName[indexVariable]` or `arrayName[1]`)
                 Token::Name { value: sth_name } => {
                     let start_location = token_span.start;
-                    let expr = match self.peek_token() {
-                        Some(next_token_span) => match &next_token_span.token {
+                    let expr = if let Some(next_token_span) = self.peek_token() {
+                        match &next_token_span.token {
                             Token::LeftParenthesis => {
                                 let _ = self.advance_token();
-                                let result = self.parse_function_call(&sth_name, start_location)?;
-                                result
+
+                                self.parse_function_call(&sth_name, start_location)?
                             }
                             Token::Dot => {
                                 let _ = self.advance_token();
@@ -247,22 +259,17 @@ impl<T: Iterator<Item = LexResult>> Parser<T> {
                             Token::LeftSquare => {
                                 let _ = self.advance_token();
                                 let _ = self.advance_token();
-                                let index_value = match self.parse_expression()? {
-                                    Some(expr) => expr,
-                                    None => {
-                                        return Err(ParsingError {
-                                            error: error::Type::UnexpectedToken {
-                                                token: self.current_token.clone().unwrap().token,
-                                                expected: "array index expression"
-                                                    .to_string()
-                                                    .into(),
-                                            },
-                                            location: LexLocation {
-                                                start: self.current_token.clone().unwrap().start,
-                                                end: self.current_token.clone().unwrap().end,
-                                            },
-                                        })
-                                    }
+                                let Some(index_value) = self.parse_expression()? else {
+                                    return Err(ParsingError {
+                                        error: error::Type::UnexpectedToken {
+                                            token: self.current_token.clone().unwrap().token,
+                                            expected: "array index expression".to_string().into(),
+                                        },
+                                        location: LexLocation {
+                                            start: self.current_token.clone().unwrap().start,
+                                            end: self.current_token.clone().unwrap().end,
+                                        },
+                                    });
                                 };
 
                                 let right_bracket_span = self.expect_token(&Token::RightSquare)?;
@@ -286,16 +293,15 @@ impl<T: Iterator<Item = LexResult>> Parser<T> {
                                     name: sth_name,
                                 }
                             }
-                        },
-                        None => {
-                            let _ = self.advance_token();
-                            expression::Expression::VariableValue {
-                                location: AstLocation {
-                                    start: start_location,
-                                    end: token_span.end,
-                                },
-                                name: sth_name,
-                            }
+                        }
+                    } else {
+                        let _ = self.advance_token();
+                        expression::Expression::VariableValue {
+                            location: AstLocation {
+                                start: start_location,
+                                end: token_span.end,
+                            },
+                            name: sth_name,
                         }
                     };
                     Ok(Some(expr))
@@ -345,15 +351,11 @@ impl<T: Iterator<Item = LexResult>> Parser<T> {
                     Ok(None)
                 }
             },
-            None => {
-                return Err(ParsingError {
-                    error: error::Type::UnexpectedEof,
-                    location: LexLocation { start: 0, end: 0 },
-                })
-            }
-        };
-
-        expression_unit
+            None => Err(ParsingError {
+                error: error::Type::UnexpectedEof,
+                location: LexLocation { start: 0, end: 0 },
+            }),
+        }
     }
 
     fn parse_function_call(
@@ -364,15 +366,14 @@ impl<T: Iterator<Item = LexResult>> Parser<T> {
         let _ = self.expect_token(&Token::LeftParenthesis)?;
 
         let (call_arguments, right_parenthesis_token_span) =
-            match self.maybe_token(&Token::RightParenthesis) {
-                Some(token_span) => (None, token_span),
-                None => {
-                    let call_args = self
-                        .parse_series(&Self::parse_function_call_argument, Some(&Token::Comma))?;
-                    let args = Some(Vec1::try_from_vec(call_args).unwrap());
-                    let span = self.expect_token(&Token::RightParenthesis)?;
-                    (args, span)
-                }
+            if let Some(token_span) = self.maybe_token(&Token::RightParenthesis) {
+                (None, token_span)
+            } else {
+                let call_args =
+                    self.parse_series(&Self::parse_function_call_argument, Some(&Token::Comma))?;
+                let args = Some(Vec1::try_from_vec(call_args).unwrap());
+                let span = self.expect_token(&Token::RightParenthesis)?;
+                (args, span)
             };
 
         Ok(expression::Expression::FunctionCall {
@@ -450,20 +451,17 @@ impl<T: Iterator<Item = LexResult>> Parser<T> {
 
         self.expect_token(&Token::Colon)?;
 
-        let value = match self.parse_expression()? {
-            Some(expr) => expr,
-            None => {
-                return Err(ParsingError {
-                    error: error::Type::UnexpectedToken {
-                        token: self.current_token.clone().unwrap().token,
-                        expected: "field value expression".to_string().into(),
-                    },
-                    location: LexLocation {
-                        start: self.current_token.clone().unwrap().start,
-                        end: self.current_token.clone().unwrap().end,
-                    },
-                })
-            }
+        let Some(value) = self.parse_expression()? else {
+            return Err(ParsingError {
+                error: error::Type::UnexpectedToken {
+                    token: self.current_token.clone().unwrap().token,
+                    expected: "field value expression".to_string().into(),
+                },
+                location: LexLocation {
+                    start: self.current_token.clone().unwrap().start,
+                    end: self.current_token.clone().unwrap().end,
+                },
+            });
         };
 
         Ok(Some(StructFieldValue {
@@ -494,13 +492,11 @@ impl<T: Iterator<Item = LexResult>> Parser<T> {
 
         let _ = self.expect_token(&Token::LeftParenthesis)?;
 
-        let arguments = match self.maybe_token(&Token::RightParenthesis) {
-            Some(_) => None,
-            None => {
-                let args =
-                    self.parse_series(&Self::parse_function_argument, Some(&Token::Comma))?;
-                Some(Vec1::try_from_vec(args).unwrap())
-            }
+        let arguments = if self.maybe_token(&Token::RightParenthesis).is_some() {
+            None
+        } else {
+            let args = self.parse_series(&Self::parse_function_argument, Some(&Token::Comma))?;
+            Some(Vec1::try_from_vec(args).unwrap())
         };
         if arguments.is_some() {
             self.expect_token(&Token::RightParenthesis)?;
@@ -513,10 +509,7 @@ impl<T: Iterator<Item = LexResult>> Parser<T> {
                 let some_body = self.parse_statement_sequence()?;
                 let right_brace_token_span = self.expect_token(&Token::RightBrace)?;
                 let end_location = right_brace_token_span.end;
-                let body = match some_body {
-                    Some((body, _)) => Some(body),
-                    None => None,
-                };
+                let body = some_body.map(|(body, _)| body);
                 Ok((body, end_location))
             }
             None => Err(ParsingError {
@@ -546,20 +539,17 @@ impl<T: Iterator<Item = LexResult>> Parser<T> {
     fn parse_function_call_argument(
         &mut self,
     ) -> Result<Option<argument::CallArgument<expression::Expression>>, ParsingError> {
-        let expression = match self.parse_expression()? {
-            Some(expr) => expr,
-            None => {
-                return Err(ParsingError {
-                    error: error::Type::UnexpectedToken {
-                        token: self.current_token.clone().unwrap().token,
-                        expected: "function call argument expression".to_string().into(),
-                    },
-                    location: LexLocation {
-                        start: self.current_token.clone().unwrap().start,
-                        end: self.current_token.clone().unwrap().end,
-                    },
-                })
-            }
+        let Some(expression) = self.parse_expression()? else {
+            return Err(ParsingError {
+                error: error::Type::UnexpectedToken {
+                    token: self.current_token.clone().unwrap().token,
+                    expected: "function call argument expression".to_string().into(),
+                },
+                location: LexLocation {
+                    start: self.current_token.clone().unwrap().start,
+                    end: self.current_token.clone().unwrap().end,
+                },
+            });
         };
 
         Ok(Some(argument::CallArgument {
@@ -704,10 +694,9 @@ impl<T: Iterator<Item = LexResult>> Parser<T> {
                     let _ = self.advance_token();
                     let _ = self.expect_token(&Token::LeftBrace)?;
 
-                    let body = match self.parse_statement_sequence()? {
-                        Some((statements, _)) => Some(statements),
-                        None => None,
-                    };
+                    let body = self
+                        .parse_statement_sequence()?
+                        .map(|(statements, _)| statements);
 
                     let right_brace_token_span = self.expect_token(&Token::RightBrace)?;
                     let end = right_brace_token_span.end;
@@ -727,31 +716,30 @@ impl<T: Iterator<Item = LexResult>> Parser<T> {
                     let _ = self.expect_token(&Token::RightParenthesis)?;
 
                     let _ = self.expect_token(&Token::LeftBrace)?;
-                    let if_body = match self.parse_statement_sequence()? {
-                        Some((statements, _)) => Some(statements),
-                        None => None,
-                    };
+                    let if_body = self
+                        .parse_statement_sequence()?
+                        .map(|(statements, _)| statements);
 
                     let right_brace_token_span = self.expect_token(&Token::RightBrace)?;
                     let mut end = right_brace_token_span.end;
 
-                    let else_body =
-                        if let Some(Token::Else) = self.current_token.as_ref().map(|t| &t.token) {
-                            self.advance_token();
-                            let _ = self.expect_token(&Token::LeftBrace)?;
+                    let else_body = if let Some(Token::Else) =
+                        self.current_token.as_ref().map(|tok| &tok.token)
+                    {
+                        self.advance_token();
+                        let _ = self.expect_token(&Token::LeftBrace)?;
 
-                            let else_statements = match self.parse_statement_sequence()? {
-                                Some((statements, _)) => Some(statements),
-                                None => None,
-                            };
+                        let else_statements = self
+                            .parse_statement_sequence()?
+                            .map(|(statements, _)| statements);
 
-                            let else_right_brace = self.expect_token(&Token::RightBrace)?;
-                            end = else_right_brace.end;
+                        let else_right_brace = self.expect_token(&Token::RightBrace)?;
+                        end = else_right_brace.end;
 
-                            else_statements
-                        } else {
-                            None
-                        };
+                        else_statements
+                    } else {
+                        None
+                    };
 
                     Ok(Some(Statement::If {
                         condition: Box::new(condition.unwrap()),

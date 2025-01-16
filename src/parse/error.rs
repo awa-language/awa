@@ -9,7 +9,7 @@ pub struct ParsingError {
 }
 
 impl ParsingError {
-    pub fn get_description(&self) -> String {
+    #[must_use] pub fn get_description(&self) -> String {
         match &self.error {
             Type::LexicalError { error } => format!("lexical error: {}", error.get_description()),
             Type::UnexpectedToken { token, expected } => {

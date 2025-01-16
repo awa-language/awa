@@ -102,7 +102,7 @@ impl fmt::Display for Token {
             Self::LessEqual => "<=",
             Self::LessEqualFloat => "<=.",
             Self::Var => "var",
-            Self::Struct => "var",
+            Self::Struct => "struct",
             Self::Concat => "<>",
             Self::LessLess => "<<",
             Self::Minus => "-",

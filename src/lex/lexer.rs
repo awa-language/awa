@@ -275,13 +275,10 @@ where
                     last_is_digit = false;
                     number.push('.');
                 }
-                Some(ch)
-                    if !ch.is_ascii_digit()
-                        && (!has_floating_point || (last_is_digit && has_floating_point)) =>
-                {
+                Some(ch) if !ch.is_ascii_digit() && (!has_floating_point || last_is_digit) => {
                     break;
                 }
-                None if !has_floating_point || (last_is_digit && has_floating_point) => {
+                None if !has_floating_point || last_is_digit => {
                     let _ = self.advance_char();
                     break;
                 }
@@ -584,26 +581,23 @@ where
         let token_start = self.current_location;
         let _ = self.advance_char();
 
-        match self.current_char {
-            Some('.') => {
-                let _ = self.advance_char();
-                let token_end = self.current_location;
+        if let Some('.') = self.current_char {
+            let _ = self.advance_char();
+            let token_end = self.current_location;
 
-                self.emit(TokenSpan {
-                    start: token_start,
-                    end: token_end,
-                    token: Token::PlusFloat,
-                });
-            }
-            _ => {
-                let token_end = self.current_location;
+            self.emit(TokenSpan {
+                start: token_start,
+                end: token_end,
+                token: Token::PlusFloat,
+            });
+        } else {
+            let token_end = self.current_location;
 
-                self.emit(TokenSpan {
-                    start: token_start,
-                    end: token_end,
-                    token: Token::Plus,
-                });
-            }
+            self.emit(TokenSpan {
+                start: token_start,
+                end: token_end,
+                token: Token::Plus,
+            });
         }
     }
 
@@ -611,26 +605,23 @@ where
         let token_start = self.current_location;
         let _ = self.advance_char();
 
-        match self.current_char {
-            Some('.') => {
-                let _ = self.advance_char();
-                let token_end = self.current_location;
+        if let Some('.') = self.current_char {
+            let _ = self.advance_char();
+            let token_end = self.current_location;
 
-                self.emit(TokenSpan {
-                    start: token_start,
-                    end: token_end,
-                    token: Token::MinusFloat,
-                });
-            }
-            _ => {
-                let token_end = self.current_location;
+            self.emit(TokenSpan {
+                start: token_start,
+                end: token_end,
+                token: Token::MinusFloat,
+            });
+        } else {
+            let token_end = self.current_location;
 
-                self.emit(TokenSpan {
-                    start: token_start,
-                    end: token_end,
-                    token: Token::Minus,
-                });
-            }
+            self.emit(TokenSpan {
+                start: token_start,
+                end: token_end,
+                token: Token::Minus,
+            });
         }
     }
 

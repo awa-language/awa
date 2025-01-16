@@ -7,7 +7,7 @@ pub struct LexicalError {
 }
 
 impl LexicalError {
-    pub fn get_description(&self) -> &'static str {
+    #[must_use] pub fn get_description(&self) -> &'static str {
         match &self.error {
             Type::UnrecognizedToken { .. } => "unrecognized token",
             Type::InvalidTripleEqual => "invalid `===`",

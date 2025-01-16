@@ -17,19 +17,26 @@ pub enum Error {
 }
 
 impl Error {
+    /// Converts the error into a human-readable string.
+    ///
+    /// # Panics
+    /// This function will panic if the buffer contains invalid UTF-8 bytes.
+    #[must_use]
     pub fn to_pretty_string(&self) -> String {
-        let mut nocolor = Buffer::no_color();
-        self.pretty(&mut nocolor);
-        String::from_utf8(nocolor.into_inner()).unwrap()
+        let mut buffer = Buffer::no_color();
+        self.prettify(&mut buffer);
+
+        String::from_utf8(buffer.into_inner()).unwrap()
     }
 
-    pub fn pretty(&self, buffer: &mut Buffer) {
+    pub fn prettify(&self, buffer: &mut Buffer) {
         for diagnostic in self.to_diagnostics() {
             diagnostic.write(buffer);
             writeln!(buffer).unwrap();
         }
     }
 
+    #[must_use]
     pub fn to_diagnostics(&self) -> Vec<Diagnostic> {
         match self {
             Error::Parsing { src, path, error } => {
