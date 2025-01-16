@@ -23,6 +23,6 @@ pub enum Untyped {
 
 #[derive(Debug)]
 pub struct StructField {
-    name: EcoString,
-    type_: Type,
+    pub name: EcoString,
+    pub type_annotation: Type,
 }

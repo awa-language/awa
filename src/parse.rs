@@ -362,6 +362,7 @@ impl<T: Iterator<Item = LexResult>> Parser<T> {
     }
 
     fn parse_struct_defenition(&mut self) -> Result<definition::Untyped, ParsingError> {
+        let _ = self.advance_token();
         let name_token_span = self.advance_token().ok_or_else(|| ParsingError {
             error: error::Type::UnexpectedEof,
             location: LexLocation { start: 0, end: 0 },
@@ -382,7 +383,7 @@ impl<T: Iterator<Item = LexResult>> Parser<T> {
 
         let _ = self.expect_token(&Token::LeftBrace)?;
 
-        let fields = self.parse_series(&Self::parse_struct_argument, None)?;
+        let fields = self.parse_series(&Self::parse_struct_field, None)?;
 
         let right_brace_token_span = self.advance_token().ok_or_else(|| ParsingError {
             error: error::Type::UnexpectedEof,
@@ -478,23 +479,23 @@ impl<T: Iterator<Item = LexResult>> Parser<T> {
     fn parse_function_call_argument(
         &mut self,
     ) -> Result<Option<argument::CallArgument<expression::Expression>>, ParsingError> {
-        let argument_name_token_span = self.advance_token().ok_or_else(|| ParsingError {
+        let name_token_span = self.advance_token().ok_or_else(|| ParsingError {
             error: error::Type::UnexpectedEof,
             location: LexLocation { start: 0, end: 0 },
         })?;
 
         let Token::Name {
             value: _argument_name,
-        } = argument_name_token_span.token
+        } = name_token_span.token
         else {
             return Err(ParsingError {
                 error: error::Type::UnexpectedToken {
-                    token: argument_name_token_span.token,
+                    token: name_token_span.token,
                     expected: "argument name".to_string().into(),
                 },
                 location: LexLocation {
-                    start: argument_name_token_span.start,
-                    end: argument_name_token_span.end,
+                    start: name_token_span.start,
+                    end: name_token_span.end,
                 },
             });
         };
@@ -506,7 +507,7 @@ impl<T: Iterator<Item = LexResult>> Parser<T> {
 
         Ok(Some(argument::CallArgument {
             location: Location {
-                start: argument_name_token_span.start,
+                start: name_token_span.start,
                 end: expression.get_location().end,
             },
             value: expression,
@@ -514,20 +515,20 @@ impl<T: Iterator<Item = LexResult>> Parser<T> {
     }
 
     fn parse_function_argument(&mut self) -> Result<Option<argument::Untyped>, ParsingError> {
-        let argument_token_span = self.advance_token().ok_or_else(|| ParsingError {
+        let name_token_span = self.advance_token().ok_or_else(|| ParsingError {
             error: error::Type::UnexpectedEof,
             location: LexLocation { start: 0, end: 0 },
         })?;
 
-        let Token::Name { value: param_name } = argument_token_span.token else {
+        let Token::Name { value: name } = name_token_span.token else {
             return Err(ParsingError {
                 error: error::Type::UnexpectedToken {
-                    token: argument_token_span.token,
-                    expected: "argument name".to_string().into(),
+                    token: name_token_span.token,
+                    expected: "function argument name".to_string().into(),
                 },
                 location: LexLocation {
-                    start: argument_token_span.start,
-                    end: argument_token_span.end,
+                    start: name_token_span.start,
+                    end: name_token_span.end,
                 },
             });
         };
@@ -535,7 +536,7 @@ impl<T: Iterator<Item = LexResult>> Parser<T> {
         let type_annotation = self.parse_type_annotation()?.ok_or_else(|| ParsingError {
             error: error::Type::UnexpectedToken {
                 token: self.current_token.clone().unwrap().token,
-                expected: "type annotation".to_string().into(),
+                expected: "function argument type annotation".to_string().into(),
             },
             location: LexLocation {
                 start: self.current_token.clone().unwrap().start,
@@ -545,14 +546,14 @@ impl<T: Iterator<Item = LexResult>> Parser<T> {
 
         Ok(Some(argument::Untyped {
             name: argument::Name::Named {
-                name: param_name,
+                name,
                 location: Location {
-                    start: argument_token_span.start,
-                    end: argument_token_span.end,
+                    start: name_token_span.start,
+                    end: name_token_span.end,
                 },
             },
             location: Location {
-                start: argument_token_span.start,
+                start: name_token_span.start,
                 end: self.current_token.clone().unwrap().start,
             },
             annotation: Some(type_annotation),
@@ -560,8 +561,37 @@ impl<T: Iterator<Item = LexResult>> Parser<T> {
         }))
     }
 
-    fn parse_struct_argument(&mut self) -> Result<Option<StructField>, ParsingError> {
-        todo!()
+    fn parse_struct_field(&mut self) -> Result<Option<StructField>, ParsingError> {
+        let name_token_span = self.current_token.clone();
+        let name_token_span = match name_token_span {
+            Some(name_token_span) => match name_token_span.token {
+                Token::Name { .. } => name_token_span,
+                _ => return Ok(None),
+            },
+            None => return Ok(None),
+        };
+
+        let _ = self.advance_token();
+
+        let Token::Name { value: name } = name_token_span.token else {
+            return Ok(None);
+        };
+
+        let type_annotation = self.parse_type_annotation()?.ok_or_else(|| ParsingError {
+            error: error::Type::UnexpectedToken {
+                token: self.current_token.clone().unwrap().token,
+                expected: "struct field type annotation".to_string().into(),
+            },
+            location: LexLocation {
+                start: self.current_token.clone().unwrap().start,
+                end: self.current_token.clone().unwrap().end,
+            },
+        })?;
+
+        Ok(Some(StructField {
+            name,
+            type_annotation,
+        }))
     }
 
     fn parse_series<A>(
@@ -917,7 +947,7 @@ impl<T: Iterator<Item = LexResult>> Parser<T> {
         token
     }
 
-    fn _peek_token(&mut self) -> Option<TokenSpan> {
+    fn peek_token(&mut self) -> Option<TokenSpan> {
         match self.input_tokens.peek_nth(0) {
             Some(Ok(token)) => Some(token.clone()),
             // TODO: it may insert the same lexical error twice, need tests

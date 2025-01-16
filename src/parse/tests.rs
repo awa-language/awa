@@ -257,3 +257,9 @@ fn test_triple_equal() {
 fn test_module() {
     assert_parse_module!("func main() {}");
 }
+
+#[test]
+fn test_struct() {
+    assert_parse_module!("struct idk {}");
+    assert_parse_module!("struct idk {a int b float c string}");
+}
