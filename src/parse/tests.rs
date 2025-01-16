@@ -282,6 +282,14 @@ fn test_array_element_access_expression() {
 #[test]
 fn test_function_call() {
     assert_parse_module!("func main() {fn(a, 2)}");
+    assert_parse_module!("func main() {fn(\na,\n2\n)}");
+}
+
+#[test]
+fn test_function_definition() {
+    assert_parse_module!(
+        "func main() { other(a, b) }\n\n\nfunc other(a int, b float) int { return 123 }"
+    );
 }
 
 #[test]
