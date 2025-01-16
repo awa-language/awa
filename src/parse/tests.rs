@@ -263,3 +263,13 @@ fn test_struct() {
     assert_parse_module!("struct idk {}");
     assert_parse_module!("struct idk {a int b float c string}");
 }
+
+#[test]
+fn test_if_function() {
+    assert_parse_module!("func factorial(n int) int {\nif (2 > 0) {\nreturn 2\n}\nreturn 1\n}");
+}
+
+#[test]
+fn test_array_index_access_expression() {
+    assert_parse_module!("func main() {awa[i + 2]}");
+}

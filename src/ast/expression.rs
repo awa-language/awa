@@ -1,5 +1,6 @@
 use crate::ast::location::Location;
 use ecow::EcoString;
+use vec1::Vec1;
 
 use super::argument::CallArgument;
 
@@ -28,14 +29,14 @@ pub enum Expression {
     FunctionCall {
         location: Location,
         function_name: EcoString,
-        arguments: Vec<CallArgument<Self>>,
+        arguments: Option<Vec1<CallArgument<Self>>>,
     },
     StructFieldAccess {
         location: Location,
         struct_name: EcoString,
         field_name: EcoString,
     },
-    ArrayIndexAccess {
+    ArrayValueAccess {
         location: Location,
         array_name: EcoString,
         index_expression: Box<Self>,
@@ -53,7 +54,7 @@ impl Expression {
             | Expression::VariableValue { location, .. }
             | Expression::FunctionCall { location, .. }
             | Expression::StructFieldAccess { location, .. }
-            | Expression::ArrayIndexAccess { location, .. } => *location,
+            | Expression::ArrayValueAccess { location, .. } => *location,
         }
     }
 }

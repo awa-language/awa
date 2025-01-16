@@ -166,7 +166,7 @@ impl<T: Iterator<Item = LexResult>> Parser<T> {
                 }
             }
 
-            if let Some(token_span) = self.current_token.take() {
+            if let Some(token_span) = self.current_token.clone() {
                 // if it has precedence, it is a binary operator
                 if let Some(precedence) = get_precedence(&token_span.token) {
                     let _ = self.advance_token();
@@ -206,125 +206,142 @@ impl<T: Iterator<Item = LexResult>> Parser<T> {
                 // - function call (`funcName()` or `funcName(argFirst, argSecond)`)
                 // - struct field access (`structName.fieldName`)
                 // - array value access (`arrayName[indexVariable]` or `arrayName[1]`)
-                Token::Name { value } => {
-                    let name_token_span = self.advance_token().ok_or_else(|| ParsingError {
-                        error: error::Type::UnexpectedEof,
-                        location: LexLocation { start: 0, end: 0 },
-                    })?;
+                Token::Name { value: sth_name } => {
+                    let start_location = token_span.start;
+                    let expr = match self.peek_token() {
+                        Some(next_token_span) => match &next_token_span.token {
+                            Token::LeftParenthesis => {
+                                let _ = self.advance_token();
+                                let result = self.parse_function_call(&sth_name, start_location)?;
+                                result
+                            }
+                            Token::Dot => {
+                                let _ = self.advance_token();
+                                let _ = self.advance_token();
+                                let field_token_span = self.advance_token().unwrap();
 
-                    // function call (`funcName()` or `funcName(argFirst, argSecond)`)
-                    if let Some(left_parenthesis_token_span) =
-                        self.maybe_token(&Token::LeftParenthesis)
-                    {
-                        let call_arguments = self.parse_series(
-                            &Self::parse_function_call_argument,
-                            Some(&Token::Comma),
-                        )?;
-                        let right_paren_token_span = self.expect_token(&Token::RightParenthesis)?;
+                                let Token::Name { value: field_name } = field_token_span.token
+                                else {
+                                    return Err(ParsingError {
+                                        error: error::Type::UnexpectedToken {
+                                            token: field_token_span.token,
+                                            expected: "field name".to_string().into(),
+                                        },
+                                        location: LexLocation {
+                                            start: field_token_span.start,
+                                            end: field_token_span.end,
+                                        },
+                                    });
+                                };
 
-                        return Ok(Some(expression::Expression::FunctionCall {
-                            location: Location {
-                                start: name_token_span.start,
-                                end: right_paren_token_span.end,
-                            },
-                            function_name: value.into(),
-                            arguments: call_arguments,
-                        }));
-                    }
+                                expression::Expression::StructFieldAccess {
+                                    location: AstLocation {
+                                        start: start_location,
+                                        end: field_token_span.end,
+                                    },
+                                    struct_name: sth_name,
+                                    field_name,
+                                }
+                            }
+                            Token::LeftSquare => {
+                                let _ = self.advance_token();
+                                let _ = self.advance_token();
+                                let index_value = match self.parse_expression()? {
+                                    Some(expr) => expr,
+                                    None => {
+                                        return Err(ParsingError {
+                                            error: error::Type::UnexpectedToken {
+                                                token: self.current_token.clone().unwrap().token,
+                                                expected: "array index expression"
+                                                    .to_string()
+                                                    .into(),
+                                            },
+                                            location: LexLocation {
+                                                start: self.current_token.clone().unwrap().start,
+                                                end: self.current_token.clone().unwrap().end,
+                                            },
+                                        })
+                                    }
+                                };
 
-                    // struct field access (`structName.fieldName`)
-                    if let Some(field_name_token_span) = self.maybe_token(&Token::Dot) {
-                        let Token::Name { value: _field_name } = field_name_token_span.token else {
-                            return Err(ParsingError {
-                                error: error::Type::UnexpectedToken {
-                                    token: field_name_token_span.token,
-                                    expected: "field name".to_string().into(),
-                                },
-                                location: LexLocation {
-                                    start: field_name_token_span.start,
-                                    end: field_name_token_span.end,
-                                },
-                            });
-                        };
+                                let right_bracket_span = self.expect_token(&Token::RightSquare)?;
 
-                        return Ok(Some(expression::Expression::StructFieldAccess {
-                            location: Location {
-                                start: name_token_span.start,
-                                end: field_name_token_span.end,
-                            },
-                            struct_name: value.into(),
-                            field_name: _field_name.into(),
-                        }));
-                    }
-
-                    // array value access (`arrayName[indexVariable]` or `arrayName[1]`)
-                    if let Some(left_brace_token_span) = self.maybe_token(&Token::LeftBrace) {
-                        let index_expression = self.parse_expression()?;
-                        let right_bracket_token_span = self.expect_token(&Token::RightBrace)?;
-
-                        return Ok(Some(expression::Expression::ArrayIndexAccess {
-                            location: Location {
-                                start: name_token_span.start,
-                                end: right_bracket_token_span.end,
-                            },
-                            array_name: value.into(),
-                            index_expression: Box::new(index_expression.unwrap()),
-                        }));
-                    }
-
-                    // variable value access (varName)
-                    return Ok(Some(expression::Expression::VariableValue {
-                        location: Location {
-                            start: name_token_span.start,
-                            end: name_token_span.end,
+                                expression::Expression::ArrayValueAccess {
+                                    location: AstLocation {
+                                        start: start_location,
+                                        end: right_bracket_span.end,
+                                    },
+                                    array_name: sth_name,
+                                    index_expression: Box::new(index_value),
+                                }
+                            }
+                            _ => {
+                                let _ = self.advance_token();
+                                expression::Expression::VariableValue {
+                                    location: AstLocation {
+                                        start: start_location,
+                                        end: token_span.end,
+                                    },
+                                    name: sth_name,
+                                }
+                            }
                         },
-                        name: value.into(),
-                    }));
+                        None => {
+                            let _ = self.advance_token();
+                            expression::Expression::VariableValue {
+                                location: AstLocation {
+                                    start: start_location,
+                                    end: token_span.end,
+                                },
+                                name: sth_name,
+                            }
+                        }
+                    };
+                    Ok(Some(expr))
                 }
-
                 Token::IntLiteral { value } => {
                     let _ = self.advance_token();
-                    Some(expression::Expression::IntLiteral {
+                    Ok(Some(expression::Expression::IntLiteral {
                         location: AstLocation {
                             start: token_span.start,
                             end: token_span.end,
                         },
                         value,
-                    })
+                    }))
                 }
                 Token::FloatLiteral { value } => {
                     let _ = self.advance_token();
-                    Some(expression::Expression::FloatLiteral {
+                    Ok(Some(expression::Expression::FloatLiteral {
                         location: AstLocation {
                             start: token_span.start,
                             end: token_span.end,
                         },
                         value,
-                    })
+                    }))
                 }
                 Token::StringLiteral { value } => {
                     let _ = self.advance_token();
-                    Some(expression::Expression::StringLiteral {
+                    Ok(Some(expression::Expression::StringLiteral {
                         location: AstLocation {
                             start: token_span.start,
                             end: token_span.end,
                         },
                         value,
-                    })
+                    }))
                 }
                 Token::CharLiteral { value } => {
                     let _ = self.advance_token();
-                    Some(expression::Expression::CharLiteral {
+                    Ok(Some(expression::Expression::CharLiteral {
                         location: AstLocation {
                             start: token_span.start,
                             end: token_span.end,
                         },
                         value,
-                    })
+                    }))
                 }
                 _ => {
                     self.current_token = Some(token_span);
-                    None
+                    Ok(None)
                 }
             },
             None => {
@@ -335,7 +352,7 @@ impl<T: Iterator<Item = LexResult>> Parser<T> {
             }
         };
 
-        Ok(expression_unit)
+        expression_unit
     }
 
     fn parse_function_call(
@@ -346,10 +363,17 @@ impl<T: Iterator<Item = LexResult>> Parser<T> {
         // TODO: this would most certainly be not here, but on the caller side
         let _ = self.expect_token(&Token::LeftParenthesis)?;
 
-        let call_arguments =
-            self.parse_series(&Self::parse_function_call_argument, Some(&Token::Comma))?;
-
-        let right_parenthesis_token_span = self.expect_token(&Token::RightParenthesis)?;
+        let (call_arguments, right_parenthesis_token_span) =
+            match self.maybe_token(&Token::RightParenthesis) {
+                Some(token_span) => (None, token_span),
+                None => {
+                    let call_args = self
+                        .parse_series(&Self::parse_function_call_argument, Some(&Token::Comma))?;
+                    let args = Some(Vec1::try_from_vec(call_args).unwrap());
+                    let span = self.expect_token(&Token::RightParenthesis)?;
+                    (args, span)
+                }
+            };
 
         Ok(expression::Expression::FunctionCall {
             location: AstLocation {

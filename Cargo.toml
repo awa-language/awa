@@ -16,7 +16,7 @@ module_name_repetitions = "allow"
 camino = "1.1.9"
 codespan-reporting = "0.11.1"
 ecow = "0.2.2"
-itertools = "0.13.0"
+itertools = { version = "0.13.0", features = ["use_alloc"] }
 pretty_assertions = "1.4.1"
 termcolor = "1.4.1"
 vec1 = "1.12.1"

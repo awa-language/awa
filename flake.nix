@@ -27,7 +27,10 @@
           rustc
           rustfmt
           rustPackages.clippy
-
+          (symlinkJoin {
+            name = "rust-toolchain";
+            paths = [rustc cargo rustPlatform.rustcSrc];
+          })
           alejandra
         ];
       };
