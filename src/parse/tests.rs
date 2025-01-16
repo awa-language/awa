@@ -264,6 +264,12 @@ fn test_basic_module() {
 }
 
 #[test]
+fn test_operators() {
+    assert_parse_module!("func main() { 1 + 2 / 3 * 4 }");
+    assert_parse_module!("func main() { 1 + 2 / 3 * 4 && 5 || 6 % 8.0 <> \"whatever\" }");
+}
+
+#[test]
 fn test_struct_definition() {
     assert_parse_module!("struct idk {}");
     assert_parse_module!("struct idk {a int b float c string}");
