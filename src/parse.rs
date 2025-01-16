@@ -153,7 +153,10 @@ impl<T: Iterator<Item = LexResult>> Parser<T> {
             // NOTE: no global variables because i'm too lazy to add variable definition
             // (now they are available only as an expression)
             Some(token_span) => match token_span.token {
-                Token::Struct => todo!(),
+                Token::Struct => match self.parse_struct_defenition() {
+                    Ok(definition) => Ok(Some(definition)),
+                    Err(parsing_error) => Err(parsing_error),
+                },
                 Token::Func => match self.parse_function_definition() {
                     Ok(definition) => Ok(Some(definition)),
                     Err(parsing_error) => Err(parsing_error),
@@ -299,6 +302,32 @@ impl<T: Iterator<Item = LexResult>> Parser<T> {
         })
     }
 
+    fn parse_struct_defenition(&mut self) -> Result<definition::Untyped, ParsingError> {
+        let name_token_span = self.advance_token().ok_or_else(|| ParsingError {
+            error: error::Type::UnexpectedEof,
+            location: LexLocation { start: 0, end: 0 },
+        })?;
+
+        let Token::Name { value: name } = name_token_span.token else {
+            return Err(ParsingError {
+                error: error::Type::UnexpectedToken {
+                    token: name_token_span.token,
+                    expected: vec!["struct name".to_string().into()],
+                },
+                location: LexLocation {
+                    start: name_token_span.start,
+                    end: name_token_span.end,
+                },
+            });
+        };
+
+        let _ = self.expect_token(&Token::LeftBrace)?;
+
+        let fields = self.parse_series(&Self::parse_struct_argument, None);
+
+        let _ = self.expect_token(&Token::RightBrace)?;
+    }
+
     fn parse_function_definition(&mut self) -> Result<definition::Untyped, ParsingError> {
         let name_token_span = self.advance_token().ok_or_else(|| ParsingError {
             error: error::Type::UnexpectedEof,
@@ -378,6 +407,10 @@ impl<T: Iterator<Item = LexResult>> Parser<T> {
     }
 
     fn parse_function_argument(&mut self) -> Result<Option<argument::Untyped>, ParsingError> {
+        todo!()
+    }
+
+    fn parse_struct_argument(&mut self) -> Result<Option<argument::Untyped>, ParsingError> {
         todo!()
     }
 
