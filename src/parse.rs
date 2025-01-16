@@ -205,45 +205,48 @@ impl<T: Iterator<Item = LexResult>> Parser<T> {
                 Token::Name { .. } => todo!(),
                 Token::IntLiteral { value } => {
                     let _ = self.advance_token();
-                    expression::Expression::IntLiteral {
+                    Some(expression::Expression::IntLiteral {
                         location: AstLocation {
                             start: token_span.start,
                             end: token_span.end,
                         },
                         value,
-                    }
+                    })
                 }
                 Token::FloatLiteral { value } => {
                     let _ = self.advance_token();
-                    expression::Expression::FloatLiteral {
+                    Some(expression::Expression::FloatLiteral {
                         location: AstLocation {
                             start: token_span.start,
                             end: token_span.end,
                         },
                         value,
-                    }
+                    })
                 }
                 Token::StringLiteral { value } => {
                     let _ = self.advance_token();
-                    expression::Expression::StringLiteral {
+                    Some(expression::Expression::StringLiteral {
                         location: AstLocation {
                             start: token_span.start,
                             end: token_span.end,
                         },
                         value,
-                    }
+                    })
                 }
                 Token::CharLiteral { value } => {
                     let _ = self.advance_token();
-                    expression::Expression::CharLiteral {
+                    Some(expression::Expression::CharLiteral {
                         location: AstLocation {
                             start: token_span.start,
                             end: token_span.end,
                         },
                         value,
-                    }
+                    })
                 }
-                _ => todo!(),
+                _ => {
+                    self.current_token = Some(token_span);
+                    None
+                }
             },
             None => {
                 return Err(ParsingError {
@@ -253,7 +256,7 @@ impl<T: Iterator<Item = LexResult>> Parser<T> {
             }
         };
 
-        Ok(Some(expression_unit))
+        Ok(expression_unit)
     }
 
     fn parse_function_call(
