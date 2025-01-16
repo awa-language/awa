@@ -1,10 +1,15 @@
 pub mod error;
 
-use ecow::EcoString;
-use error::{ParsingError, Type::OperatorNakedRight};
-use itertools::{peek_nth, PeekNth};
-use vec1::{vec1, Vec1};
+#[cfg(test)]
+pub mod tests;
 
+use ecow::EcoString;
+use error::{ParsingError, Type::MissingRightOperand};
+use itertools::{peek_nth, PeekNth};
+use vec1::Vec1;
+
+use crate::ast::definition::StructField;
+use crate::ast::location::Location;
 use crate::{
     ast::{
         argument,
@@ -31,6 +36,23 @@ pub fn parse_module(input: &str) -> Result<module::Untyped, ParsingError> {
     let module = parser.parse_module()?;
 
     Ok(module)
+}
+
+pub fn parse_statement_sequence(input: &str) -> Result<Vec1<statement::Untyped>, ParsingError> {
+    let lex = lexer::lex(input);
+
+    let mut parser = Parser::new(peek_nth(lex));
+    let statement_sequence = parser.parse_statement_sequence();
+
+    let statement_sequence = parser.ensure_no_errors_or_remaining_tokens(statement_sequence)?;
+    if let Some((e, _)) = statement_sequence {
+        Ok(e)
+    } else {
+        Err(ParsingError {
+            error: error::Type::ExpectedStatementSequence,
+            location: LexLocation { start: 0, end: 0 },
+        })
+    }
 }
 
 pub struct Parser<T: Iterator<Item = LexResult>> {
@@ -72,7 +94,7 @@ impl<T: Iterator<Item = LexResult>> Parser<T> {
             return Err(ParsingError {
                 error: error::Type::UnexpectedToken {
                     token: self.current_token.clone().unwrap().token,
-                    expected: vec!["function or struct definitions".to_string().into()],
+                    expected: "function or struct definitions".to_string().into(),
                 },
                 location: LexLocation {
                     start: self.current_token.clone().unwrap().start,
@@ -95,6 +117,34 @@ impl<T: Iterator<Item = LexResult>> Parser<T> {
         }
     }
 
+    fn parse_definition(&mut self) -> Result<Option<definition::Untyped>, ParsingError> {
+        match self.current_token.take() {
+            // NOTE: no global variables because i'm too lazy to add variable definition
+            // (now they are available only as an expression)
+            Some(token_span) => match token_span.token {
+                Token::Struct => match self.parse_struct_defenition() {
+                    Ok(definition) => Ok(Some(definition)),
+                    Err(parsing_error) => Err(parsing_error),
+                },
+                Token::Func => match self.parse_function_definition() {
+                    Ok(definition) => Ok(Some(definition)),
+                    Err(parsing_error) => Err(parsing_error),
+                },
+                _ => Err(ParsingError {
+                    error: error::Type::UnexpectedToken {
+                        token: self.current_token.clone().unwrap().token,
+                        expected: "either function or struct definition".to_string().into(),
+                    },
+                    location: LexLocation {
+                        start: self.current_token.clone().unwrap().start,
+                        end: self.current_token.clone().unwrap().end,
+                    },
+                }),
+            },
+            None => Ok(None),
+        }
+    }
+
     fn parse_expression(&mut self) -> Result<Option<expression::Expression>, ParsingError> {
         let mut operator_stack = vec![];
         let mut expression_stack = vec![];
@@ -107,7 +157,7 @@ impl<T: Iterator<Item = LexResult>> Parser<T> {
                 _ if expression_stack.is_empty() => return Ok(None),
                 _ => {
                     return Err(ParsingError {
-                        error: OperatorNakedRight,
+                        error: MissingRightOperand,
                         location: LexLocation {
                             start: last_operator_start,
                             end: last_operator_end,
@@ -148,125 +198,59 @@ impl<T: Iterator<Item = LexResult>> Parser<T> {
         ))
     }
 
-    fn parse_definition(&mut self) -> Result<Option<definition::Untyped>, ParsingError> {
-        match self.current_token.take() {
-            // NOTE: no global variables because i'm too lazy to add variable definition
-            // (now they are available only as an expression)
-            Some(token_span) => match token_span.token {
-                Token::Struct => match self.parse_struct_defenition() {
-                    Ok(definition) => Ok(Some(definition)),
-                    Err(parsing_error) => Err(parsing_error),
-                },
-                Token::Func => match self.parse_function_definition() {
-                    Ok(definition) => Ok(Some(definition)),
-                    Err(parsing_error) => Err(parsing_error),
-                },
-                _ => Err(ParsingError {
-                    error: error::Type::UnexpectedToken {
-                        token: self.current_token.clone().unwrap().token,
-                        expected: vec!["either function or struct definition".to_string().into()],
-                    },
-                    location: LexLocation {
-                        start: self.current_token.clone().unwrap().start,
-                        end: self.current_token.clone().unwrap().end,
-                    },
-                }),
-            },
-            None => Ok(None),
-        }
-    }
-
     fn parse_expression_unit(&mut self) -> Result<Option<expression::Expression>, ParsingError> {
-        let mut _expression_unit = match self.current_token.take() {
+        let expression_unit = match self.current_token.take() {
             Some(token_span) => match token_span.token {
-                // only variable value, function call, field access?
+                // TODO: name can be either:
+                // - variable value access (varName)
+                // - function call (`funcName()` or `funcName(argFirst, argSecond)`)
+                // - struct field access (`structName.fieldName`)
+                // - array value access (`arrayName[indexVariable]` or `arrayName[1]`)
                 Token::Name { .. } => todo!(),
                 Token::IntLiteral { value } => {
                     let _ = self.advance_token();
-                    expression::Expression::IntLiteral {
+                    Some(expression::Expression::IntLiteral {
                         location: AstLocation {
                             start: token_span.start,
                             end: token_span.end,
                         },
                         value,
-                    }
+                    })
                 }
                 Token::FloatLiteral { value } => {
                     let _ = self.advance_token();
-                    expression::Expression::FloatLiteral {
+                    Some(expression::Expression::FloatLiteral {
                         location: AstLocation {
                             start: token_span.start,
                             end: token_span.end,
                         },
                         value,
-                    }
+                    })
                 }
                 Token::StringLiteral { value } => {
                     let _ = self.advance_token();
-                    expression::Expression::StringLiteral {
+                    Some(expression::Expression::StringLiteral {
                         location: AstLocation {
                             start: token_span.start,
                             end: token_span.end,
                         },
                         value,
-                    }
+                    })
                 }
                 Token::CharLiteral { value } => {
                     let _ = self.advance_token();
-                    expression::Expression::CharLiteral {
+                    Some(expression::Expression::CharLiteral {
                         location: AstLocation {
                             start: token_span.start,
                             end: token_span.end,
                         },
                         value,
-                    }
+                    })
                 }
-                Token::Return => {
-                    let _ = self.advance_token();
-                    let mut value = None;
-                    let mut end = token_span.end;
-
-                    if let Some(expression) = self.parse_expression_unit()? {
-                        end = expression.get_location().end;
-                        value = Some(Box::new(expression));
-                    }
-
-                    expression::Expression::Return {
-                        location: AstLocation {
-                            start: token_span.start,
-                            end,
-                        },
-                        value,
-                    }
+                _ => {
+                    self.current_token = Some(token_span);
+                    None
                 }
-                Token::Exit => {
-                    let _ = self.advance_token();
-                    expression::Expression::Exit {
-                        location: AstLocation {
-                            start: token_span.start,
-                            end: token_span.end,
-                        },
-                    }
-                }
-                Token::Panic => {
-                    let _ = self.advance_token();
-                    expression::Expression::Panic {
-                        location: AstLocation {
-                            start: token_span.start,
-                            end: token_span.end,
-                        },
-                    }
-                }
-                Token::Todo => {
-                    let _ = self.advance_token();
-                    expression::Expression::Todo {
-                        location: AstLocation {
-                            start: token_span.start,
-                            end: token_span.end,
-                        },
-                    }
-                }
-                _ => todo!(),
             },
             None => {
                 return Err(ParsingError {
@@ -276,7 +260,7 @@ impl<T: Iterator<Item = LexResult>> Parser<T> {
             }
         };
 
-        todo!()
+        Ok(expression_unit)
     }
 
     fn parse_function_call(
@@ -312,7 +296,7 @@ impl<T: Iterator<Item = LexResult>> Parser<T> {
             return Err(ParsingError {
                 error: error::Type::UnexpectedToken {
                     token: name_token_span.token,
-                    expected: vec!["struct name".to_string().into()],
+                    expected: "struct name".to_string().into(),
                 },
                 location: LexLocation {
                     start: name_token_span.start,
@@ -323,12 +307,30 @@ impl<T: Iterator<Item = LexResult>> Parser<T> {
 
         let _ = self.expect_token(&Token::LeftBrace)?;
 
-        let fields = self.parse_series(&Self::parse_struct_argument, None);
+        let fields = self.parse_series(&Self::parse_struct_argument, None)?;
 
-        let _ = self.expect_token(&Token::RightBrace)?;
+        let right_brace_token_span = self.advance_token().ok_or_else(|| ParsingError {
+            error: error::Type::UnexpectedEof,
+            location: LexLocation { start: 0, end: 0 },
+        })?;
+
+        let fields = match Vec1::try_from_vec(fields) {
+            Ok(fields) => Some(fields),
+            Err(_) => None,
+        };
+
+        Ok(definition::Untyped::Struct {
+            location: AstLocation {
+                start: name_token_span.start,
+                end: right_brace_token_span.end,
+            },
+            name,
+            fields,
+        })
     }
 
     fn parse_function_definition(&mut self) -> Result<definition::Untyped, ParsingError> {
+        let _ = self.advance_token();
         let name_token_span = self.advance_token().ok_or_else(|| ParsingError {
             error: error::Type::UnexpectedEof,
             location: LexLocation { start: 0, end: 0 },
@@ -338,7 +340,7 @@ impl<T: Iterator<Item = LexResult>> Parser<T> {
             return Err(ParsingError {
                 error: error::Type::UnexpectedToken {
                     token: name_token_span.token,
-                    expected: vec!["function name".to_string().into()],
+                    expected: "function name".to_string().into(),
                 },
                 location: LexLocation {
                     start: name_token_span.start,
@@ -349,37 +351,29 @@ impl<T: Iterator<Item = LexResult>> Parser<T> {
 
         let _ = self.expect_token(&Token::LeftParenthesis)?;
 
+        // TODO: add () case
         let arguments = self.parse_series(&Self::parse_function_argument, Some(&Token::Comma))?;
 
         self.expect_token(&Token::RightParenthesis)?;
 
+        // TODO: add void case
         let return_type_annotation = self.parse_type_annotation()?;
 
         let (body, end) = match self.maybe_token(&Token::LeftBrace) {
-            Some(left_brace_token_span) => {
+            Some(_) => {
                 let some_body = self.parse_statement_sequence()?;
-
                 let right_brace_token_span = self.expect_token(&Token::RightBrace)?;
                 let end_location = right_brace_token_span.end;
-
                 let body = match some_body {
-                    Some((body, _)) => body,
-                    None => {
-                        vec1![Statement::Expression(expression::Expression::Todo {
-                            location: AstLocation {
-                                start: left_brace_token_span.start,
-                                end: end_location
-                            },
-                        })]
-                    }
+                    Some((body, _)) => Some(body),
+                    None => None,
                 };
-
                 Ok((body, end_location))
             }
             None => Err(ParsingError {
                 error: error::Type::UnexpectedToken {
                     token: self.current_token.clone().unwrap().token,
-                    expected: vec!["opening function brace `{`".to_string().into()],
+                    expected: "opening function brace `{`".to_string().into(),
                 },
                 location: LexLocation {
                     start: self.current_token.clone().unwrap().start,
@@ -403,14 +397,89 @@ impl<T: Iterator<Item = LexResult>> Parser<T> {
     fn parse_function_call_argument(
         &mut self,
     ) -> Result<Option<argument::CallArgument<expression::Expression>>, ParsingError> {
-        todo!()
+        let argument_name_token_span = self.advance_token().ok_or_else(|| ParsingError {
+            error: error::Type::UnexpectedEof,
+            location: LexLocation { start: 0, end: 0 },
+        })?;
+
+        let Token::Name {
+            value: _argument_name,
+        } = argument_name_token_span.token
+        else {
+            return Err(ParsingError {
+                error: error::Type::UnexpectedToken {
+                    token: argument_name_token_span.token,
+                    expected: "argument name".to_string().into(),
+                },
+                location: LexLocation {
+                    start: argument_name_token_span.start,
+                    end: argument_name_token_span.end,
+                },
+            });
+        };
+
+        let expression = self.parse_expression()?.ok_or_else(|| ParsingError {
+            error: error::Type::UnexpectedEof,
+            location: LexLocation { start: 0, end: 0 },
+        })?;
+
+        Ok(Some(argument::CallArgument {
+            location: Location {
+                start: argument_name_token_span.start,
+                end: expression.get_location().end,
+            },
+            value: expression,
+        }))
     }
 
     fn parse_function_argument(&mut self) -> Result<Option<argument::Untyped>, ParsingError> {
-        todo!()
+        let argument_token_span = self.advance_token().ok_or_else(|| ParsingError {
+            error: error::Type::UnexpectedEof,
+            location: LexLocation { start: 0, end: 0 },
+        })?;
+
+        let Token::Name { value: param_name } = argument_token_span.token else {
+            return Err(ParsingError {
+                error: error::Type::UnexpectedToken {
+                    token: argument_token_span.token,
+                    expected: "argument name".to_string().into(),
+                },
+                location: LexLocation {
+                    start: argument_token_span.start,
+                    end: argument_token_span.end,
+                },
+            });
+        };
+
+        let type_annotation = self.parse_type_annotation()?.ok_or_else(|| ParsingError {
+            error: error::Type::UnexpectedToken {
+                token: self.current_token.clone().unwrap().token,
+                expected: "type annotation".to_string().into(),
+            },
+            location: LexLocation {
+                start: self.current_token.clone().unwrap().start,
+                end: self.current_token.clone().unwrap().end,
+            },
+        })?;
+
+        Ok(Some(argument::Untyped {
+            name: argument::Name::Named {
+                name: param_name,
+                location: Location {
+                    start: argument_token_span.start,
+                    end: argument_token_span.end,
+                },
+            },
+            location: Location {
+                start: argument_token_span.start,
+                end: self.current_token.clone().unwrap().start,
+            },
+            annotation: Some(type_annotation),
+            type_: (),
+        }))
     }
 
-    fn parse_struct_argument(&mut self) -> Result<Option<argument::Untyped>, ParsingError> {
+    fn parse_struct_argument(&mut self) -> Result<Option<StructField>, ParsingError> {
         todo!()
     }
 
@@ -458,21 +527,126 @@ impl<T: Iterator<Item = LexResult>> Parser<T> {
 
     fn parse_statement(&mut self) -> Result<Option<statement::Untyped>, ParsingError> {
         match self.current_token.take() {
-            Some(token_span) => {
-                if token_span.token == Token::Var {
-                    self.advance_token();
+            Some(token_span) => match token_span.token {
+                Token::Var => {
+                    let _ = self.advance_token();
                     Ok(Some(self.parse_assignment(token_span.start)?))
-                } else {
-                    self.current_token = Some(token_span);
+                }
+                Token::Loop => {
+                    let _ = self.advance_token();
+                    let _ = self.expect_token(&Token::LeftBrace)?;
 
+                    let body = match self.parse_statement_sequence()? {
+                        Some((statements, _)) => Some(statements),
+                        None => None,
+                    };
+
+                    let right_brace_token_span = self.expect_token(&Token::RightBrace)?;
+                    let end = right_brace_token_span.end;
+
+                    Ok(Some(Statement::Loop {
+                        body,
+                        location: Location {
+                            start: token_span.start,
+                            end,
+                        },
+                    }))
+                }
+                Token::If => {
+                    let _ = self.advance_token();
+                    let _ = self.expect_token(&Token::LeftParenthesis)?;
+                    let condition = self.parse_expression()?;
+                    let _ = self.expect_token(&Token::RightParenthesis)?;
+
+                    let _ = self.expect_token(&Token::LeftBrace)?;
+                    let if_body = match self.parse_statement_sequence()? {
+                        Some((statements, _)) => Some(statements),
+                        None => None,
+                    };
+
+                    let right_brace_token_span = self.expect_token(&Token::RightBrace)?;
+                    let mut end = right_brace_token_span.end;
+
+                    let else_body =
+                        if let Some(Token::Else) = self.current_token.as_ref().map(|t| &t.token) {
+                            self.advance_token();
+                            let _ = self.expect_token(&Token::LeftBrace)?;
+
+                            let else_statements = match self.parse_statement_sequence()? {
+                                Some((statements, _)) => Some(statements),
+                                None => None,
+                            };
+
+                            let else_right_brace = self.expect_token(&Token::RightBrace)?;
+                            end = else_right_brace.end;
+
+                            else_statements
+                        } else {
+                            None
+                        };
+
+                    Ok(Some(Statement::If {
+                        condition: Box::new(condition.unwrap()),
+                        if_body,
+                        else_body,
+                        location: Location {
+                            start: token_span.start,
+                            end,
+                        },
+                    }))
+                }
+                Token::Return => {
+                    let _ = self.advance_token();
+                    let mut value = None;
+                    let mut end = token_span.end;
+
+                    if let Some(expression) = self.parse_expression()? {
+                        end = expression.get_location().end;
+                        value = Some(Box::new(expression));
+                    }
+
+                    Ok(Some(Statement::Return {
+                        value,
+                        location: Location {
+                            start: token_span.start,
+                            end,
+                        },
+                    }))
+                }
+                Token::Todo => {
+                    let _ = self.advance_token();
+                    Ok(Some(Statement::Todo {
+                        location: Location {
+                            start: token_span.start,
+                            end: token_span.end,
+                        },
+                    }))
+                }
+                Token::Panic => {
+                    let _ = self.advance_token();
+                    Ok(Some(Statement::Panic {
+                        location: Location {
+                            start: token_span.start,
+                            end: token_span.end,
+                        },
+                    }))
+                }
+                Token::Exit => {
+                    let _ = self.advance_token();
+                    Ok(Some(Statement::Exit {
+                        location: Location {
+                            start: token_span.start,
+                            end: token_span.end,
+                        },
+                    }))
+                }
+                _ => {
+                    self.current_token = Some(token_span);
                     let expression = self.parse_expression()?.map(Statement::Expression);
                     Ok(expression)
                 }
-            }
-            None => Err(ParsingError {
-                error: error::Type::UnexpectedEof,
-                location: LexLocation { start: 0, end: 0 },
-            }),
+            },
+            None => Ok(None),
         }
     }
 
@@ -486,7 +660,7 @@ impl<T: Iterator<Item = LexResult>> Parser<T> {
             return Err(ParsingError {
                 error: error::Type::UnexpectedToken {
                     token: name_token_span.token,
-                    expected: vec!["variable name".to_string().into()],
+                    expected: "variable name".to_string().into(),
                 },
                 location: LexLocation {
                     start: name_token_span.start,
@@ -511,7 +685,7 @@ impl<T: Iterator<Item = LexResult>> Parser<T> {
             return Err(ParsingError {
                 error: error::Type::UnexpectedToken {
                     token: self.current_token.clone().unwrap().token,
-                    expected: vec!["variable type annotation".to_string().into()],
+                    expected: "variable type annotation".to_string().into(),
                 },
                 location: LexLocation {
                     start: self.current_token.clone().unwrap().start,
@@ -526,7 +700,7 @@ impl<T: Iterator<Item = LexResult>> Parser<T> {
             return Err(ParsingError {
                 error: error::Type::UnexpectedToken {
                     token: self.current_token.clone().unwrap().token,
-                    expected: vec!["variable assignment expression".to_string().into()],
+                    expected: "variable assignment expression".to_string().into(),
                 },
                 location: LexLocation {
                     start: self.current_token.clone().unwrap().start,
@@ -546,9 +720,55 @@ impl<T: Iterator<Item = LexResult>> Parser<T> {
     fn parse_type_annotation(&mut self) -> Result<Option<Type>, ParsingError> {
         match self.current_token.take() {
             Some(token_span) => match token_span.token {
-                Token::Func => todo!(),
-                Token::Var => todo!(),
-                _ => todo!(),
+                Token::Int => {
+                    let _ = self.advance_token();
+                    Ok(Some(Type::Int))
+                }
+                Token::Float => {
+                    let _ = self.advance_token();
+                    Ok(Some(Type::Float))
+                }
+                Token::String => {
+                    let _ = self.advance_token();
+                    Ok(Some(Type::String))
+                }
+                Token::Char => {
+                    let _ = self.advance_token();
+                    Ok(Some(Type::Char))
+                }
+                Token::Name { value } => {
+                    let name = value;
+                    let _ = self.advance_token();
+                    Ok(Some(Type::Custom { name, fields: None }))
+                }
+                Token::LeftSquare => {
+                    self.advance_token();
+                    let _ = self.expect_token(&Token::RightSquare)?;
+
+                    let Some(array_type) = self.parse_type_annotation()? else {
+                        return Err(ParsingError {
+                            error: error::Type::UnexpectedToken {
+                                token: self.current_token.clone().unwrap().token,
+                                expected: "right square".to_string().into(),
+                            },
+                            location: LexLocation {
+                                start: self.current_token.clone().unwrap().start,
+                                end: self.current_token.clone().unwrap().end,
+                            },
+                        });
+                    };
+
+                    Ok(Some(Type::Array {
+                        type_: Box::new(array_type),
+                    }))
+                }
+                token => Err(ParsingError {
+                    error: error::Type::UnknownType { token },
+                    location: LexLocation {
+                        start: self.current_token.clone().unwrap().start,
+                        end: self.current_token.clone().unwrap().end,
+                    },
+                }),
             },
             None => Err(ParsingError {
                 error: error::Type::UnexpectedEof,
@@ -564,7 +784,7 @@ impl<T: Iterator<Item = LexResult>> Parser<T> {
                 Some(current_token) => Err(ParsingError {
                     error: error::Type::UnexpectedToken {
                         token: current_token.token,
-                        expected: vec![token.to_string().into()],
+                        expected: token.to_string().into(),
                     },
                     location: LexLocation {
                         start: current_token.start,
@@ -595,16 +815,27 @@ impl<T: Iterator<Item = LexResult>> Parser<T> {
     fn advance_token(&mut self) -> Option<TokenSpan> {
         let token = self.current_token.clone();
 
-        match self.input_tokens.next() {
-            Some(Ok(token)) => {
-                self.current_token = Some(token);
-            }
-            Some(Err(lexical_error)) => {
-                self.lexical_errors.push(lexical_error);
-                self.current_token = None;
-            }
-            None => {
-                self.current_token = None;
+        loop {
+            match self.input_tokens.next() {
+                Some(Ok(TokenSpan {
+                    token: Token::Comment | Token::NewLine,
+                    ..
+                })) => {
+                    continue;
+                }
+                Some(Ok(token)) => {
+                    self.current_token = Some(token);
+                    break;
+                }
+                Some(Err(lexical_error)) => {
+                    self.lexical_errors.push(lexical_error);
+                    self.current_token = None;
+                    break;
+                }
+                None => {
+                    self.current_token = None;
+                    break;
+                }
             }
         }
 

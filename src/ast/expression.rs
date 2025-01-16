@@ -30,19 +30,6 @@ pub enum Expression {
         function_name: EcoString,
         arguments: Vec<CallArgument<Self>>,
     },
-    Todo {
-        location: Location,
-    },
-    Panic {
-        location: Location,
-    },
-    Exit {
-        location: Location,
-    },
-    Return {
-        location: Location,
-        value: Option<Box<Self>>,
-    },
     // TODO: add struct field access
 }
 
@@ -55,11 +42,7 @@ impl Expression {
             | Expression::CharLiteral { location, .. }
             | Expression::StringLiteral { location, .. }
             | Expression::VariableValue { location, .. }
-            | Expression::Todo { location, .. }
-            | Expression::Panic { location, .. }
-            | Expression::Exit { location, .. }
-            | Expression::FunctionCall { location, .. }
-            | Expression::Return { location, .. } => *location,
+            | Expression::FunctionCall { location, .. } => *location,
         }
     }
 }

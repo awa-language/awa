@@ -17,7 +17,7 @@ struct TestCase<'a> {
 }
 
 #[test]
-fn test_int32_var() {
+fn test_var_assignment() {
     let cases = vec![TestCase {
         input: "var name int =",
         expected: vec![
@@ -52,6 +52,54 @@ fn test_int32_var() {
     }
 }
 
+#[test]
+fn test_if_statement() {
+    let cases = vec![TestCase {
+        input: "if (1 > 2) {",
+        expected: vec![
+            Ok(TokenSpan {
+                token: Token::If,
+                start: 0,
+                end: 2,
+            }),
+            Ok(TokenSpan {
+                token: Token::LeftParenthesis,
+                start: 3,
+                end: 4,
+            }),
+            Ok(TokenSpan {
+                token: Token::IntLiteral { value: "1".into() },
+                start: 4,
+                end: 5,
+            }),
+            Ok(TokenSpan {
+                token: Token::Greater,
+                start: 6,
+                end: 7,
+            }),
+            Ok(TokenSpan {
+                token: Token::IntLiteral { value: "2".into() },
+                start: 8,
+                end: 9,
+            }),
+            Ok(TokenSpan {
+                token: Token::RightParenthesis,
+                start: 9,
+                end: 10,
+            }),
+            Ok(TokenSpan {
+                token: Token::LeftBrace,
+                start: 11,
+                end: 11,
+            }),
+        ],
+    }];
+
+    for case in cases {
+        let lex = lex(&case.input).collect_vec();
+        assert_eq!(lex, case.expected);
+    }
+}
 #[test]
 fn test_newlines() {
     let cases = vec![TestCase {
@@ -154,19 +202,22 @@ fn test_float_literal_lexing() {
 }
 
 #[test]
-fn test_int_literal_lexing_failed() {
+fn test_invalid_int_literal_lexing() {
     let cases = vec![TestCase {
         input: "123a456",
         expected: vec![
-            Err(LexicalError {
-                error: Type::UnexpectedNumberEnd,
-                location: Location { start: 4, end: 4 },
-            }),
             Ok(TokenSpan {
                 token: Token::IntLiteral {
-                    value: "456".into(),
+                    value: "123".into(),
                 },
-                start: 4,
+                start: 0,
+                end: 3,
+            }),
+            Ok(TokenSpan {
+                token: Token::Name {
+                    value: "a456".into(),
+                },
+                start: 3,
                 end: 6,
             }),
         ],
@@ -184,9 +235,23 @@ fn test_float_literal_lexing_failed() {
         TestCase {
             input: "123.",
             expected: vec![Err(LexicalError {
-                error: Type::InvalidNumberFormat,
-                location: Location { start: 3, end: 3 },
+                error: Type::UnexpectedNumberEnd,
+                location: Location { start: 0, end: 3 },
             })],
+        },
+        TestCase {
+            input: "1.2.3",
+            expected: vec![
+                Err(LexicalError {
+                    error: Type::InvalidNumberFormat,
+                    location: Location { start: 0, end: 4 },
+                }),
+                Ok(TokenSpan {
+                    token: Token::IntLiteral { value: "3".into() },
+                    start: 4,
+                    end: 4,
+                }),
+            ],
         },
         TestCase {
             input: "123..",
@@ -195,26 +260,44 @@ fn test_float_literal_lexing_failed() {
                 location: Location { start: 0, end: 4 },
             })],
         },
-        TestCase {
-            input: "123.123.123",
-            expected: vec![
-                Err(LexicalError {
-                    error: Type::InvalidNumberFormat,
-                    location: Location { start: 0, end: 8 },
-                }),
-                Ok(TokenSpan {
-                    token: Token::IntLiteral {
-                        value: "123".into(),
-                    },
-                    start: 8,
-                    end: 10,
-                }),
-            ],
-        },
     ];
 
     for case in cases {
         let lex: Vec<Result<TokenSpan, LexicalError>> = lex(case.input).collect();
         assert_eq!(lex, case.expected, "Test failed for input: {}", case.input);
+    }
+}
+
+#[test]
+fn test_comment() {
+    let cases = vec![TestCase {
+        input: "// comment \n// comment\n",
+        expected: vec![
+            Ok(TokenSpan {
+                token: Token::Comment,
+                start: 2,
+                end: 11,
+            }),
+            Ok(TokenSpan {
+                token: Token::NewLine,
+                start: 11,
+                end: 12,
+            }),
+            Ok(TokenSpan {
+                token: Token::Comment,
+                start: 14,
+                end: 22,
+            }),
+            Ok(TokenSpan {
+                token: Token::NewLine,
+                start: 22,
+                end: 22,
+            }),
+        ],
+    }];
+
+    for case in cases {
+        let lex = lex(&case.input).collect_vec();
+        assert_eq!(lex, case.expected);
     }
 }

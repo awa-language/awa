@@ -1,5 +1,4 @@
 use ecow::EcoString;
-
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Type {
     Int,
@@ -8,10 +7,9 @@ pub enum Type {
     Char,
     Custom {
         name: EcoString,
-        fields: Vec<Box<Type>>,
+        fields: Option<Vec<Box<Type>>>,
     },
     Array {
         type_: Box<Type>, // Needed for empty array
-        values: Vec<Box<Type>>,
     },
 }

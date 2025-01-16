@@ -8,26 +8,31 @@ pub struct ParsingError {
     pub location: Location,
 }
 
+impl ParsingError {
+    pub fn get_description(&self) -> String {
+        match &self.error {
+            Type::LexicalError { error } => format!("lexical error: {}", error.get_description()),
+            Type::UnexpectedToken { token, expected } => {
+                format!("found: {token}, expected: {expected}")
+            }
+            Type::NoVarBinding { .. } => "missing var binding".to_owned(),
+            Type::UnknownType { .. } => "unknown type".to_owned(),
+            Type::MissingRightOperand => "operator is missing value on the right".to_owned(),
+            Type::UnexpectedEof => "unexpected EOF".to_owned(),
+            Type::InvalidName { .. } => "invalid name".to_owned(),
+            Type::ExpectedStatementSequence => "expected statement sequence".to_owned(),
+        }
+    }
+}
+
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub enum Type {
-    LexicalError {
-        error: LexicalError,
-    },
-    UnexpectedToken {
-        token: Token,
-        expected: Vec<EcoString>,
-    },
-    NoVarBinding {
-        token: Token,
-    },
-    // remove?
-    UnrecognizedToken {
-        token: char,
-    },
-    // TODO: rename
-    OperatorNakedRight,
+    LexicalError { error: LexicalError },
+    UnexpectedToken { token: Token, expected: EcoString },
+    NoVarBinding { token: Token },
+    UnknownType { token: Token },
+    MissingRightOperand,
     UnexpectedEof,
-    InvalidName {
-        token: Token,
-    },
+    InvalidName { token: Token },
+    ExpectedStatementSequence,
 }
