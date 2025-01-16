@@ -259,24 +259,23 @@ fn test_array_index() {
 }
 
 #[test]
-fn test_module() {
+fn test_basic_module() {
     assert_parse_module!("func main() {}");
 }
 
 #[test]
-fn test_struct() {
+fn test_struct_definition() {
     assert_parse_module!("struct idk {}");
     assert_parse_module!("struct idk {a int b float c string}");
 }
 
 #[test]
-fn test_if_function() {
+fn test_function_with_if_statement() {
     assert_parse_module!("func factorial(n int) int {\nif (2 > 0) {\nreturn 2\n}\nreturn 1\n}");
 }
 
 #[test]
-fn test_array_index_access_expression() {
-    //assert_parse_module!("func main() {arr[i][j]}");
+fn test_array_element_access_expression() {
     assert_parse_module!("func main() {arr[i + 2]}");
 }
 
