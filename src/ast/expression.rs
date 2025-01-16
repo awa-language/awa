@@ -39,10 +39,6 @@ pub enum Expression {
     Exit {
         location: Location,
     },
-    Return {
-        location: Location,
-        value: Option<Box<Self>>,
-    },
     // TODO: add struct field access
 }
 
@@ -58,8 +54,7 @@ impl Expression {
             | Expression::Todo { location, .. }
             | Expression::Panic { location, .. }
             | Expression::Exit { location, .. }
-            | Expression::FunctionCall { location, .. }
-            | Expression::Return { location, .. } => *location,
+            | Expression::FunctionCall { location, .. } => *location,
         }
     }
 }
