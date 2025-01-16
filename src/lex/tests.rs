@@ -48,7 +48,7 @@ fn test_var_assignment() {
 
     for case in cases {
         let lex = lex(&case.input).collect_vec();
-        assert_eq!(lex, case.expected);
+        assert_eq!(case.expected, lex);
     }
 }
 
@@ -87,7 +87,7 @@ fn test_newlines() {
 
     for case in cases {
         let lex = lex(&case.input).collect_vec();
-        assert_eq!(lex, case.expected);
+        assert_eq!(case.expected, lex);
     }
 }
 
@@ -118,7 +118,7 @@ fn test_int_literal_lexing() {
 
     for case in cases {
         let lex = lex(&case.input).collect_vec();
-        assert_eq!(lex, case.expected);
+        assert_eq!(case.expected, lex);
     }
 }
 
@@ -149,7 +149,7 @@ fn test_float_literal_lexing() {
 
     for case in cases {
         let lex = lex(&case.input).collect_vec();
-        assert_eq!(lex, case.expected);
+        assert_eq!(case.expected, lex);
     }
 }
 
@@ -174,7 +174,7 @@ fn test_int_literal_lexing_failed() {
 
     for case in cases {
         let lex = lex(&case.input).collect_vec();
-        assert_eq!(lex, case.expected, "Test failed for input: {}", case.input);
+        assert_eq!(case.expected, lex, "Test failed for input: {}", case.input);
     }
 }
 
@@ -215,6 +215,40 @@ fn test_float_literal_lexing_failed() {
 
     for case in cases {
         let lex: Vec<Result<TokenSpan, LexicalError>> = lex(case.input).collect();
-        assert_eq!(lex, case.expected, "Test failed for input: {}", case.input);
+        assert_eq!(case.expected, lex, "Test failed for input: {}", case.input);
+    }
+}
+
+#[test]
+fn test_comment() {
+    let cases = vec![TestCase {
+        input: "// comment \n// comment\n",
+        expected: vec![
+            Ok(TokenSpan {
+                token: Token::Comment,
+                start: 2,
+                end: 11,
+            }),
+            Ok(TokenSpan {
+                token: Token::NewLine,
+                start: 11,
+                end: 12,
+            }),
+            Ok(TokenSpan {
+                token: Token::Comment,
+                start: 14,
+                end: 22,
+            }),
+            Ok(TokenSpan {
+                token: Token::NewLine,
+                start: 22,
+                end: 22,
+            }),
+        ],
+    }];
+
+    for case in cases {
+        let lex = lex(&case.input).collect_vec();
+        assert_eq!(case.expected, lex);
     }
 }
