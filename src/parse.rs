@@ -197,12 +197,87 @@ impl<T: Iterator<Item = LexResult>> Parser<T> {
     fn parse_expression_unit(&mut self) -> Result<Option<expression::Expression>, ParsingError> {
         let expression_unit = match self.current_token.take() {
             Some(token_span) => match token_span.token {
-                // TODO: name can be either:
+                //   name can be either:
                 // - variable value access (varName)
                 // - function call (`funcName()` or `funcName(argFirst, argSecond)`)
                 // - struct field access (`structName.fieldName`)
                 // - array value access (`arrayName[indexVariable]` or `arrayName[1]`)
-                Token::Name { .. } => todo!(),
+                Token::Name { value } => {
+                    let name_token_span = self.advance_token().ok_or_else(|| ParsingError {
+                        error: error::Type::UnexpectedEof,
+                        location: LexLocation { start: 0, end: 0 },
+                    })?;
+
+                    // function call (`funcName()` or `funcName(argFirst, argSecond)`)
+                    if let Some(left_parenthesis_token_span) =
+                        self.maybe_token(&Token::LeftParenthesis)
+                    {
+                        let call_arguments = self.parse_series(
+                            &Self::parse_function_call_argument,
+                            Some(&Token::Comma),
+                        )?;
+                        let right_paren_token_span = self.expect_token(&Token::RightParenthesis)?;
+
+                        return Ok(Some(expression::Expression::FunctionCall {
+                            location: Location {
+                                start: name_token_span.start,
+                                end: right_paren_token_span.end,
+                            },
+                            function_name: value.into(),
+                            arguments: call_arguments,
+                        }));
+                    }
+
+                    // struct field access (`structName.fieldName`)
+                    if let Some(field_name_token_span) = self.maybe_token(&Token::Dot) {
+                        let Token::Name { value: _field_name } = field_name_token_span.token else {
+                            return Err(ParsingError {
+                                error: error::Type::UnexpectedToken {
+                                    token: field_name_token_span.token,
+                                    expected: "field name".to_string().into(),
+                                },
+                                location: LexLocation {
+                                    start: field_name_token_span.start,
+                                    end: field_name_token_span.end,
+                                },
+                            });
+                        };
+
+                        return Ok(Some(expression::Expression::StructFieldAccess {
+                            location: Location {
+                                start: name_token_span.start,
+                                end: field_name_token_span.end,
+                            },
+                            struct_name: value.into(),
+                            field_name: _field_name.into(),
+                        }));
+                    }
+
+                    // array value access (`arrayName[indexVariable]` or `arrayName[1]`)
+                    if let Some(left_brace_token_span) = self.maybe_token(&Token::LeftBrace) {
+                        let index_expression = self.parse_expression()?;
+                        let right_bracket_token_span = self.expect_token(&Token::RightBrace)?;
+
+                        return Ok(Some(expression::Expression::ArrayIndexAccess {
+                            location: Location {
+                                start: name_token_span.start,
+                                end: right_bracket_token_span.end,
+                            },
+                            array_name: value.into(),
+                            index_expression: Box::new(index_expression.unwrap()),
+                        }));
+                    }
+
+                    // variable value access (varName)
+                    return Ok(Some(expression::Expression::VariableValue {
+                        location: Location {
+                            start: name_token_span.start,
+                            end: name_token_span.end,
+                        },
+                        name: value.into(),
+                    }));
+                }
+
                 Token::IntLiteral { value } => {
                     let _ = self.advance_token();
                     Some(expression::Expression::IntLiteral {

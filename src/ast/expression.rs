@@ -30,7 +30,16 @@ pub enum Expression {
         function_name: EcoString,
         arguments: Vec<CallArgument<Self>>,
     },
-    // TODO: add struct field access
+    StructFieldAccess {
+        location: Location,
+        struct_name: EcoString,
+        field_name: EcoString,
+    },
+    ArrayIndexAccess {
+        location: Location,
+        array_name: EcoString,
+        index_expression: Box<Self>,
+    },
 }
 
 impl Expression {
@@ -42,7 +51,9 @@ impl Expression {
             | Expression::CharLiteral { location, .. }
             | Expression::StringLiteral { location, .. }
             | Expression::VariableValue { location, .. }
-            | Expression::FunctionCall { location, .. } => *location,
+            | Expression::FunctionCall { location, .. }
+            | Expression::StructFieldAccess { location, .. }
+            | Expression::ArrayIndexAccess { location, .. } => *location,
         }
     }
 }
