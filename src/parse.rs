@@ -1054,7 +1054,7 @@ fn token_to_binary_operator(token: &Token) -> Option<BinaryOperator> {
         Token::NotEqual => Some(BinaryOperator::NotEqual),
         Token::PipePipe => Some(BinaryOperator::Or),
         Token::AmpersandAmpersand => Some(BinaryOperator::And),
-        // TODO: add others
+        // TODO: add others if needed
         _ => None,
     }
 }
