@@ -13,6 +13,18 @@ macro_rules! assert_error {
     };
 }
 
+macro_rules! assert_parse {
+    ($src:expr $(,)?) => {
+        let _result = crate::parse::parse_statement_sequence($src).expect("should parse");
+    };
+}
+
+macro_rules! assert_parse_module {
+    ($src:expr $(,)?) => {
+        let _result = crate::parse::parse_module($src).expect("should parse");
+    };
+}
+
 pub fn expect_module_error(src: &str) -> String {
     let result = parse_module(src).expect_err("should not parse");
     let error = Error::Parsing {
@@ -250,3 +262,9 @@ fn test_triple_equal() {
         }
     );
 }
+
+#[test]
+fn test_uno() {
+    assert_parse_module!("");
+}
+

@@ -283,6 +283,7 @@ impl<T: Iterator<Item = LexResult>> Parser<T> {
     }
 
     fn parse_function_definition(&mut self) -> Result<definition::Untyped, ParsingError> {
+        let _ = self.advance_token();
         let name_token_span = self.advance_token().ok_or_else(|| ParsingError {
             error: error::Type::UnexpectedEof,
             location: LexLocation { start: 0, end: 0 },
@@ -562,10 +563,7 @@ impl<T: Iterator<Item = LexResult>> Parser<T> {
                     Ok(expression)
                 }
             },
-            None => Err(ParsingError {
-                error: error::Type::UnexpectedEof,
-                location: LexLocation { start: 0, end: 0 },
-            }),
+            None => Ok(None)
         }
     }
 
@@ -639,14 +637,27 @@ impl<T: Iterator<Item = LexResult>> Parser<T> {
     fn parse_type_annotation(&mut self) -> Result<Option<Type>, ParsingError> {
         match self.current_token.take() {
             Some(token_span) => match token_span.token {
-                Token::Int => Ok(Some(Type::Int)),
-                Token::Float => Ok(Some(Type::Float)),
-                Token::String => Ok(Some(Type::String)),
-                Token::Char => Ok(Some(Type::Char)),
-                Token::Name { value } => Ok(Some(Type::Custom {
-                    name: value,
-                    fields: None,
-                })),
+                Token::Int => {
+                    let _ = self.advance_token();
+                    Ok(Some(Type::Int))
+                }
+                Token::Float => {
+                    let _ = self.advance_token();
+                    Ok(Some(Type::Float))
+                }
+                Token::String => {
+                    let _ = self.advance_token();
+                    Ok(Some(Type::String))
+                }
+                Token::Char => {
+                    let _ = self.advance_token();
+                    Ok(Some(Type::Char))
+                }
+                Token::Name { value } => {
+                    let name = value;
+                    let _ = self.advance_token();
+                    Ok(Some(Type::Custom { name, fields: None }))
+                }
                 Token::LeftSquare => {
                     self.advance_token();
                     let _ = self.expect_token(&Token::RightSquare)?;
