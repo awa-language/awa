@@ -349,7 +349,36 @@ impl<T: Iterator<Item = LexResult>> Parser<T> {
     fn parse_function_call_argument(
         &mut self,
     ) -> Result<Option<argument::CallArgument<expression::Expression>>, ParsingError> {
-        todo!()
+        let argument_name_token_span = self.advance_token().ok_or_else(|| ParsingError {
+            error: error::Type::UnexpectedEof,
+            location: LexLocation { start: 0, end: 0 },
+        })?;
+
+        let Token::Name { value: _argument_name } = argument_name_token_span.token else {
+            return Err(ParsingError {
+                error: error::Type::UnexpectedToken {
+                    token: argument_name_token_span.token,
+                    expected: "argument name".to_string().into(),
+                },
+                location: LexLocation {
+                    start: argument_name_token_span.start,
+                    end: argument_name_token_span.end,
+                },
+            });
+        };
+
+        let expression = self.parse_expression()?.ok_or_else(|| ParsingError {
+            error: error::Type::UnexpectedEof,
+            location: LexLocation { start: 0, end: 0 },
+        })?;
+
+        Ok(Some(argument::CallArgument {
+            location: Location {
+                start: argument_name_token_span.start,
+                end: expression.get_location().end,
+            },
+            value: expression,
+        }))
     }
 
     fn parse_function_argument(&mut self) -> Result<Option<argument::Untyped>, ParsingError> {
