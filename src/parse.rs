@@ -6,7 +6,7 @@ pub mod tests;
 use ecow::EcoString;
 use error::{ParsingError, Type::MissingRightOperand};
 use itertools::{peek_nth, PeekNth};
-use vec1::{vec1, Vec1};
+use vec1::Vec1;
 
 use crate::ast::location::Location;
 use crate::{
@@ -243,33 +243,6 @@ impl<T: Iterator<Item = LexResult>> Parser<T> {
                         value,
                     }
                 }
-                Token::Exit => {
-                    let _ = self.advance_token();
-                    expression::Expression::Exit {
-                        location: AstLocation {
-                            start: token_span.start,
-                            end: token_span.end,
-                        },
-                    }
-                }
-                Token::Panic => {
-                    let _ = self.advance_token();
-                    expression::Expression::Panic {
-                        location: AstLocation {
-                            start: token_span.start,
-                            end: token_span.end,
-                        },
-                    }
-                }
-                Token::Todo => {
-                    let _ = self.advance_token();
-                    expression::Expression::Todo {
-                        location: AstLocation {
-                            start: token_span.start,
-                            end: token_span.end,
-                        },
-                    }
-                }
                 _ => todo!(),
             },
             None => {
@@ -327,31 +300,23 @@ impl<T: Iterator<Item = LexResult>> Parser<T> {
 
         let _ = self.expect_token(&Token::LeftParenthesis)?;
 
+        // TODO: add () case
         let arguments = self.parse_series(&Self::parse_function_argument, Some(&Token::Comma))?;
 
         self.expect_token(&Token::RightParenthesis)?;
 
+        // TODO: add void case
         let return_type_annotation = self.parse_type_annotation()?;
 
         let (body, end) = match self.maybe_token(&Token::LeftBrace) {
-            Some(left_brace_token_span) => {
+            Some(_) => {
                 let some_body = self.parse_statement_sequence()?;
-
                 let right_brace_token_span = self.expect_token(&Token::RightBrace)?;
                 let end_location = right_brace_token_span.end;
-
                 let body = match some_body {
-                    Some((body, _)) => body,
-                    None => {
-                        vec1![Statement::Expression(expression::Expression::Todo {
-                            location: AstLocation {
-                                start: left_brace_token_span.start,
-                                end: end_location
-                            },
-                        })]
-                    }
+                    Some((body, _)) => Some(body),
+                    None => None,
                 };
-
                 Ok((body, end_location))
             }
             None => Err(ParsingError {
@@ -475,123 +440,125 @@ impl<T: Iterator<Item = LexResult>> Parser<T> {
 
     fn parse_statement(&mut self) -> Result<Option<statement::Untyped>, ParsingError> {
         match self.current_token.take() {
-            Some(token_span) => {
-                match token_span.token {
-                    Token::Var => {
-                        let _ = self.advance_token();
-                        Ok(Some(self.parse_assignment(token_span.start)?))
-                    }
-                    Token::Loop => {
-                        let _ = self.advance_token();
-                        let left_brace_token_span = self.expect_token(&Token::LeftBrace)?;
+            Some(token_span) => match token_span.token {
+                Token::Var => {
+                    let _ = self.advance_token();
+                    Ok(Some(self.parse_assignment(token_span.start)?))
+                }
+                Token::Loop => {
+                    let _ = self.advance_token();
+                    let _ = self.expect_token(&Token::LeftBrace)?;
 
-                        let body = match self.parse_statement_sequence()? {
-                            Some((statements, _)) => statements,
-                            // TODO: wtf is that??
-                            None => {
-                                vec1![Statement::Expression(expression::Expression::Todo {
-                                    location: Location {
-                                        start: left_brace_token_span.start,
-                                        end: left_brace_token_span.end
-                                    },
-                                })]
-                            }
-                        };
+                    let body = match self.parse_statement_sequence()? {
+                        Some((statements, _)) => Some(statements),
+                        None => None,
+                    };
 
-                        let right_brace_token_span = self.expect_token(&Token::RightBrace)?;
-                        let end = right_brace_token_span.end;
+                    let right_brace_token_span = self.expect_token(&Token::RightBrace)?;
+                    let end = right_brace_token_span.end;
 
-                        Ok(Some(Statement::Loop {
-                            body,
-                            location: Location {
-                                start: token_span.start,
-                                end,
-                            },
-                        }))
-                    }
-                    Token::If => {
-                        let _ = self.advance_token();
-                        let condition = self.parse_expression()?;
+                    Ok(Some(Statement::Loop {
+                        body,
+                        location: Location {
+                            start: token_span.start,
+                            end,
+                        },
+                    }))
+                }
+                Token::If => {
+                    let _ = self.advance_token();
+                    let _ = self.expect_token(&Token::LeftParenthesis)?;
+                    let condition = self.parse_expression()?;
+                    let _ = self.expect_token(&Token::RightParenthesis)?;
 
-                        let left_brace_token_span = self.expect_token(&Token::LeftBrace)?;
-                        let if_body = match self.parse_statement_sequence()? {
-                            Some((statements, _)) => statements,
-                            // TODO: wtf is that??
-                            None => {
-                                vec1![Statement::Expression(expression::Expression::Todo {
-                                    location: Location {
-                                        start: left_brace_token_span.start,
-                                        end: left_brace_token_span.end
-                                    },
-                                })]
-                            }
-                        };
+                    let _ = self.expect_token(&Token::LeftBrace)?;
+                    let if_body = match self.parse_statement_sequence()? {
+                        Some((statements, _)) => Some(statements),
+                        None => None,
+                    };
 
-                        let right_brace_token_span = self.expect_token(&Token::RightBrace)?;
-                        let mut end = right_brace_token_span.end;
+                    let right_brace_token_span = self.expect_token(&Token::RightBrace)?;
+                    let mut end = right_brace_token_span.end;
 
-                        let else_body = if let Some(Token::Else) =
-                            self.current_token.as_ref().map(|t| &t.token)
-                        {
+                    let else_body =
+                        if let Some(Token::Else) = self.current_token.as_ref().map(|t| &t.token) {
                             self.advance_token();
-                            let else_left_brace = self.expect_token(&Token::LeftBrace)?;
+                            let _ = self.expect_token(&Token::LeftBrace)?;
 
                             let else_statements = match self.parse_statement_sequence()? {
-                                Some((statements, _)) => statements,
-                                // TODO: wtf is that??
-                                None => {
-                                    vec1![Statement::Expression(expression::Expression::Todo {
-                                        location: Location {
-                                            start: else_left_brace.start,
-                                            end: else_left_brace.end
-                                        },
-                                    })]
-                                }
+                                Some((statements, _)) => Some(statements),
+                                None => None,
                             };
 
                             let else_right_brace = self.expect_token(&Token::RightBrace)?;
                             end = else_right_brace.end;
 
-                            Some(else_statements)
+                            else_statements
                         } else {
                             None
                         };
 
-                        Ok(Some(Statement::If {
-                            condition: Box::new(condition.unwrap()),
-                            if_body,
-                            else_body,
-                            location: Location {
-                                start: token_span.start,
-                                end,
-                            },
-                        }))
-                    }
-                    Token::Return => {
-                        let _ = self.advance_token();
-                        let mut value = None;
-                        let mut end = token_span.end;
-
-                        if let Some(expression) = self.parse_expression()? {
-                            end = expression.get_location().end;
-                            value = Some(Box::new(expression));
-                        }
-
-                        Ok(Some(Statement::Return {
-                            value,
-                            location: Location {
-                                start: token_span.start,
-                                end,
-                            },
-                        }))
-                    }
-                    _ => {
-                        self.current_token = Some(token_span);
-                        let expression = self.parse_expression()?.map(Statement::Expression);
-                        Ok(expression)
-                    }
+                    Ok(Some(Statement::If {
+                        condition: Box::new(condition.unwrap()),
+                        if_body,
+                        else_body,
+                        location: Location {
+                            start: token_span.start,
+                            end,
+                        },
+                    }))
                 }
-            }
+                Token::Return => {
+                    let _ = self.advance_token();
+                    let mut value = None;
+                    let mut end = token_span.end;
+
+                    if let Some(expression) = self.parse_expression()? {
+                        end = expression.get_location().end;
+                        value = Some(Box::new(expression));
+                    }
+
+                    Ok(Some(Statement::Return {
+                        value,
+                        location: Location {
+                            start: token_span.start,
+                            end,
+                        },
+                    }))
+                }
+                Token::Todo => {
+                    let _ = self.advance_token();
+                    Ok(Some(Statement::Todo {
+                        location: Location {
+                            start: token_span.start,
+                            end: token_span.end,
+                        },
+                    }))
+                }
+                Token::Panic => {
+                    let _ = self.advance_token();
+                    Ok(Some(Statement::Panic {
+                        location: Location {
+                            start: token_span.start,
+                            end: token_span.end,
+                        },
+                    }))
+                }
+                Token::Exit => {
+                    let _ = self.advance_token();
+                    Ok(Some(Statement::Exit {
+                        location: Location {
+                            start: token_span.start,
+                            end: token_span.end,
+                        },
+                    }))
+                }
+                _ => {
+                    self.current_token = Some(token_span);
+                    let expression = self.parse_expression()?.map(Statement::Expression);
+                    Ok(expression)
+                }
+            },
             None => Err(ParsingError {
                 error: error::Type::UnexpectedEof,
                 location: LexLocation { start: 0, end: 0 },

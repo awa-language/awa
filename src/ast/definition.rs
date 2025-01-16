@@ -15,7 +15,7 @@ pub enum Untyped {
         location: Location,
         name: EcoString,
         arguments: Vec<argument::Untyped>,
-        body: Vec1<statement::Untyped>,
+        body: Option<Vec1<statement::Untyped>>,
         return_type_annotation: Option<Type>,
     },
 }

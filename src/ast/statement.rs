@@ -7,18 +7,27 @@ pub enum Statement<ExpressionT> {
     Expression(ExpressionT),
     Assignment(Assignment<ExpressionT>),
     Loop {
-        body: Vec1<Statement<ExpressionT>>,
+        body: Option<Vec1<Statement<ExpressionT>>>,
         location: Location,
     },
     If {
         condition: Box<ExpressionT>,
-        if_body: Vec1<Statement<ExpressionT>>,
+        if_body: Option<Vec1<Statement<ExpressionT>>>,
         else_body: Option<Vec1<Statement<ExpressionT>>>,
         location: Location,
     },
     Return {
         location: Location,
         value: Option<Box<ExpressionT>>,
+    },
+    Todo {
+        location: Location,
+    },
+    Panic {
+        location: Location,
+    },
+    Exit {
+        location: Location,
     },
 }
 
@@ -34,6 +43,9 @@ impl Untyped {
             Statement::Loop { location, .. } => *location,
             Statement::If { location, .. } => *location,
             Statement::Return { location, .. } => *location,
+            Statement::Todo { location, .. } => *location,
+            Statement::Panic { location, .. } => *location,
+            Statement::Exit { location, .. } => *location,
         }
     }
 }
