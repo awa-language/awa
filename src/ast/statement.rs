@@ -16,6 +16,9 @@ pub enum Statement<ExpressionT> {
         else_body: Option<Vec1<Statement<ExpressionT>>>,
         location: Location,
     },
+    Break {
+        location: Location,
+    },
     Return {
         location: Location,
         value: Option<Box<ExpressionT>>,
@@ -46,6 +49,7 @@ impl Untyped {
             Statement::Todo { location, .. } => *location,
             Statement::Panic { location, .. } => *location,
             Statement::Exit { location, .. } => *location,
+            Statement::Break { location, .. } => *location,
         }
     }
 }

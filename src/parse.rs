@@ -733,6 +733,15 @@ impl<T: Iterator<Item = LexResult>> Parser<T> {
                         },
                     }))
                 }
+                Token::Break => {
+                    let _ = self.advance_token();
+                    Ok(Some(Statement::Break {
+                        location: Location {
+                            start: token_span.start,
+                            end: token_span.end,
+                        },
+                    }))
+                }
                 Token::Panic => {
                     let _ = self.advance_token();
                     Ok(Some(Statement::Panic {
