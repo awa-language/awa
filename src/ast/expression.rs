@@ -2,7 +2,7 @@ use crate::{ast::location::Location, type_::Type};
 use ecow::EcoString;
 use vec1::Vec1;
 
-use super::{argument::CallArgument, definition::StructField};
+use super::argument::CallArgument;
 
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub enum Expression {
@@ -73,6 +73,6 @@ impl Expression {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct StructFieldValue {
-    name: EcoString,
-    value: Expression,
+    pub name: EcoString,
+    pub value: Expression,
 }

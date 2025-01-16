@@ -9,6 +9,7 @@ use itertools::{peek_nth, PeekNth};
 use vec1::Vec1;
 
 use crate::ast::definition::StructField;
+use crate::ast::expression::StructFieldValue;
 use crate::ast::location::Location;
 use crate::{
     ast::{
@@ -360,7 +361,6 @@ impl<T: Iterator<Item = LexResult>> Parser<T> {
         function_name: &EcoString,
         start_location: u32,
     ) -> Result<expression::Expression, ParsingError> {
-        // TODO: this would most certainly be not here, but on the caller side
         let _ = self.expect_token(&Token::LeftParenthesis)?;
 
         let (call_arguments, right_parenthesis_token_span) =
@@ -427,6 +427,49 @@ impl<T: Iterator<Item = LexResult>> Parser<T> {
             name,
             fields,
         })
+    }
+
+    fn _parse_struct_field_value(&mut self) -> Result<Option<StructFieldValue>, ParsingError> {
+        let name_token_span = self.advance_token().ok_or_else(|| ParsingError {
+            error: error::Type::UnexpectedEof,
+            location: LexLocation { start: 0, end: 0 },
+        })?;
+
+        let Token::Name { value: field_name } = name_token_span.token else {
+            return Err(ParsingError {
+                error: error::Type::UnexpectedToken {
+                    token: name_token_span.token,
+                    expected: "field name or }".to_string().into(),
+                },
+                location: LexLocation {
+                    start: name_token_span.start,
+                    end: name_token_span.end,
+                },
+            });
+        };
+
+        self.expect_token(&Token::Colon)?;
+
+        let value = match self.parse_expression()? {
+            Some(expr) => expr,
+            None => {
+                return Err(ParsingError {
+                    error: error::Type::UnexpectedToken {
+                        token: self.current_token.clone().unwrap().token,
+                        expected: "field value expression".to_string().into(),
+                    },
+                    location: LexLocation {
+                        start: self.current_token.clone().unwrap().start,
+                        end: self.current_token.clone().unwrap().end,
+                    },
+                })
+            }
+        };
+
+        Ok(Some(StructFieldValue {
+            name: field_name,
+            value,
+        }))
     }
 
     fn parse_function_definition(&mut self) -> Result<definition::Untyped, ParsingError> {
