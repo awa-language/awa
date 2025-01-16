@@ -355,7 +355,10 @@ impl<T: Iterator<Item = LexResult>> Parser<T> {
             location: LexLocation { start: 0, end: 0 },
         })?;
 
-        let Token::Name { value: _argument_name } = argument_name_token_span.token else {
+        let Token::Name {
+            value: _argument_name,
+        } = argument_name_token_span.token
+        else {
             return Err(ParsingError {
                 error: error::Type::UnexpectedToken {
                     token: argument_name_token_span.token,
@@ -592,7 +595,7 @@ impl<T: Iterator<Item = LexResult>> Parser<T> {
                     Ok(expression)
                 }
             },
-            None => Ok(None)
+            None => Ok(None),
         }
     }
 
@@ -761,16 +764,27 @@ impl<T: Iterator<Item = LexResult>> Parser<T> {
     fn advance_token(&mut self) -> Option<TokenSpan> {
         let token = self.current_token.clone();
 
-        match self.input_tokens.next() {
-            Some(Ok(token)) => {
-                self.current_token = Some(token);
-            }
-            Some(Err(lexical_error)) => {
-                self.lexical_errors.push(lexical_error);
-                self.current_token = None;
-            }
-            None => {
-                self.current_token = None;
+        loop {
+            match self.input_tokens.next() {
+                Some(Ok(TokenSpan {
+                    token: Token::Comment | Token::NewLine,
+                    ..
+                })) => {
+                    continue;
+                }
+                Some(Ok(token)) => {
+                    self.current_token = Some(token);
+                    break;
+                }
+                Some(Err(lexical_error)) => {
+                    self.lexical_errors.push(lexical_error);
+                    self.current_token = None;
+                    break;
+                }
+                None => {
+                    self.current_token = None;
+                    break;
+                }
             }
         }
 
