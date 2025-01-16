@@ -304,12 +304,18 @@ impl<T: Iterator<Item = LexResult>> Parser<T> {
 
         let _ = self.expect_token(&Token::LeftParenthesis)?;
 
-        // TODO: add () case
-        let arguments = self.parse_series(&Self::parse_function_argument, Some(&Token::Comma))?;
+        let arguments = match self.maybe_token(&Token::RightParenthesis) {
+            Some(_) => None,
+            None => {
+                let args =
+                    self.parse_series(&Self::parse_function_argument, Some(&Token::Comma))?;
+                Some(Vec1::try_from_vec(args).unwrap())
+            }
+        };
+        if arguments.is_some() {
+            self.expect_token(&Token::RightParenthesis)?;
+        }
 
-        self.expect_token(&Token::RightParenthesis)?;
-
-        // TODO: add void case
         let return_type_annotation = self.parse_type_annotation()?;
 
         let (body, end) = match self.maybe_token(&Token::LeftBrace) {
@@ -667,7 +673,7 @@ impl<T: Iterator<Item = LexResult>> Parser<T> {
     }
 
     fn parse_type_annotation(&mut self) -> Result<Option<Type>, ParsingError> {
-        match self.current_token.take() {
+        match self.current_token.clone() {
             Some(token_span) => match token_span.token {
                 Token::Int => {
                     let _ = self.advance_token();
@@ -711,13 +717,7 @@ impl<T: Iterator<Item = LexResult>> Parser<T> {
                         type_: Box::new(array_type),
                     }))
                 }
-                token => Err(ParsingError {
-                    error: error::Type::UnknownType { token },
-                    location: LexLocation {
-                        start: self.current_token.clone().unwrap().start,
-                        end: self.current_token.clone().unwrap().end,
-                    },
-                }),
+                _ => Ok(None),
             },
             None => Err(ParsingError {
                 error: error::Type::UnexpectedEof,

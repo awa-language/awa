@@ -14,7 +14,7 @@ pub enum Untyped {
     Function {
         location: Location,
         name: EcoString,
-        arguments: Vec<argument::Untyped>,
+        arguments: Option<Vec1<argument::Untyped>>,
         body: Option<Vec1<statement::Untyped>>,
         return_type_annotation: Option<Type>,
     },
