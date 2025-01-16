@@ -252,19 +252,21 @@ where
         let mut last_is_digit = true;
 
         loop {
-            match self.advance_char() {
+            match self.current_char {
+                // TODO: forbid multiple `-`
                 Some(ch) if ch.is_ascii_digit() || ch == '-' => {
+                    let _ = self.advance_char();
                     number.push(ch);
                     last_is_digit = true;
                 }
                 Some('.') => {
-                    let end_location = self.current_location;
+                    let _ = self.advance_char();
                     if number.is_empty() || has_floating_point {
                         return Err(LexicalError {
                             error: Type::InvalidNumberFormat,
                             location: Location {
                                 start: start_location,
-                                end: end_location,
+                                end: self.current_location,
                             },
                         });
                     }
@@ -273,27 +275,35 @@ where
                     last_is_digit = false;
                     number.push('.');
                 }
-                Some(_) => {
-                    let end_location = self.current_location;
+                Some(ch)
+                    if !ch.is_ascii_digit()
+                        && (!has_floating_point || (last_is_digit && has_floating_point)) =>
+                {
+                    break;
+                }
+                None if !has_floating_point || (last_is_digit && has_floating_point) => {
+                    let _ = self.advance_char();
+                    break;
+                }
+                _ => {
+                    let _ = self.advance_char();
                     return Err(LexicalError {
                         error: Type::UnexpectedNumberEnd,
                         location: Location {
-                            start: end_location,
-                            end: end_location,
+                            start: start_location,
+                            end: self.current_location,
                         },
                     });
                 }
-                None => break,
             };
         }
 
         if number.is_empty() || !last_is_digit {
-            let start_location = self.current_location;
             return Err(LexicalError {
                 error: Type::InvalidNumberFormat,
                 location: Location {
                     start: start_location,
-                    end: start_location,
+                    end: self.current_location,
                 },
             });
         }

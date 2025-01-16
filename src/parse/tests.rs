@@ -193,18 +193,8 @@ fn test_char_literals() {
 
 #[test]
 fn test_int_literals() {
-    assert_error!(
-        "123a456",
-        ParsingError {
-            error: crate::parse::error::Type::LexicalError {
-                error: LexicalError {
-                    error: crate::lex::error::Type::UnexpectedNumberEnd,
-                    location: Location { start: 4, end: 4 },
-                }
-            },
-            location: Location { start: 4, end: 4 },
-        }
-    );
+    assert_parse!("123 + 3210");
+    assert_parse!("123a456");
 }
 
 #[test]
@@ -214,11 +204,11 @@ fn test_float_literals() {
         ParsingError {
             error: crate::parse::error::Type::LexicalError {
                 error: LexicalError {
-                    error: crate::lex::error::Type::InvalidNumberFormat,
-                    location: Location { start: 3, end: 3 },
+                    error: crate::lex::error::Type::UnexpectedNumberEnd,
+                    location: Location { start: 0, end: 3 },
                 }
             },
-            location: Location { start: 3, end: 3 },
+            location: Location { start: 0, end: 3 },
         }
     );
     assert_error!(
