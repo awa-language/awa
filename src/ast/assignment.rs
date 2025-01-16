@@ -1,37 +1,13 @@
-use ecow::EcoString;
-
 use crate::{ast::location::Location, type_::Type};
 
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct Assignment<TypeT, ExpressionT> {
-    pub location: Location,
-    pub value: Box<ExpressionT>,
-    pub pattern: Pattern<TypeT>,
-    pub annotation: Option<Type>,
-}
+use super::expression::Expression;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub enum Pattern<Type> {
-    Int {
-        location: Location,
-        value: EcoString,
-    },
-    Float {
-        location: Location,
-        value: EcoString,
-    },
-    String {
-        location: Location,
-        value: EcoString,
-    },
-    Variable {
-        location: Location,
-        name: EcoString,
-        type_: Type,
-    },
-    Discard {
-        name: EcoString,
-        location: Location,
-        type_: Type,
-    },
+pub struct Assignment<ExpressionT> {
+    pub location: Location,
+    pub value: Box<ExpressionT>,
+    pub annotation: Type,
 }
+
+pub type Typed = Assignment<Expression>;
+pub type Untyped = Assignment<Expression>;

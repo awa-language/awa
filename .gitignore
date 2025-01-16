@@ -1,5 +1,8 @@
 .direnv/
+.idea
+/src/.idea
 
 # Added by cargo
 
 /target
+

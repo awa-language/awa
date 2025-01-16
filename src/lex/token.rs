@@ -1,7 +1,7 @@
 use ecow::EcoString;
 use std::fmt;
 
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Debug, PartialEq, Eq, Clone)]
 pub enum Token {
     Name { value: EcoString },
     IntLiteral { value: EcoString },
@@ -18,8 +18,6 @@ pub enum Token {
     Minus,              // '-'
     Asterisk,           // '*'
     Slash,              // '/'
-    PlusPlus,           // '++'
-    MinusMinus,         // '--'
     Less,               // '<'
     Greater,            // '>'
     LessEqual,          // '<='
@@ -55,11 +53,12 @@ pub enum Token {
     Char,               // 'char'
     String,             // 'string'
     Var,                // 'var'
+    Struct,             // 'struct'
     If,                 // 'if'
     Else,               // 'else'
     Func,               // 'func'
-    For,                // 'for'
-    While,              // 'while'
+    Loop,               // 'loop'
+    Break,              // 'break'
     Return,             // 'return'
     Exit,               // 'exit'
     Panic,              // 'panic'
@@ -103,21 +102,20 @@ impl fmt::Display for Token {
             Self::LessEqual => "<=",
             Self::LessEqualFloat => "<=.",
             Self::Var => "var",
+            Self::Struct => "struct",
             Self::Concat => "<>",
             Self::LessLess => "<<",
             Self::Minus => "-",
             Self::MinusFloat => "-.",
-            Self::MinusMinus => "--",
             Self::NotEqual => "!=",
             Self::Panic => "panic",
             Self::Exit => "exit",
             Self::Return => "return",
-            Self::For => "for",
-            Self::While => "while",
+            Self::Loop => "loop",
+            Self::Break => "break",
             Self::Percent => "%",
             Self::Plus => "+",
             Self::PlusFloat => "+.",
-            Self::PlusPlus => "++",
             Self::RightBrace => "}",
             Self::RightParenthesis => ")",
             Self::RightSquare => "]",

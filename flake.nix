@@ -2,7 +2,6 @@
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixpkgs-unstable";
   };
-
   outputs = {
     self,
     nixpkgs,
@@ -28,6 +27,11 @@
           rustc
           rustfmt
           rustPackages.clippy
+          (symlinkJoin {
+            name = "rust-toolchain";
+            paths = [rustc cargo rustPlatform.rustcSrc];
+          })
+          alejandra
         ];
       };
     });

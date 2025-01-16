@@ -1,4 +1,4 @@
-use crate::lex::lexical_error::{LexicalError, Type};
+use crate::lex::error::{LexicalError, Type};
 use crate::lex::token::Token;
 use itertools::{peek_nth, PeekNth};
 use std::char;
@@ -29,13 +29,13 @@ pub fn lex(input: &str) -> impl Iterator<Item = LexResult> + '_ {
 
 #[derive(Debug)]
 pub struct Lexer<T: Iterator<Item = (u32, char)>> {
-    input: PeekNth<T>,
+    input_chars: PeekNth<T>,
     pending_tokens: Vec<TokenSpan>,
     current_char: Option<char>,
     current_location: u32,
 }
 
-#[derive(Debug, Eq, PartialEq)]
+#[derive(Debug, Eq, PartialEq, Clone)]
 pub struct TokenSpan {
     pub start: u32,
     pub end: u32,
@@ -50,7 +50,7 @@ where
 {
     pub fn new(input: T) -> Self {
         let mut lexer = Lexer {
-            input: peek_nth(input),
+            input_chars: peek_nth(input),
             pending_tokens: Vec::new(),
             current_char: None,
             current_location: 0,
@@ -64,7 +64,7 @@ where
     fn advance_char(&mut self) -> Option<char> {
         let char = self.current_char;
 
-        match self.input.next() {
+        match self.input_chars.next() {
             Some((location, ch)) => {
                 self.current_location = location;
                 self.current_char = Some(ch);
@@ -78,7 +78,7 @@ where
     }
 
     fn peek_char(&mut self) -> Option<char> {
-        if let Some((_, ch)) = self.input.peek_nth(0) {
+        if let Some((_, ch)) = self.input_chars.peek_nth(0) {
             Some(*ch)
         } else {
             None
@@ -252,19 +252,21 @@ where
         let mut last_is_digit = true;
 
         loop {
-            match self.advance_char() {
+            match self.current_char {
+                // TODO: forbid multiple `-`
                 Some(ch) if ch.is_ascii_digit() || ch == '-' => {
+                    let _ = self.advance_char();
                     number.push(ch);
                     last_is_digit = true;
                 }
                 Some('.') => {
-                    let end_location = self.current_location;
+                    let _ = self.advance_char();
                     if number.is_empty() || has_floating_point {
                         return Err(LexicalError {
                             error: Type::InvalidNumberFormat,
                             location: Location {
                                 start: start_location,
-                                end: end_location,
+                                end: self.current_location,
                             },
                         });
                     }
@@ -273,27 +275,32 @@ where
                     last_is_digit = false;
                     number.push('.');
                 }
-                Some(_) => {
-                    let end_location = self.current_location;
+                Some(ch) if !ch.is_ascii_digit() && (!has_floating_point || last_is_digit) => {
+                    break;
+                }
+                None if !has_floating_point || last_is_digit => {
+                    let _ = self.advance_char();
+                    break;
+                }
+                _ => {
+                    let _ = self.advance_char();
                     return Err(LexicalError {
                         error: Type::UnexpectedNumberEnd,
                         location: Location {
-                            start: end_location,
-                            end: end_location,
+                            start: start_location,
+                            end: self.current_location,
                         },
                     });
                 }
-                None => break,
             };
         }
 
         if number.is_empty() || !last_is_digit {
-            let start_location = self.current_location;
             return Err(LexicalError {
                 error: Type::InvalidNumberFormat,
                 location: Location {
                     start: start_location,
-                    end: start_location,
+                    end: self.current_location,
                 },
             });
         }
@@ -574,36 +581,23 @@ where
         let token_start = self.current_location;
         let _ = self.advance_char();
 
-        match self.current_char {
-            Some('+') => {
-                let _ = self.advance_char();
-                let token_end = self.current_location;
+        if let Some('.') = self.current_char {
+            let _ = self.advance_char();
+            let token_end = self.current_location;
 
-                self.emit(TokenSpan {
-                    start: token_start,
-                    end: token_end,
-                    token: Token::PlusPlus,
-                });
-            }
-            Some('.') => {
-                let _ = self.advance_char();
-                let token_end = self.current_location;
+            self.emit(TokenSpan {
+                start: token_start,
+                end: token_end,
+                token: Token::PlusFloat,
+            });
+        } else {
+            let token_end = self.current_location;
 
-                self.emit(TokenSpan {
-                    start: token_start,
-                    end: token_end,
-                    token: Token::PlusFloat,
-                });
-            }
-            _ => {
-                let token_end = self.current_location;
-
-                self.emit(TokenSpan {
-                    start: token_start,
-                    end: token_end,
-                    token: Token::Plus,
-                });
-            }
+            self.emit(TokenSpan {
+                start: token_start,
+                end: token_end,
+                token: Token::Plus,
+            });
         }
     }
 
@@ -611,36 +605,23 @@ where
         let token_start = self.current_location;
         let _ = self.advance_char();
 
-        match self.current_char {
-            Some('-') => {
-                let _ = self.advance_char();
-                let token_end = self.current_location;
+        if let Some('.') = self.current_char {
+            let _ = self.advance_char();
+            let token_end = self.current_location;
 
-                self.emit(TokenSpan {
-                    start: token_start,
-                    end: token_end,
-                    token: Token::MinusMinus,
-                });
-            }
-            Some('.') => {
-                let _ = self.advance_char();
-                let token_end = self.current_location;
+            self.emit(TokenSpan {
+                start: token_start,
+                end: token_end,
+                token: Token::MinusFloat,
+            });
+        } else {
+            let token_end = self.current_location;
 
-                self.emit(TokenSpan {
-                    start: token_start,
-                    end: token_end,
-                    token: Token::MinusFloat,
-                });
-            }
-            _ => {
-                let token_end = self.current_location;
-
-                self.emit(TokenSpan {
-                    start: token_start,
-                    end: token_end,
-                    token: Token::Minus,
-                });
-            }
+            self.emit(TokenSpan {
+                start: token_start,
+                end: token_end,
+                token: Token::Minus,
+            });
         }
     }
 
@@ -968,9 +949,10 @@ where
 fn to_keyword(word: &str) -> Option<Token> {
     match word {
         "var" => Some(Token::Var),
-        "for" => Some(Token::For),
-        "while" => Some(Token::While),
+        "struct" => Some(Token::Struct),
         "func" => Some(Token::Func),
+        "loop" => Some(Token::Loop),
+        "break" => Some(Token::Break),
         "if" => Some(Token::If),
         "else" => Some(Token::Else),
         "return" => Some(Token::Return),

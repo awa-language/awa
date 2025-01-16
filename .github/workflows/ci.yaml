@@ -1,26 +1,19 @@
 name: Cargo CI
-
 on:
   pull_request:
   push:
     branches:
-    - main
-
-
+      - main
 env:
   RUST_BACKTRACE: 1
   CARGO_TERM_COLOR: always
-
-
 concurrency:
   group: "${{ github.workflow }}-${{ github.ref }}"
   cancel-in-progress: true
-
 jobs:
   ci:
     name: CI
     runs-on: ubuntu-22.04
-
     steps:
       - uses: actions/checkout@v4
       - name: Install Rust
@@ -28,18 +21,13 @@ jobs:
         with:
           toolchain: stable
       - uses: Swatinem/rust-cache@v2
-
       - name: Install Clippy
         run: rustup component add clippy
-
       - name: Cargo check
         run: cargo check
-
       - name: Cargo test
         run: cargo test
-
       - name: Run Clippy
         run: cargo clippy
-
       - name: Cargo build release
         run: cargo build --release
