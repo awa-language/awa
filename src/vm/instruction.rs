@@ -3,7 +3,6 @@ pub enum Instruction {
     PushInt(i32),
     PushFloat(f32),
     PushStr(String),
-    PushChar(char),
 
     Load(String),  //val to stack
     Store(String), //val from stack
