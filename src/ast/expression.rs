@@ -48,7 +48,7 @@ pub enum Expression {
     },
     StructInitialization {
         location: Location,
-        type_annotation: Type,
+        type_annotation: EcoString,
         fields: Option<Vec1<StructFieldValue>>,
     },
 }
