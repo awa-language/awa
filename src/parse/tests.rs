@@ -309,3 +309,8 @@ fn test_complex_function_definition() {
 fn test_struct_initialization() {
     assert_parse_module!("func main() { var a Person = Person{ age : 50, money : 30 }}");
 }
+
+#[test]
+fn test_array_initialization() {
+    assert_parse_module!("func main() { var a []int = []int{1, 2}}");
+}
