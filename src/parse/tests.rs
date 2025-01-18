@@ -314,3 +314,8 @@ fn test_struct_initialization() {
 fn test_array_initialization() {
     assert_parse_module!("func main() { var a []int = []int{1, 2}}");
 }
+
+#[test]
+fn test_complex_array_initialization() {
+    assert_parse_module!("func main() { var a [][]int = [][]int{[]int{2,3}, []int{3,4}}}");
+}
