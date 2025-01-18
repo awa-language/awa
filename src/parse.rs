@@ -934,6 +934,7 @@ impl<T: Iterator<Item = LexResult>> Parser<T> {
 
         Ok(Statement::Assignment(Assignment {
             location: AstLocation { start, end },
+            variable_name: name.clone(),
             value: Box::new(value),
             type_annotation,
         }))
