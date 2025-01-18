@@ -4,368 +4,414 @@ pub mod instruction;
 pub mod tests;
 use std::collections::HashMap;
 
+use ecow::EcoString;
 use instruction::Instruction;
 
 #[derive(Debug, PartialEq, Clone)]
 pub enum Value {
     Int(i64),
     Float(f64),
-    Str(String),
+    String(EcoString),
     Char(char),
-    Struct(HashMap<String, Value>),
+    Struct(HashMap<EcoString, Value>),
 }
 
 pub struct VM {
+    input: Vec<Instruction>,
+    program_counter: usize,
     stack: Vec<Value>,
-    variables: HashMap<String, Value>,
-    bytecode: Vec<Instruction>,
-    pc: usize,
+    variables: HashMap<EcoString, Value>,
+    // TODO: add structs
+    functions: HashMap<EcoString, usize>,
     call_stack: Vec<usize>,
-    functions: HashMap<String, usize>,
 }
 
 impl VM {
-    pub fn new(bytecode: Vec<Instruction>, functions: HashMap<String, usize>, pc: usize) -> Self {
+    #[must_use]
+    pub fn new(
+        bytecode: Vec<Instruction>,
+        functions: HashMap<EcoString, usize>,
+        pc: usize,
+    ) -> Self {
         VM {
+            input: bytecode,
+            program_counter: pc,
             stack: Vec::new(),
             variables: HashMap::new(),
-            bytecode,
-            pc,
-            call_stack: Vec::new(),
             functions,
+            call_stack: Vec::new(),
         }
     }
 
     pub fn run(&mut self) {
         loop {
-            if self.pc >= self.bytecode.len() {
+            if self.program_counter >= self.input.len() {
                 break;
             }
 
-            let instrt = self.bytecode[self.pc].clone();
+            let current_instruction = self.input[self.program_counter].clone();
 
-            match instrt {
-                Instruction::PushInt(val) => {
-                    self.stack.push(Value::Int(val));
+            match current_instruction {
+                Instruction::PushInt(value) => {
+                    self.stack.push(Value::Int(value));
                 }
-                Instruction::PushFloat(val) => {
-                    self.stack.push(Value::Float(val));
+                Instruction::PushFloat(value) => {
+                    self.stack.push(Value::Float(value));
                 }
-                Instruction::PushStr(val) => {
-                    self.stack.push(Value::Str(val));
+                Instruction::PushStr(value) => {
+                    self.stack.push(Value::String(value));
                 }
-                Instruction::PushChar(val) => {
-                    self.stack.push(Value::Char(val));
+                Instruction::PushChar(value) => {
+                    self.stack.push(Value::Char(value));
                 }
 
-                Instruction::Load(var) => {
-                    if let Some(val) = self.variables.get(&var) {
-                        self.stack.push(val.clone());
+                Instruction::Load(variable) => {
+                    if let Some(value) = self.variables.get(&variable) {
+                        self.stack.push(value.clone());
                     } else {
-                        panic!("Undefined variable: {}", var);
+                        panic!("undefined variable: {variable}");
                     }
                 }
-                Instruction::Store(var) => {
-                    let val = self.stack.pop().expect("Stack underflow on Store");
-                    self.variables.insert(var, val);
+                Instruction::Store(variable) => {
+                    let value = self.stack.pop().expect("stack underflow on Store");
+                    self.variables.insert(variable, value);
                 }
 
                 Instruction::AddInt => {
-                    let b = self.stack.pop().expect("Stack underflow on AddInt");
-                    let a = self.stack.pop().expect("Stack underflow on AddInt");
-                    match (a, b) {
-                        (Value::Int(x), Value::Int(y)) => self.stack.push(Value::Int(x + y)),
-                        _ => panic!("Type mismatch for AddInt"),
+                    let rhs = self.stack.pop().expect("stack underflow on AddInt");
+                    let lhs = self.stack.pop().expect("stack underflow on AddInt");
+
+                    match (lhs, rhs) {
+                        (Value::Int(lhs), Value::Int(rhs)) => {
+                            self.stack.push(Value::Int(lhs + rhs));
+                        }
+                        _ => panic!("type mismatch for AddInt"),
                     }
                 }
 
                 Instruction::SubInt => {
-                    let b = self.stack.pop().expect("Stack underflow on SubInt");
-                    let a = self.stack.pop().expect("Stack underflow on SubInt");
-                    match (a, b) {
-                        (Value::Int(x), Value::Int(y)) => self.stack.push(Value::Int(x - y)),
-                        _ => panic!("Type mismatch for SubInt"),
+                    let rhs = self.stack.pop().expect("stack underflow on SubInt");
+                    let lhs = self.stack.pop().expect("stack underflow on SubInt");
+
+                    match (lhs, rhs) {
+                        (Value::Int(lhs), Value::Int(rhs)) => {
+                            self.stack.push(Value::Int(lhs - rhs));
+                        }
+                        _ => panic!("type mismatch for SubInt"),
                     }
                 }
 
                 Instruction::MulInt => {
-                    let b = self.stack.pop().expect("Stack underflow on MulInt");
-                    let a = self.stack.pop().expect("Stack underflow on MulInt");
-                    match (a, b) {
-                        (Value::Int(x), Value::Int(y)) => self.stack.push(Value::Int(x * y)),
-                        _ => panic!("Type mismatch for MulInt"),
+                    let rhs = self.stack.pop().expect("stack underflow on MulInt");
+                    let lhs = self.stack.pop().expect("stack underflow on MulInt");
+
+                    match (lhs, rhs) {
+                        (Value::Int(lhs), Value::Int(rhs)) => {
+                            self.stack.push(Value::Int(lhs * rhs));
+                        }
+                        _ => panic!("type mismatch for MulInt"),
                     }
                 }
 
                 Instruction::DivInt => {
-                    let b = self.stack.pop().expect("Stack underflow on DivInt");
-                    let a = self.stack.pop().expect("Stack underflow on DivInt");
-                    match (a, b) {
-                        (Value::Int(x), Value::Int(y)) => {
-                            if y == 0 {
-                                panic!("Division by zero");
-                            }
-                            self.stack.push(Value::Int(x / y))
+                    let rhs = self.stack.pop().expect("stack underflow on DivInt");
+                    let lhs = self.stack.pop().expect("stack underflow on DivInt");
+
+                    match (lhs, rhs) {
+                        (Value::Int(lhs), Value::Int(rhs)) => {
+                            assert!(rhs != 0, "division by zero");
+                            self.stack.push(Value::Int(lhs / rhs));
                         }
-                        _ => panic!("Type mismatch for DivInt"),
+                        _ => panic!("type mismatch for DivInt"),
                     }
                 }
 
                 Instruction::Mod => {
-                    let b = self.stack.pop().expect("Stack underflow on Mod");
-                    let a = self.stack.pop().expect("Stack underflow on Mod");
-                    match (a, b) {
-                        (Value::Int(x), Value::Int(y)) => {
-                            if y == 0 {
-                                panic!("Modulo by zero");
-                            }
-                            self.stack.push(Value::Int(x % y))
+                    let rhs = self.stack.pop().expect("stack underflow on Mod");
+                    let lhs = self.stack.pop().expect("stack underflow on Mod");
+
+                    match (lhs, rhs) {
+                        (Value::Int(lhs), Value::Int(rhs)) => {
+                            assert!(rhs != 0, "modulo by zero");
+                            self.stack.push(Value::Int(lhs % rhs));
                         }
-                        _ => panic!("Type mismatch for Mod"),
+                        _ => panic!("type mismatch for Mod"),
                     }
                 }
 
                 Instruction::AddFloat => {
-                    let b = self.stack.pop().expect("Stack underflow on AddFloat");
-                    let a = self.stack.pop().expect("Stack underflow on AddFloat");
-                    match (a, b) {
-                        (Value::Float(x), Value::Float(y)) => self.stack.push(Value::Float(x + y)),
-                        _ => panic!("Type mismatch for AddFloat"),
+                    let rhs = self.stack.pop().expect("stack underflow on AddFloat");
+                    let lhs = self.stack.pop().expect("stack underflow on AddFloat");
+
+                    match (lhs, rhs) {
+                        (Value::Float(lhs), Value::Float(rhs)) => {
+                            self.stack.push(Value::Float(lhs + rhs));
+                        }
+                        _ => panic!("type mismatch for AddFloat"),
                     }
                 }
 
                 Instruction::SubFloat => {
-                    let b = self.stack.pop().expect("Stack underflow on SubFloat");
-                    let a = self.stack.pop().expect("Stack underflow on SubFloat");
-                    match (a, b) {
-                        (Value::Float(x), Value::Float(y)) => self.stack.push(Value::Float(x - y)),
-                        _ => panic!("Type mismatch for SubFloat"),
+                    let rhs = self.stack.pop().expect("stack underflow on SubFloat");
+                    let lhs = self.stack.pop().expect("stack underflow on SubFloat");
+
+                    match (lhs, rhs) {
+                        (Value::Float(lhs), Value::Float(rhs)) => {
+                            self.stack.push(Value::Float(lhs - rhs));
+                        }
+                        _ => panic!("type mismatch for SubFloat"),
                     }
                 }
 
                 Instruction::MulFloat => {
-                    let b = self.stack.pop().expect("Stack underflow on MulFloat");
-                    let a = self.stack.pop().expect("Stack underflow on MulFloat");
-                    match (a, b) {
-                        (Value::Float(x), Value::Float(y)) => self.stack.push(Value::Float(x * y)),
-                        _ => panic!("Type mismatch for MulFloat"),
+                    let rhs = self.stack.pop().expect("stack underflow on MulFloat");
+                    let lhs = self.stack.pop().expect("stack underflow on MulFloat");
+
+                    match (lhs, rhs) {
+                        (Value::Float(lhs), Value::Float(rhs)) => {
+                            self.stack.push(Value::Float(lhs * rhs));
+                        }
+                        _ => panic!("type mismatch for MulFloat"),
                     }
                 }
 
                 Instruction::DivFloat => {
-                    let b = self.stack.pop().expect("Stack underflow on DivFloat");
-                    let a = self.stack.pop().expect("Stack underflow on DivFloat");
-                    match (a, b) {
-                        (Value::Float(x), Value::Float(y)) => {
-                            if y == 0.0 {
-                                panic!("Division by zero");
-                            }
-                            self.stack.push(Value::Float(x / y))
+                    let rhs = self.stack.pop().expect("stack underflow on DivFloat");
+                    let lhs = self.stack.pop().expect("stack underflow on DivFloat");
+
+                    match (lhs, rhs) {
+                        (Value::Float(lhs), Value::Float(rhs)) => {
+                            assert!(!(rhs == 0.0), "division by zero");
+                            self.stack.push(Value::Float(lhs / rhs));
                         }
-                        _ => panic!("Type mismatch for DivFloat"),
+                        _ => panic!("type mismatch for DivFloat"),
                     }
                 }
 
                 Instruction::Equal => {
-                    let b = self.stack.pop().expect("Stack underflow on Equal");
-                    let a = self.stack.pop().expect("Stack underflow on Equal");
-                    match (a, b) {
-                        (Value::Int(x), Value::Int(y)) => {
-                            self.stack.push(Value::Int((x == y) as i64))
+                    let rhs = self.stack.pop().expect("stack underflow on Equal");
+                    let lhs = self.stack.pop().expect("stack underflow on Equal");
+
+                    match (lhs, rhs) {
+                        (Value::Int(lhs), Value::Int(rhs)) => {
+                            self.stack.push(Value::Int(i64::from(lhs == rhs)));
                         }
-                        (Value::Float(x), Value::Float(y)) => {
-                            self.stack.push(Value::Int((x == y) as i64))
+                        (Value::Float(lhs), Value::Float(rhs)) => {
+                            self.stack.push(Value::Int(i64::from(lhs == rhs)));
                         }
-                        (Value::Str(x), Value::Str(y)) => {
-                            self.stack.push(Value::Int((x == y) as i64))
+                        (Value::String(lhs), Value::String(rhs)) => {
+                            self.stack.push(Value::Int(i64::from(lhs == rhs)));
                         }
-                        (Value::Char(x), Value::Char(y)) => {
-                            self.stack.push(Value::Int((x == y) as i64))
+                        (Value::Char(lhs), Value::Char(rhs)) => {
+                            self.stack.push(Value::Int(i64::from(lhs == rhs)));
                         }
-                        _ => panic!("Type mismatch for Equal"),
+                        _ => panic!("type mismatch for Equal"),
                     }
                 }
 
                 Instruction::NotEqual => {
-                    let b = self.stack.pop().expect("Stack underflow on NotEqual");
-                    let a = self.stack.pop().expect("Stack underflow on NotEqual");
-                    match (a, b) {
-                        (Value::Int(x), Value::Int(y)) => {
-                            self.stack.push(Value::Int((x != y) as i64))
+                    let rhs = self.stack.pop().expect("stack underflow on NotEqual");
+                    let lhs = self.stack.pop().expect("stack underflow on NotEqual");
+
+                    match (lhs, rhs) {
+                        (Value::Int(lhs), Value::Int(rhs)) => {
+                            self.stack.push(Value::Int(i64::from(lhs != rhs)));
                         }
-                        (Value::Float(x), Value::Float(y)) => {
-                            self.stack.push(Value::Int((x != y) as i64))
+                        (Value::Float(lhs), Value::Float(rhs)) => {
+                            self.stack.push(Value::Int(i64::from(lhs != rhs)));
                         }
-                        (Value::Str(x), Value::Str(y)) => {
-                            self.stack.push(Value::Int((x != y) as i64))
+                        (Value::String(lhs), Value::String(rhs)) => {
+                            self.stack.push(Value::Int(i64::from(lhs != rhs)));
                         }
-                        (Value::Char(x), Value::Char(y)) => {
-                            self.stack.push(Value::Int((x != y) as i64))
+                        (Value::Char(lhs), Value::Char(rhs)) => {
+                            self.stack.push(Value::Int(i64::from(lhs != rhs)));
                         }
-                        _ => panic!("Type mismatch for NotEqual"),
+                        _ => panic!("type mismatch for NotEqual"),
                     }
                 }
 
                 Instruction::LessInt => {
-                    let b = self.stack.pop().expect("Stack underflow on LessInt");
-                    let a = self.stack.pop().expect("Stack underflow on LessInt");
-                    match (a, b) {
-                        (Value::Int(x), Value::Int(y)) => {
-                            self.stack.push(Value::Int((x < y) as i64))
+                    let rhs = self.stack.pop().expect("stack underflow on LessInt");
+                    let lhs = self.stack.pop().expect("stack underflow on LessInt");
+
+                    match (lhs, rhs) {
+                        (Value::Int(lhs), Value::Int(rhs)) => {
+                            self.stack.push(Value::Int(i64::from(lhs < rhs)));
                         }
-                        _ => panic!("Type mismatch for LessInt"),
+                        _ => panic!("type mismatch for LessInt"),
                     }
                 }
 
                 Instruction::LessEqualInt => {
-                    let b = self.stack.pop().expect("Stack underflow on LessEqualInt");
-                    let a = self.stack.pop().expect("Stack underflow on LessEqualInt");
-                    match (a, b) {
-                        (Value::Int(x), Value::Int(y)) => {
-                            self.stack.push(Value::Int((x <= y) as i64))
+                    let rhs = self.stack.pop().expect("stack underflow on LessEqualInt");
+                    let lhs = self.stack.pop().expect("stack underflow on LessEqualInt");
+
+                    match (lhs, rhs) {
+                        (Value::Int(lhs), Value::Int(rhs)) => {
+                            self.stack.push(Value::Int(i64::from(lhs <= rhs)));
                         }
-                        _ => panic!("Type mismatch for LessEqualInt"),
+                        _ => panic!("type mismatch for LessEqualInt"),
                     }
                 }
 
                 Instruction::GreaterInt => {
-                    let b = self.stack.pop().expect("Stack underflow on GreaterInt");
-                    let a = self.stack.pop().expect("Stack underflow on GreaterInt");
-                    match (a, b) {
-                        (Value::Int(x), Value::Int(y)) => {
-                            self.stack.push(Value::Int((x > y) as i64))
+                    let rhs = self.stack.pop().expect("stack underflow on GreaterInt");
+                    let lhs = self.stack.pop().expect("stack underflow on GreaterInt");
+
+                    match (lhs, rhs) {
+                        (Value::Int(lhs), Value::Int(rhs)) => {
+                            self.stack.push(Value::Int(i64::from(lhs > rhs)));
                         }
-                        _ => panic!("Type mismatch for GreaterInt"),
+                        _ => panic!("type mismatch for GreaterInt"),
                     }
                 }
 
                 Instruction::GreaterEqualInt => {
-                    let b = self
+                    let rhs = self
                         .stack
                         .pop()
-                        .expect("Stack underflow on GreaterEqualInt");
-                    let a = self
+                        .expect("stack underflow on GreaterEqualInt");
+                    let lhs = self
                         .stack
                         .pop()
-                        .expect("Stack underflow on GreaterEqualInt");
-                    match (a, b) {
-                        (Value::Int(x), Value::Int(y)) => {
-                            self.stack.push(Value::Int((x >= y) as i64))
+                        .expect("stack underflow on GreaterEqualInt");
+
+                    match (lhs, rhs) {
+                        (Value::Int(lhs), Value::Int(rhs)) => {
+                            self.stack.push(Value::Int(i64::from(lhs >= rhs)));
                         }
-                        _ => panic!("Type mismatch for GreaterEqualInt"),
+                        _ => panic!("type mismatch for GreaterEqualInt"),
                     }
                 }
 
                 Instruction::LessFloat => {
-                    let b = self.stack.pop().expect("Stack underflow on LessFloat");
-                    let a = self.stack.pop().expect("Stack underflow on LessFloat");
-                    match (a, b) {
-                        (Value::Float(x), Value::Float(y)) => {
-                            self.stack.push(Value::Int((x < y) as i64))
+                    let rhs = self.stack.pop().expect("stack underflow on LessFloat");
+                    let lhs = self.stack.pop().expect("stack underflow on LessFloat");
+
+                    match (lhs, rhs) {
+                        (Value::Float(lhs), Value::Float(rhs)) => {
+                            self.stack.push(Value::Int(i64::from(lhs < rhs)));
                         }
-                        _ => panic!("Type mismatch for LessFloat"),
+                        _ => panic!("type mismatch for LessFloat"),
                     }
                 }
 
                 Instruction::LessEqualFloat => {
-                    let b = self.stack.pop().expect("Stack underflow on LessEqualFloat");
-                    let a = self.stack.pop().expect("Stack underflow on LessEqualFloat");
-                    match (a, b) {
-                        (Value::Float(x), Value::Float(y)) => {
-                            self.stack.push(Value::Int((x <= y) as i64))
+                    let rhs = self.stack.pop().expect("stack underflow on LessEqualFloat");
+                    let lhs = self.stack.pop().expect("stack underflow on LessEqualFloat");
+
+                    match (lhs, rhs) {
+                        (Value::Float(lhs), Value::Float(rhs)) => {
+                            self.stack.push(Value::Int(i64::from(lhs <= rhs)));
                         }
-                        _ => panic!("Type mismatch for LessEqualFloat"),
+                        _ => panic!("type mismatch for LessEqualFloat"),
                     }
                 }
 
                 Instruction::GreaterFloat => {
-                    let b = self.stack.pop().expect("Stack underflow on GreaterFloat");
-                    let a = self.stack.pop().expect("Stack underflow on GreaterFloat");
-                    match (a, b) {
-                        (Value::Float(x), Value::Float(y)) => {
-                            self.stack.push(Value::Int((x > y) as i64))
+                    let rhs = self.stack.pop().expect("stack underflow on GreaterFloat");
+                    let lhs = self.stack.pop().expect("stack underflow on GreaterFloat");
+
+                    match (lhs, rhs) {
+                        (Value::Float(lhs), Value::Float(rhs)) => {
+                            self.stack.push(Value::Int(i64::from(lhs > rhs)));
                         }
-                        _ => panic!("Type mismatch for GreaterFloat"),
+                        _ => panic!("type mismatch for GreaterFloat"),
                     }
                 }
 
                 Instruction::GreaterEqualFloat => {
-                    let b = self
+                    let rhs = self
                         .stack
                         .pop()
-                        .expect("Stack underflow on GreaterEqualFloat");
-                    let a = self
+                        .expect("stack underflow on GreaterEqualFloat");
+                    let lhs = self
                         .stack
                         .pop()
-                        .expect("Stack underflow on GreaterEqualFloat");
-                    match (a, b) {
-                        (Value::Float(x), Value::Float(y)) => {
-                            self.stack.push(Value::Int((x >= y) as i64))
+                        .expect("stack underflow on GreaterEqualFloat");
+
+                    match (lhs, rhs) {
+                        (Value::Float(lhs), Value::Float(rhs)) => {
+                            self.stack.push(Value::Int(i64::from(lhs >= rhs)));
                         }
-                        _ => panic!("Type mismatch for GreaterEqualFloat"),
+                        _ => panic!("type mismatch for GreaterEqualFloat"),
                     }
                 }
 
                 Instruction::Concat => {
-                    let b = self.stack.pop().expect("Stack underflow on Concat");
-                    let a = self.stack.pop().expect("Stack underflow on Concat");
-                    match (a, b) {
-                        (Value::Str(x), Value::Str(y)) => self.stack.push(Value::Str(x + &y)),
-                        _ => panic!("Type mismatch for Concat"),
+                    let rhs = self.stack.pop().expect("stack underflow on Concat");
+                    let lhs = self.stack.pop().expect("stack underflow on Concat");
+
+                    match (lhs, rhs) {
+                        (Value::String(lhs), Value::String(rhs)) => {
+                            self.stack.push(Value::String(lhs + rhs));
+                        }
+                        _ => panic!("type mismatch for Concat"),
                     }
                 }
 
-                Instruction::Jump(addr) => {
-                    if addr >= self.bytecode.len() {
-                        panic!("Jump to invalid address: {}", addr);
-                    }
-                    self.pc = addr;
+                Instruction::Jump(address) => {
+                    assert!(
+                        address < self.input.len(),
+                        "jump to invalid address: {address}"
+                    );
+                    self.program_counter = address;
+
                     continue;
                 }
 
-                Instruction::JumpIfTrue(addr) => {
-                    let condition = self.stack.pop().expect("Stack underflow on JumpIfTrue");
+                Instruction::JumpIfTrue(address) => {
+                    let condition = self.stack.pop().expect("stack underflow on JumpIfTrue");
+
                     let is_true = match condition {
-                        Value::Int(v) => v != 0,
-                        _ => panic!("Type mismatch for JumpIfTrue"),
+                        Value::Int(value) => value != 0,
+                        _ => panic!("type mismatch for JumpIfTrue"),
                     };
+
                     if is_true {
-                        if addr >= self.bytecode.len() {
-                            panic!("JumpIfTrue to invalid address: {}", addr);
-                        }
-                        self.pc = addr;
+                        assert!(
+                            address < self.input.len(),
+                            "jumpIfTrue to invalid address: {address}"
+                        );
+                        self.program_counter = address;
+
                         continue;
                     }
                 }
 
-                Instruction::JumpIfFalse(addr) => {
-                    let condition = self.stack.pop().expect("Stack underflow on JumpIfFalse");
+                Instruction::JumpIfFalse(address) => {
+                    let condition = self.stack.pop().expect("stack underflow on JumpIfFalse");
+
                     let is_false = match condition {
-                        Value::Int(v) => v == 0,
-                        _ => panic!("Type mismatch for JumpIfFalse"),
+                        Value::Int(value) => value == 0,
+                        _ => panic!("type mismatch for JumpIfFalse"),
                     };
+
                     if is_false {
-                        if addr >= self.bytecode.len() {
-                            panic!("JumpIfFalse to invalid address: {}", addr);
-                        }
-                        self.pc = addr;
+                        assert!(
+                            address < self.input.len(),
+                            "JumpIfFalse to invalid address: {address}"
+                        );
+                        self.program_counter = address;
+
                         continue;
                     }
                 }
 
-                Instruction::Call(func_name) => {
-                    if let Some(&addr) = self.functions.get(&func_name) {
-                        self.call_stack.push(self.pc + 1);
-                        self.pc = addr;
+                Instruction::Call(function_name) => {
+                    if let Some(&address) = self.functions.get(&function_name) {
+                        self.call_stack.push(self.program_counter + 1);
+                        self.program_counter = address;
+
                         continue;
                     } else {
-                        panic!("Undefined function: {}", func_name);
+                        panic!("undefined function: {function_name}");
                     }
                 }
 
                 Instruction::Return => {
-                    if let Some(return_addr) = self.call_stack.pop() {
-                        self.pc = return_addr;
+                    if let Some(return_address) = self.call_stack.pop() {
+                        self.program_counter = return_address;
                         continue;
                     } else {
                         println!("Return from main function.");
@@ -373,41 +419,43 @@ impl VM {
                     }
                 }
 
-                Instruction::NewStruct(_struct_name) => {
+                Instruction::NewStruct(struct_name) => {
                     self.stack.push(Value::Struct(HashMap::new()));
                 }
 
                 Instruction::SetField(field_name) => {
-                    let value = self.stack.pop().expect("Stack underflow on SetField");
-                    let mut struct_val = match self.stack.pop().expect("Expected struct on stack") {
+                    let value = self.stack.pop().expect("stack underflow on SetField");
+
+                    let mut struct_value = match self.stack.pop().expect("expected struct on stack")
+                    {
                         Value::Struct(map) => map,
                         _ => panic!("SetField expects a struct"),
                     };
 
-                    struct_val.insert(field_name, value);
-                    self.stack.push(Value::Struct(struct_val));
+                    struct_value.insert(field_name, value);
+                    self.stack.push(Value::Struct(struct_value));
                 }
 
                 Instruction::GetField(field_name) => {
-                    let struct_val = match self.stack.pop().expect("Expected struct on stack") {
+                    let struct_value = match self.stack.pop().expect("expected struct on stack") {
                         Value::Struct(map) => map,
                         _ => panic!("GetField expects a struct"),
                     };
 
-                    if let Some(val) = struct_val.get(&field_name) {
-                        self.stack.push(val.clone());
+                    if let Some(value) = struct_value.get(&field_name) {
+                        self.stack.push(value.clone());
                     } else {
-                        panic!("Field {} does not exist in struct", field_name);
+                        panic!("field {field_name} does not exist in struct");
                     }
                 }
 
                 Instruction::Print => {
-                    let val = self.stack.last().expect("Stack underflow on Print");
-                    print!("{:?}", val);
+                    let value = self.stack.last().expect("stack underflow on Print");
+                    print!("{value:?}");
                 }
                 Instruction::Println => {
-                    let val = self.stack.last().expect("Stack underflow on Println");
-                    println!("{:?}", val);
+                    let value = self.stack.last().expect("stack underflow on Println");
+                    println!("{value:?}");
                 }
 
                 Instruction::Halt => {
@@ -423,7 +471,7 @@ impl VM {
                 }
             }
 
-            self.pc += 1;
+            self.program_counter += 1;
         }
     }
 }

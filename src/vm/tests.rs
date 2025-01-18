@@ -5,14 +5,15 @@ use std::collections::HashMap;
 fn test_push_load_store() {
     let bytecode = vec![
         Instruction::PushInt(42),
-        Instruction::Store("x".to_string()),
-        Instruction::Load("x".to_string()),
+        Instruction::Store("x".into()),
+        Instruction::Load("x".into()),
         Instruction::Println,
         Instruction::Halt,
     ];
 
     let functions = HashMap::new();
     let mut vm = VM::new(bytecode, functions, 0);
+
     vm.run();
 }
 
@@ -40,6 +41,7 @@ fn test_arithmetic_int() {
 
     let functions = HashMap::new();
     let mut vm = VM::new(bytecode, functions, 0);
+
     vm.run();
 }
 
@@ -64,6 +66,7 @@ fn test_arithmetic_float() {
 
     let functions = HashMap::new();
     let mut vm = VM::new(bytecode, functions, 0);
+
     vm.run();
 }
 
@@ -72,36 +75,36 @@ fn test_comparisons() {
     let bytecode = vec![
         // a = 10, b = 20
         Instruction::PushInt(10),
-        Instruction::Store("a".to_string()),
+        Instruction::Store("a".into()),
         Instruction::PushInt(20),
-        Instruction::Store("b".to_string()),
+        Instruction::Store("b".into()),
         // a == b -> false (0)
-        Instruction::Load("a".to_string()),
-        Instruction::Load("b".to_string()),
+        Instruction::Load("a".into()),
+        Instruction::Load("b".into()),
         Instruction::Equal,   // Stack: 0
         Instruction::Println, // Expected output: 0
         // a != b -> true (1)
-        Instruction::Load("a".to_string()),
-        Instruction::Load("b".to_string()),
+        Instruction::Load("a".into()),
+        Instruction::Load("b".into()),
         Instruction::NotEqual, // Stack: 1
         Instruction::Println,  // Expected output: 1
         // a < b -> true (1)
-        Instruction::Load("a".to_string()),
-        Instruction::Load("b".to_string()),
+        Instruction::Load("a".into()),
+        Instruction::Load("b".into()),
         Instruction::LessInt, // Stack: 1
         Instruction::Println, // Expected output: 1
         // a <= 10 -> true (1)
-        Instruction::Load("a".to_string()),
+        Instruction::Load("a".into()),
         Instruction::PushInt(10),
         Instruction::LessEqualInt, // Stack: 1
         Instruction::Println,      // Expected output: 1
         // b > 15 -> true (1)
-        Instruction::Load("b".to_string()),
+        Instruction::Load("b".into()),
         Instruction::PushInt(15),
         Instruction::GreaterInt, // Stack: 1
         Instruction::Println,    // Expected output: 1
         // b >= 25 -> false (0)
-        Instruction::Load("b".to_string()),
+        Instruction::Load("b".into()),
         Instruction::PushInt(25),
         Instruction::GreaterEqualInt, // Stack: 0
         Instruction::Println,         // Expected output: 0
@@ -110,6 +113,7 @@ fn test_comparisons() {
 
     let functions = HashMap::new();
     let mut vm = VM::new(bytecode, functions, 0);
+
     vm.run();
 }
 
@@ -135,6 +139,7 @@ fn test_jumps() {
 
     let functions = HashMap::new();
     let mut vm = VM::new(bytecode, functions, 0);
+
     vm.run();
 }
 
@@ -143,32 +148,33 @@ fn test_if_else() {
     let bytecode = vec![
         // a = 10
         Instruction::PushInt(10),
-        Instruction::Store("a".to_string()),
+        Instruction::Store("a".into()),
         // b = 20
         Instruction::PushInt(20),
-        Instruction::Store("b".to_string()),
+        Instruction::Store("b".into()),
         // c = a + b
-        Instruction::Load("a".to_string()),
-        Instruction::Load("b".to_string()),
+        Instruction::Load("a".into()),
+        Instruction::Load("b".into()),
         Instruction::AddInt,
-        Instruction::Store("c".to_string()),
+        Instruction::Store("c".into()),
         // if (c > 25) { println("c is greater than 25"); } else { println("c is not greater than 25"); }
-        Instruction::Load("c".to_string()),
+        Instruction::Load("c".into()),
         Instruction::PushInt(25),
         Instruction::GreaterInt,      // Stack: 1 (true)
         Instruction::JumpIfFalse(15), // If false, jump to instruction 15
         // True block
-        Instruction::PushStr("c is greater than 25".to_string()),
+        Instruction::PushStr("c is greater than 25".into()),
         Instruction::Println,
         Instruction::Jump(17), // Jump to instruction 17
         // False block
-        Instruction::PushStr("c is not greater than 25".to_string()),
+        Instruction::PushStr("c is not greater than 25".into()),
         Instruction::Println,
         Instruction::Halt,
     ];
 
     let functions = HashMap::new();
     let mut vm = VM::new(bytecode, functions, 0);
+
     vm.run();
 }
 
@@ -176,26 +182,26 @@ fn test_if_else() {
 fn test_functions() {
     let bytecode = vec![
         // Function add starts at address 0
-        Instruction::Store("a".to_string()),
-        Instruction::Store("b".to_string()),
-        Instruction::Load("a".to_string()),
-        Instruction::Load("b".to_string()),
+        Instruction::Store("a".into()),
+        Instruction::Store("b".into()),
+        Instruction::Load("a".into()),
+        Instruction::Load("b".into()),
         Instruction::AddInt,
         Instruction::Return,
         // Function main starts at address 4
         Instruction::PushInt(5),
         Instruction::PushInt(7),
-        Instruction::Call("add".to_string()), // Stack: 12
-        Instruction::Store("c".to_string()),
-        Instruction::Load("c".to_string()),
+        Instruction::Call("add".into()), // Stack: 12
+        Instruction::Store("c".into()),
+        Instruction::Load("c".into()),
         Instruction::Println, // Expected output: 12
         Instruction::Halt,
     ];
 
     let mut functions = HashMap::new();
-    functions.insert("add".to_string(), 0);
-
+    functions.insert("add".into(), 0);
     let mut vm = VM::new(bytecode, functions, 6);
+
     vm.run();
 }
 
@@ -203,33 +209,34 @@ fn test_functions() {
 fn test_structs() {
     let bytecode = vec![
         // Create struct Person
-        Instruction::NewStruct("Person".to_string()),
-        Instruction::PushStr("Alice".to_string()),
-        Instruction::SetField("name".to_string()),
+        Instruction::NewStruct("Person".into()),
+        Instruction::PushStr("Alice".into()),
+        Instruction::SetField("name".into()),
         Instruction::PushInt(30),
-        Instruction::SetField("age".to_string()),
-        Instruction::Store("person".to_string()),
+        Instruction::SetField("age".into()),
+        Instruction::Store("person".into()),
         // Get field age and print
-        Instruction::Load("person".to_string()),
-        Instruction::GetField("age".to_string()),
+        Instruction::Load("person".into()),
+        Instruction::GetField("age".into()),
         Instruction::Println, // Expected output: 30
         // Get field name and print
-        Instruction::Load("person".to_string()),
-        Instruction::GetField("name".to_string()),
+        Instruction::Load("person".into()),
+        Instruction::GetField("name".into()),
         Instruction::Println, // Expected output: "Alice"
         Instruction::Halt,
     ];
 
     let functions = HashMap::new();
     let mut vm = VM::new(bytecode, functions, 0);
+
     vm.run();
 }
 
 #[test]
 fn test_concat() {
     let bytecode = vec![
-        Instruction::PushStr("Hello, ".to_string()),
-        Instruction::PushStr("World!".to_string()),
+        Instruction::PushStr("Hello, ".into()),
+        Instruction::PushStr("World!".into()),
         Instruction::Concat,  // Stack: "Hello, World!"
         Instruction::Println, // Expected output: "Hello, World!"
         Instruction::Halt,
@@ -237,5 +244,6 @@ fn test_concat() {
 
     let functions = HashMap::new();
     let mut vm = VM::new(bytecode, functions, 0);
+
     vm.run();
 }
