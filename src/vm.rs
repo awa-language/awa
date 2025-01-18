@@ -1,4 +1,7 @@
-use super::instruction::Instruction;
+pub mod instruction;
+
+#[cfg(test)]
+pub mod tests;
 use std::collections::HashMap;
 
 #[derive(Debug, PartialEq, Clone)]

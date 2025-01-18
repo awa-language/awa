@@ -4,7 +4,6 @@ use super::vm::Value;
 use super::vm::VM;
 use std::collections::HashMap;
 
-#[cfg(test)]
 #[test]
 fn test_push_load_store() {
     let bytecode = vec![
