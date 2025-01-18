@@ -5,9 +5,6 @@ use crate::ast::statement::Statement;
 use crate::ast::{argument, definition, statement};
 use std::fmt;
 
-const INDENT_SIZE: usize = 4;
-
-/// Создает префикс для строки, используя массив флагов для определения где нужны вертикальные линии
 fn make_prefix(levels: &[bool]) -> String {
     if levels.is_empty() {
         return "→ ".to_string();
@@ -15,7 +12,6 @@ fn make_prefix(levels: &[bool]) -> String {
 
     let mut prefix = String::new();
 
-    // Для каждого уровня кроме последнего
     for &has_next in &levels[..levels.len() - 1] {
         if has_next {
             prefix.push_str("│   ");
@@ -24,7 +20,6 @@ fn make_prefix(levels: &[bool]) -> String {
         }
     }
 
-    // Для последнего уровня
     prefix.push_str(if levels[levels.len() - 1] {
         "├→ "
     } else {
