@@ -1,4 +1,4 @@
-#[derive(Debug, PartialEq, Eq, Clone, Copy)]
+#[derive(Debug, PartialEq, Clone)]
 pub enum Instruction {
     PushInt(i64),
     PushFloat(f64),
@@ -38,7 +38,7 @@ pub enum Instruction {
     JumpIfTrue(usize),
     JumpIfFalse(usize),
 
-    Call(string), //func call
+    Call(String), //func call
     Return,
 
     NewStruct(String),
@@ -52,3 +52,5 @@ pub enum Instruction {
     Nop,  //nothing ??
     STW,  //stop the world for hot swap ??
 }
+
+pub type Bytecode = Vec<Instruction>;
