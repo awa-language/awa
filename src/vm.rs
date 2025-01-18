@@ -4,6 +4,8 @@ pub mod instruction;
 pub mod tests;
 use std::collections::HashMap;
 
+use instruction::Instruction;
+
 #[derive(Debug, PartialEq, Clone)]
 pub enum Value {
     Int(i64),

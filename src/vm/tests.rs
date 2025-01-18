@@ -1,7 +1,4 @@
-use super::instruction::Bytecode;
-use super::instruction::Instruction;
-use super::vm::Value;
-use super::vm::VM;
+use super::{instruction::Instruction, VM};
 use std::collections::HashMap;
 
 #[test]
