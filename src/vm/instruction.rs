@@ -1,8 +1,9 @@
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
 pub enum Instruction {
-    PushInt(i32),
-    PushFloat(f32),
+    PushInt(i64),
+    PushFloat(f64),
     PushStr(String),
+    PushChar(char),
 
     Load(String),  //val to stack
     Store(String), //val from stack
