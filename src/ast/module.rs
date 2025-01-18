@@ -1,6 +1,8 @@
+use std::fmt;
+
 use ecow::EcoString;
 
-use super::definition;
+use super::{definition, print::print_parse_tree};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Module<Definitions> {
@@ -9,3 +11,11 @@ pub struct Module<Definitions> {
 }
 
 pub type Untyped = Module<definition::Untyped>;
+
+impl fmt::Display for Module<definition::Untyped> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        writeln!(f, "\nAST structure:")?;
+        writeln!(f, "-------------")?;
+        print_parse_tree(self, f)
+    }
+}
