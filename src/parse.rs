@@ -212,7 +212,7 @@ impl<T: Iterator<Item = LexResult>> Parser<T> {
     }
 
     fn parse_expression_unit(&mut self) -> Result<Option<expression::Expression>, ParsingError> {
-        match self.current_token.take() {
+        match self.current_token.clone() {
             Some(token_span) => match token_span.token {
                 // NOTE: name can be either:
                 // - variable value access (varName)
@@ -283,6 +283,27 @@ impl<T: Iterator<Item = LexResult>> Parser<T> {
                                     index_expression: Box::new(index_value),
                                 }
                             }
+                            Token::LeftBrace => {
+                                let _ = self.advance_token();
+                                let _ = self.advance_token();
+                                let fields = self.parse_series(
+                                    &Self::parse_struct_field_value,
+                                    Some(&Token::Comma),
+                                )?;
+                                let fields = match Vec1::try_from_vec(fields) {
+                                    Ok(fields) => Some(fields),
+                                    Err(_) => None,
+                                };
+                                let right_brace_span = self.expect_token(&Token::RightBrace)?;
+                                expression::Expression::StructInitialization {
+                                    location: AstLocation {
+                                        start: start_location,
+                                        end: right_brace_span.end,
+                                    },
+                                    type_annotation: Type::Custom { name: sth_name },
+                                    fields,
+                                }
+                            }
                             _ => {
                                 let _ = self.advance_token();
                                 expression::Expression::VariableValue {
@@ -344,6 +365,42 @@ impl<T: Iterator<Item = LexResult>> Parser<T> {
                             end: token_span.end,
                         },
                         value,
+                    }))
+                }
+                Token::LeftSquare => {
+                    let array_type_annotation =
+                        self.parse_type_annotation()?.ok_or_else(|| ParsingError {
+                            error: error::Type::UnexpectedToken {
+                                token: self.current_token.clone().unwrap().token,
+                                expected: "array initializations type annotation"
+                                    .to_string()
+                                    .into(),
+                            },
+                            location: LexLocation {
+                                start: self.current_token.clone().unwrap().start,
+                                end: self.current_token.clone().unwrap().end,
+                            },
+                        })?;
+
+                    let _ = self.expect_token(&Token::LeftBrace)?;
+
+                    let elements =
+                        self.parse_series(&Self::parse_expression, Some(&Token::Comma))?;
+
+                    let elements = match Vec1::try_from_vec(elements) {
+                        Ok(elements) => Some(elements),
+                        Err(_) => None,
+                    };
+
+                    let right_brace_span = self.expect_token(&Token::RightBrace)?;
+
+                    Ok(Some(expression::Expression::ArrayInitialization {
+                        location: AstLocation {
+                            start: token_span.start,
+                            end: right_brace_span.end,
+                        },
+                        type_annotation: array_type_annotation,
+                        elements,
                     }))
                 }
                 _ => {
@@ -430,7 +487,7 @@ impl<T: Iterator<Item = LexResult>> Parser<T> {
         })
     }
 
-    fn _parse_struct_field_value(&mut self) -> Result<Option<StructFieldValue>, ParsingError> {
+    fn parse_struct_field_value(&mut self) -> Result<Option<StructFieldValue>, ParsingError> {
         let name_token_span = self.advance_token().ok_or_else(|| ParsingError {
             error: error::Type::UnexpectedEof,
             location: LexLocation { start: 0, end: 0 },
@@ -878,7 +935,7 @@ impl<T: Iterator<Item = LexResult>> Parser<T> {
         Ok(Statement::Assignment(Assignment {
             location: AstLocation { start, end },
             value: Box::new(value),
-            annotation: type_annotation,
+            type_annotation,
         }))
     }
 
@@ -904,7 +961,7 @@ impl<T: Iterator<Item = LexResult>> Parser<T> {
                 Token::Name { value } => {
                     let name = value;
                     let _ = self.advance_token();
-                    Ok(Some(Type::Custom { name, fields: None }))
+                    Ok(Some(Type::Custom { name }))
                 }
                 Token::LeftSquare => {
                     self.advance_token();

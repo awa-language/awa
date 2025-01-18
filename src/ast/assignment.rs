@@ -6,7 +6,7 @@ use super::expression::Expression;
 pub struct Assignment<ExpressionT> {
     pub location: Location,
     pub value: Box<ExpressionT>,
-    pub annotation: Type,
+    pub type_annotation: Type,
 }
 
 pub type Typed = Assignment<Expression>;
