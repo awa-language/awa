@@ -165,7 +165,7 @@ fn print_argument(
                 location.end
             )?;
 
-            if let Some(annotation) = &arg.annotation {
+            if let annotation = &arg.type_annotation {
                 let mut new_levels = levels.to_vec();
                 new_levels.push(false);
                 writeln!(f, "{}Type: {:?}", make_prefix(&new_levels), annotation)?;
