@@ -35,8 +35,8 @@ impl VM {
 
     pub fn run(&mut self) {
         self.preprocess();
-        if let Some(&main_addr) = self.functions.get("main") {
-            self.program_counter = main_addr;
+        if let Some(&main_address) = self.functions.get("main") {
+            self.program_counter = main_address;
         } else {
             panic!("cannot find function `main()`");
         }
@@ -63,7 +63,7 @@ impl VM {
                 Instruction::PushFloat(value) => {
                     self.stack.push(Value::Float(value));
                 }
-                Instruction::PushStr(value) => {
+                Instruction::PushString(value) => {
                     self.stack.push(Value::String(value));
                 }
                 Instruction::PushChar(value) => {
@@ -73,14 +73,14 @@ impl VM {
                     self.stack.push(Value::Slice(value));
                 }
 
-                Instruction::Load(variable) => {
+                Instruction::LoadToStack(variable) => {
                     if let Some(value) = self.variables.get(&variable) {
                         self.stack.push(value.clone());
                     } else {
                         panic!("undefined variable: {variable}");
                     }
                 }
-                Instruction::Store(variable) => {
+                Instruction::StoreFromStackToMap(variable) => {
                     let value = self.stack.pop().expect("stack underflow on Store");
                     self.variables.insert(variable, value);
                 }
@@ -197,7 +197,7 @@ impl VM {
                 }
 
                 Instruction::Append(value) => {
-                    let slice = self.stack.pop().expect("something");
+                    let slice = self.stack.pop().expect("no slice in stack to append to");
 
                     if let Value::Slice(mut slice) = slice {
                         slice.push(value);
@@ -206,7 +206,10 @@ impl VM {
                 }
 
                 Instruction::GetByIndex(index) => {
-                    let slice = self.stack.pop().expect("something 3");
+                    let slice = self
+                        .stack
+                        .pop()
+                        .expect("no slice in stack to get by index from");
 
                     if let Value::Slice(slice) = slice {
                         self.stack.push(slice[index as usize].clone());
@@ -214,8 +217,14 @@ impl VM {
                 }
 
                 Instruction::SetByIndex(index) => {
-                    let slice = self.stack.pop().expect("something 1");
-                    let value = self.stack.pop().expect("something 2");
+                    let slice = self
+                        .stack
+                        .pop()
+                        .expect("no slice in stack to set by index to");
+                    let value = self
+                        .stack
+                        .pop()
+                        .expect("no value in stack to set in clice by index");
 
                     if let Value::Slice(mut slice) = slice {
                         slice[index as usize] = value;
@@ -504,7 +513,7 @@ impl VM {
                     if let Some(value) = struct_value.get(&field_name) {
                         self.stack.push(value.clone());
                     } else {
-                        panic!("field {field_name} does not exist in struct");
+                        panic!("field {field_name} does not exist in the struct");
                     }
                 }
 

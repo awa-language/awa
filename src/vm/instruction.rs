@@ -5,12 +5,12 @@ use ecow::EcoString;
 pub enum Instruction {
     PushInt(i64),
     PushFloat(f64),
-    PushStr(EcoString),
+    PushString(EcoString),
     PushChar(char),
     PushSlice(Vec<Value>),
 
-    Load(EcoString),  // value from map in stack
-    Store(EcoString), // value from stack in map
+    LoadToStack(EcoString),
+    StoreInMap(EcoString),
 
     AddInt,
     SubInt,
@@ -56,7 +56,7 @@ pub enum Instruction {
     EndStruct,
     NewStruct(EcoString),
     Field(EcoString, Value),
-    SetField(EcoString), // from stack
+    SetField(EcoString),
     GetField(EcoString),
 
     Print,
