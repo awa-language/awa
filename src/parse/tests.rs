@@ -284,7 +284,7 @@ fn test_function_with_if_statement() {
 
 #[test]
 fn test_array_element_access_expression() {
-    assert_parse_module!("func main() {arr[i + 2]}");
+    assert_parse_module!("func main() {arr[i + 2] = 2}");
 }
 
 #[test]
