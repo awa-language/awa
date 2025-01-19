@@ -1,5 +1,6 @@
-use ecow::EcoString;
+use std::collections::HashMap;
 
+use ecow::EcoString;
 #[derive(Debug, PartialEq, Clone)]
 pub enum Instruction {
     PushInt(i64),
@@ -40,19 +41,32 @@ pub enum Instruction {
     JumpIfTrue(usize),
     JumpIfFalse(usize),
 
+    Func(EcoString),
+    EndFunc,
+
     Call(EcoString),
     Return,
 
+    Struct(EcoString),
+    EndStruct,
     NewStruct(EcoString),
-    SetField(EcoString),
+    Field(EcoString, Value),
+    SetField(EcoString, Value),
     GetField(EcoString),
 
     Print,
     Println,
 
-    Halt, // end the program??
-    Nop,  // is it needed?
-    STW,  // stop-the-world for hot swaps??
+    Halt,
 }
 
 pub type Bytecode = Vec<Instruction>;
+
+#[derive(Debug, PartialEq, Clone)]
+pub enum Value {
+    Int(i64),
+    Float(f64),
+    String(EcoString),
+    Char(char),
+    Struct(HashMap<EcoString, Value>),
+}

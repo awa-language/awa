@@ -5,45 +5,42 @@ pub mod tests;
 use std::collections::HashMap;
 
 use ecow::EcoString;
-use instruction::Instruction;
+use instruction::{Instruction, Value};
 
 #[derive(Debug, PartialEq, Clone)]
-pub enum Value {
-    Int(i64),
-    Float(f64),
-    String(EcoString),
-    Char(char),
-    Struct(HashMap<EcoString, Value>),
-}
 
 pub struct VM {
     input: Vec<Instruction>,
     program_counter: usize,
     stack: Vec<Value>,
     variables: HashMap<EcoString, Value>,
-    // TODO: add structs
+    structures: HashMap<EcoString, HashMap<EcoString, Value>>,
     functions: HashMap<EcoString, usize>,
     call_stack: Vec<usize>,
 }
 
 impl VM {
     #[must_use]
-    pub fn new(
-        bytecode: Vec<Instruction>,
-        functions: HashMap<EcoString, usize>,
-        pc: usize,
-    ) -> Self {
+    pub fn new(bytecode: Vec<Instruction>) -> Self {
         VM {
             input: bytecode,
-            program_counter: pc,
+            program_counter: 0,
             stack: Vec::new(),
             variables: HashMap::new(),
-            functions,
+            functions: HashMap::new(),
+            structures: HashMap::new(),
             call_stack: Vec::new(),
         }
     }
 
     pub fn run(&mut self) {
+        self.preprocess();
+        if let Some(&main_addr) = self.functions.get("main") {
+            self.program_counter = main_addr;
+        } else {
+            panic!("Не найдена функция 'main'");
+        }
+
         loop {
             if self.program_counter >= self.input.len() {
                 break;
@@ -52,6 +49,14 @@ impl VM {
             let current_instruction = self.input[self.program_counter].clone();
 
             match current_instruction {
+                Instruction::Func(_) | Instruction::EndFunc => {
+                    panic!("declare func into main")
+                }
+
+                Instruction::Struct(_) | Instruction::EndStruct | Instruction::Field(_, _) => {
+                    panic!("declare struct into main")
+                }
+
                 Instruction::PushInt(value) => {
                     self.stack.push(Value::Int(value));
                 }
@@ -419,21 +424,34 @@ impl VM {
                     }
                 }
 
-                Instruction::NewStruct(struct_name) => {
-                    self.stack.push(Value::Struct(HashMap::new()));
+                Instruction::NewStruct(struct_type) => {
+                    if let Some(fields) = self.structures.get(&struct_type.clone()) {
+                        self.stack.push(Value::Struct(fields.clone()))
+                    } else {
+                        panic!("undefined structer: {struct_type}")
+                    }
                 }
 
-                Instruction::SetField(field_name) => {
-                    let value = self.stack.pop().expect("stack underflow on SetField");
-
-                    let mut struct_value = match self.stack.pop().expect("expected struct on stack")
-                    {
-                        Value::Struct(map) => map,
-                        _ => panic!("SetField expects a struct"),
+                Instruction::SetField(field_name, field_value) => {
+                    let struct_value = match self.stack.pop() {
+                        Some(val) => val,
+                        None => {
+                            panic!("Стек пуст при попытке проверить поле '{}'", field_name);
+                        }
                     };
 
-                    struct_value.insert(field_name, value);
-                    self.stack.push(Value::Struct(struct_value));
+                    //TODO мб тут надо проверку на соответствие типов
+                    match struct_value {
+                        Value::Struct(mut map) => {
+                            if let Some(_) = map.get(&field_name.clone()) {
+                                map.insert(field_name.clone(), field_value.clone());
+                                self.stack.push(Value::Struct(map));
+                            } else {
+                                panic!("Unknown field");
+                            }
+                        }
+                        _ => {}
+                    }
                 }
 
                 Instruction::GetField(field_name) => {
@@ -459,19 +477,80 @@ impl VM {
                 }
 
                 Instruction::Halt => {
-                    println!("Program halted.");
                     break;
-                }
-
-                Instruction::Nop => {}
-
-                Instruction::STW => {
-                    // TODO
-                    println!("STW (Stop The World) executed.");
                 }
             }
 
             self.program_counter += 1;
+        }
+    }
+
+    pub fn preprocess(&mut self) {
+        let mut process_counter = 0;
+        let mut inside_function = false;
+
+        while process_counter < self.input.len() {
+            match &self.input[process_counter] {
+                Instruction::Func(func_name) => {
+                    if inside_function {
+                        panic!("Нельзя объявлять функцию внутри другой функции");
+                    }
+
+                    let func_start = process_counter + 1;
+                    let mut func_end = None;
+                    for i in (process_counter + 1)..self.input.len() {
+                        if let Instruction::EndFunc = self.input[i] {
+                            func_end = Some(i);
+                            break;
+                        }
+                    }
+                    if let Some(end) = func_end {
+                        self.functions.insert(func_name.clone(), func_start);
+                        process_counter = end + 1;
+                        inside_function = false;
+                        continue;
+                    } else {
+                        panic!(
+                            "Func без соответствующего EndFunc для функции {}",
+                            func_name
+                        );
+                    }
+                }
+
+                Instruction::Struct(struct_name) => {
+                    if inside_function {
+                        panic!("Нельзя объявлять структуру внутри функции");
+                    }
+
+                    let mut fields = HashMap::new();
+                    process_counter += 1;
+                    while process_counter < self.input.len() {
+                        match &self.input[process_counter] {
+                            Instruction::Field(field_name, field_type) => {
+                                fields.insert(field_name.clone(), field_type.clone());
+                            }
+                            Instruction::EndStruct => {
+                                break;
+                            }
+                            _ => {
+                                panic!("Неправильная инструкция внутри структуры");
+                            }
+                        }
+                        process_counter += 1;
+                    }
+                    if process_counter >= self.input.len() {
+                        panic!(
+                            "STRUCTSTART без соответствующего STRUCTEND для структуры {}",
+                            struct_name
+                        );
+                    }
+                    self.structures.insert(struct_name.clone(), fields);
+                }
+
+                _ => {
+                    process_counter += 1;
+                }
+            }
         }
     }
 }
