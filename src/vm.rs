@@ -2,7 +2,7 @@ pub mod instruction;
 
 #[cfg(test)]
 pub mod tests;
-use std::{collections::HashMap, ops::Index};
+use std::collections::HashMap;
 
 use ecow::EcoString;
 use instruction::{Instruction, Value};
@@ -211,7 +211,7 @@ impl VM {
                     let slice = self.stack.pop().expect("something");
                     match slice {
                         Value::Slice(slice) => {
-                            self.stack.push(slice[index]);
+                            self.stack.push(slice[index as usize].clone());
                         }
                         _ => {}
                     }
@@ -221,8 +221,8 @@ impl VM {
                     let slice = self.stack.pop().expect("something");
                     match slice {
                         Value::Slice(mut slice) => {
-                            slice[index] = val;
-                            self.stack.push(slice);
+                            slice[index as usize] = val;
+                            self.stack.push(instruction::Value::Slice(slice));
                         }
                         _ => {}
                     }

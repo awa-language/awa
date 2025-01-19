@@ -1,5 +1,4 @@
 use super::{instruction::Instruction, instruction::Value, VM};
-use std::collections::HashMap;
 
 #[test]
 fn test_push_load_store() {
