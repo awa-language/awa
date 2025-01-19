@@ -1,14 +1,11 @@
 use vec1::Vec1;
 
-use super::{
-    assignment::Assignment, expression::Expression, location::Location, reassignment::Reassignment,
-};
+use super::{assignment::Assignment, expression::Expression, location::Location};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Statement<ExpressionT> {
     Expression(ExpressionT),
     Assignment(Assignment<ExpressionT>),
-    Reassignment(Reassignment<ExpressionT>),
     Loop {
         body: Option<Vec1<Statement<ExpressionT>>>,
         location: Location,
@@ -46,7 +43,6 @@ impl Untyped {
         match self {
             Statement::Expression(expression) => expression.get_location(),
             Statement::Assignment(assignment) => assignment.location,
-            Statement::Reassignment(reassignment) => reassignment.location,
             Statement::Loop { location, .. }
             | Statement::If { location, .. }
             | Statement::Return { location, .. }
