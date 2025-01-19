@@ -11,7 +11,6 @@ use vec1::Vec1;
 use crate::ast::definition::StructField;
 use crate::ast::expression::StructFieldValue;
 use crate::ast::location::Location;
-use crate::ast::reassignment::{Reassignment, ReassignmentTarget};
 use crate::{
     ast::{
         argument,
@@ -742,13 +741,12 @@ impl<T: Iterator<Item = LexResult>> Parser<T> {
     }
 
     fn parse_statement(&mut self) -> Result<Option<statement::Untyped>, ParsingError> {
-        match self.current_token.clone() {
+        match self.current_token.take() {
             Some(token_span) => match token_span.token {
                 Token::Var => {
                     let _ = self.advance_token();
                     Ok(Some(self.parse_assignment(token_span.start)?))
                 }
-                Token::Name { .. } => Ok(Some(self.parse_reassignment(token_span)?)),
                 Token::Loop => {
                     let _ = self.advance_token();
                     let _ = self.expect_token(&Token::LeftBrace)?;
@@ -940,150 +938,6 @@ impl<T: Iterator<Item = LexResult>> Parser<T> {
             value: Box::new(value),
             type_annotation,
         }))
-    }
-
-    fn parse_reassignment(
-        &mut self,
-        name_token: TokenSpan,
-    ) -> Result<statement::Untyped, ParsingError> {
-        let Token::Name {
-            value: ref sth_name,
-        } = name_token.token
-        else {
-            return Err(ParsingError {
-                error: error::Type::UnexpectedToken {
-                    token: name_token.token,
-                    expected: "reassignment target name".to_string().into(),
-                },
-                location: LexLocation {
-                    start: name_token.start,
-                    end: name_token.end,
-                },
-            });
-        };
-
-        if let Some(next_token_span) = self.peek_token() {
-            match &next_token_span.token {
-                Token::Equal => {
-                    let _ = self.advance_token();
-                    let _ = self.advance_token();
-
-                    let new_value = self.parse_expression()?.ok_or_else(|| ParsingError {
-                        error: error::Type::UnexpectedEof,
-                        location: LexLocation { start: 0, end: 0 },
-                    })?;
-
-                    Ok(Statement::Reassignment(Reassignment {
-                        location: Location {
-                            start: name_token.start,
-                            end: new_value.get_location().end,
-                        },
-                        target: ReassignmentTarget::Variable {
-                            location: Location {
-                                start: name_token.start,
-                                end: name_token.end,
-                            },
-                            name: sth_name.clone(),
-                        },
-                        new_value: Box::new(new_value),
-                    }))
-                }
-                Token::Dot => {
-                    let _ = self.advance_token();
-                    let _ = self.advance_token();
-
-                    let field_name_token_span =
-                        self.advance_token().ok_or_else(|| ParsingError {
-                            error: error::Type::UnexpectedEof,
-                            location: LexLocation { start: 0, end: 0 },
-                        })?;
-
-                    let Token::Name { value: field_name } = field_name_token_span.token else {
-                        return Err(ParsingError {
-                            error: error::Type::UnexpectedToken {
-                                token: field_name_token_span.token,
-                                expected: "reassignmented field name".to_string().into(),
-                            },
-                            location: LexLocation {
-                                start: field_name_token_span.start,
-                                end: field_name_token_span.end,
-                            },
-                        });
-                    };
-
-                    let _ = self.expect_token(&Token::Equal)?;
-
-                    let new_value = self.parse_expression()?.ok_or_else(|| ParsingError {
-                        error: error::Type::UnexpectedEof,
-                        location: LexLocation { start: 0, end: 0 },
-                    })?;
-
-                    Ok(Statement::Reassignment(Reassignment {
-                        location: Location {
-                            start: name_token.start,
-                            end: new_value.get_location().end,
-                        },
-                        target: ReassignmentTarget::FieldAccess {
-                            location: Location {
-                                start: name_token.start,
-                                end: field_name_token_span.end,
-                            },
-                            struct_name: sth_name.clone(),
-                            field_name,
-                        },
-                        new_value: Box::new(new_value),
-                    }))
-                }
-                Token::LeftSquare => {
-                    let _ = self.advance_token();
-                    let _ = self.advance_token();
-
-                    let index_expr = self.parse_expression()?.ok_or_else(|| ParsingError {
-                        error: error::Type::UnexpectedEof,
-                        location: LexLocation { start: 0, end: 0 },
-                    })?;
-
-                    let right_bracket = self.expect_token(&Token::RightSquare)?;
-                    let _ = self.expect_token(&Token::Equal)?;
-
-                    let new_value = self.parse_expression()?.ok_or_else(|| ParsingError {
-                        error: error::Type::UnexpectedEof,
-                        location: LexLocation { start: 0, end: 0 },
-                    })?;
-
-                    Ok(Statement::Reassignment(Reassignment {
-                        location: Location {
-                            start: name_token.start,
-                            end: new_value.get_location().end,
-                        },
-                        target: ReassignmentTarget::ArrayAccess {
-                            location: Location {
-                                start: name_token.start,
-                                end: right_bracket.end,
-                            },
-                            array_name: sth_name.clone(),
-                            index_expression: Box::new(index_expr),
-                        },
-                        new_value: Box::new(new_value),
-                    }))
-                }
-                _ => {
-                    self.current_token = Some(name_token);
-                    let expression = self.parse_expression()?.map(Statement::Expression);
-                    Ok(expression.ok_or_else(|| ParsingError {
-                        error: error::Type::UnexpectedEof,
-                        location: LexLocation { start: 0, end: 0 },
-                    })?)
-                }
-            }
-        } else {
-            self.current_token = Some(name_token);
-            let expression = self.parse_expression()?.map(Statement::Expression);
-            Ok(expression.ok_or_else(|| ParsingError {
-                error: error::Type::UnexpectedEof,
-                location: LexLocation { start: 0, end: 0 },
-            })?)
-        }
     }
 
     fn parse_type_annotation(&mut self) -> Result<Option<Type>, ParsingError> {
