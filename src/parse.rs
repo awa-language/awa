@@ -171,9 +171,9 @@ impl<T: Iterator<Item = LexResult>> Parser<T> {
                     let _ = self.advance_token();
 
                     match self.parse_expression()? {
-                        Some(inner_expr) => {
+                        Some(inner_expression) => {
                             let _ = self.expect_token(&Token::RightParenthesis)?;
-                            expression_stack.push(inner_expr);
+                            expression_stack.push(inner_expression);
                         }
                         None => {
                             return Err(ParsingError {
@@ -1276,9 +1276,9 @@ fn handle_operator(
     operator_stack: &mut Vec<OperatorToken>,
     expression_stack: &mut Vec<expression::Expression>,
 ) -> Option<expression::Expression> {
-    while let Some(top_operator) = operator_stack.last() {
-        if let Some(curr_op) = &current_operator {
-            if top_operator.precedence < curr_op.precedence {
+    while let Some(stack_top_operator) = operator_stack.last() {
+        if let Some(new_operator) = &current_operator {
+            if stack_top_operator.precedence < new_operator.precedence {
                 break;
             }
         }
@@ -1289,28 +1289,28 @@ fn handle_operator(
 
         let right = expression_stack.pop().unwrap();
         let left = expression_stack.pop().unwrap();
-        let op = operator_stack.pop().unwrap();
+        let operator = operator_stack.pop().unwrap();
 
-        let operator =
-            token_to_binary_operator(&op.token_span.token).expect("Invalid binary operator token");
+        let operator = token_to_binary_operator(&operator.token_span.token)
+            .expect("invalid binary operator token");
 
         let location = Location {
             start: left.get_location().start,
             end: right.get_location().end,
         };
 
-        let binary_expr = expression::Expression::BinaryOperation {
+        let binary_expression = expression::Expression::BinaryOperation {
             location,
             operator,
             left: Box::new(left),
             right: Box::new(right),
         };
 
-        expression_stack.push(binary_expr);
+        expression_stack.push(binary_expression);
     }
 
-    if let Some(op) = current_operator {
-        operator_stack.push(op);
+    if let Some(operator) = current_operator {
+        operator_stack.push(operator);
     }
 
     if operator_stack.is_empty() {
