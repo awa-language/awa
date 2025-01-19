@@ -5,6 +5,8 @@ use crate::ast::statement::Statement;
 use crate::ast::{argument, definition, statement};
 use std::fmt;
 
+use super::reassignment::ReassignmentTarget;
+
 fn make_prefix(levels: &[bool]) -> String {
     if levels.is_empty() {
         return "→ ".to_string();
@@ -215,6 +217,64 @@ fn print_statement(
             let mut value_levels = new_levels.clone();
             value_levels.push(false);
             print_expression(&assignment.value, &value_levels, f)?;
+        }
+        Statement::Reassignment(reassignment) => {
+            writeln!(
+                f,
+                "{}Reassignment ({}..{})",
+                make_prefix(levels),
+                reassignment.location.start,
+                reassignment.location.end
+            )?;
+            match &reassignment.target {
+                ReassignmentTarget::Variable { location, name } => {
+                    writeln!(
+                        f,
+                        "{}Target: Variable {} ({}..{})",
+                        make_prefix(&[levels, &[true]].concat()),
+                        name,
+                        location.start,
+                        location.end
+                    )?;
+                }
+                ReassignmentTarget::FieldAccess {
+                    location,
+                    struct_name,
+                    field_name,
+                } => {
+                    writeln!(
+                        f,
+                        "{}Target: Field access {}.{} ({}..{})",
+                        make_prefix(&[levels, &[true]].concat()),
+                        struct_name,
+                        field_name,
+                        location.start,
+                        location.end
+                    )?;
+                }
+                ReassignmentTarget::ArrayAccess {
+                    location,
+                    array_name,
+                    index_expression,
+                } => {
+                    writeln!(
+                        f,
+                        "{}Target: Array access {} ({}..{})",
+                        make_prefix(&[levels, &[true]].concat()),
+                        array_name,
+                        location.start,
+                        location.end
+                    )?;
+                    writeln!(f, "{}Index:", make_prefix(&[levels, &[true]].concat()))?;
+                    print_expression(index_expression, &[levels, &[true, false]].concat(), f)?;
+                }
+            }
+            writeln!(f, "{}Value:", make_prefix(&[levels, &[false]].concat()))?;
+            print_expression(
+                &reassignment.new_value,
+                &[levels, &[false, false]].concat(),
+                f,
+            )?;
         }
         Statement::Loop { body, location } => {
             writeln!(
