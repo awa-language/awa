@@ -199,35 +199,26 @@ impl VM {
                 Instruction::Append(value) => {
                     let slice = self.stack.pop().expect("something");
 
-                    match slice {
-                        Value::Slice(mut slice) => {
-                            slice.push(value);
-                            self.stack.push(Value::Slice(slice));
-                        }
-                        _ => {}
+                    if let Value::Slice(mut slice) = slice {
+                        slice.push(value);
+                        self.stack.push(Value::Slice(slice));
                     }
                 }
 
                 Instruction::GetByIndex(index) => {
                     let slice = self.stack.pop().expect("something");
 
-                    match slice {
-                        Value::Slice(slice) => {
-                            self.stack.push(slice[index as usize].clone());
-                        }
-                        _ => {}
+                    if let Value::Slice(slice) = slice {
+                        self.stack.push(slice[index as usize].clone());
                     }
                 }
 
                 Instruction::SetByIndex(index, value) => {
                     let slice = self.stack.pop().expect("something");
 
-                    match slice {
-                        Value::Slice(mut slice) => {
-                            slice[index as usize] = value;
-                            self.stack.push(Value::Slice(slice));
-                        }
-                        _ => {}
+                    if let Value::Slice(mut slice) = slice {
+                        slice[index as usize] = value;
+                        self.stack.push(Value::Slice(slice));
                     }
                 }
 
@@ -464,7 +455,7 @@ impl VM {
 
                 Instruction::NewStruct(struct_type) => {
                     if let Some(fields) = self.structures.get(&struct_type.clone()) {
-                        self.stack.push(Value::Struct(fields.clone()))
+                        self.stack.push(Value::Struct(fields.clone()));
                     } else {
                         panic!("undefined structer: {struct_type}")
                     }
@@ -474,21 +465,18 @@ impl VM {
                     let struct_value = match self.stack.pop() {
                         Some(value) => value,
                         None => {
-                            panic!("stack is empty while setting the field '{}'", field_name);
+                            panic!("stack is empty while setting the field '{field_name}'");
                         }
                     };
 
                     //TODO may require type mismatch checking
-                    match struct_value {
-                        Value::Struct(mut map) => {
-                            if let Some(_) = map.get(&field_name.clone()) {
-                                map.insert(field_name.clone(), field_value.clone());
-                                self.stack.push(Value::Struct(map));
-                            } else {
-                                panic!("unknown struct field");
-                            }
+                    if let Value::Struct(mut map) = struct_value {
+                        if let Some(_) = map.get(&field_name.clone()) {
+                            map.insert(field_name.clone(), field_value.clone());
+                            self.stack.push(Value::Struct(map));
+                        } else {
+                            panic!("unknown struct field");
                         }
-                        _ => {}
                     }
                 }
 
@@ -530,9 +518,10 @@ impl VM {
         while process_counter < self.input.len() {
             match &self.input[process_counter] {
                 Instruction::Func(func_name) => {
-                    if inside_function {
-                        panic!("cannot define function inside function body");
-                    }
+                    assert!(
+                        !inside_function,
+                        "cannot define function inside function body"
+                    );
 
                     let func_start = process_counter + 1;
                     let mut func_end = None;
@@ -551,17 +540,15 @@ impl VM {
 
                         continue;
                     } else {
-                        panic!(
-                            "Func without corresponding EndFunc for function {}",
-                            func_name
-                        );
+                        panic!("Func without corresponding EndFunc for function {func_name}");
                     }
                 }
 
                 Instruction::Struct(struct_name) => {
-                    if inside_function {
-                        panic!("cannot define struct inside function body");
-                    }
+                    assert!(
+                        !inside_function,
+                        "cannot define struct inside function body"
+                    );
 
                     let mut fields = HashMap::new();
                     process_counter += 1;
@@ -582,12 +569,10 @@ impl VM {
                         process_counter += 1;
                     }
 
-                    if process_counter >= self.input.len() {
-                        panic!(
-                            "Struct without corresponding EndStruct for struct {}",
-                            struct_name
-                        );
-                    }
+                    assert!(
+                        process_counter < self.input.len(),
+                        "Struct without corresponding EndStruct for struct {struct_name}"
+                    );
 
                     self.structures.insert(struct_name.clone(), fields);
                 }
