@@ -38,7 +38,7 @@ impl VM {
         if let Some(&main_addr) = self.functions.get("main") {
             self.program_counter = main_addr;
         } else {
-            panic!("Не найдена функция 'main'");
+            panic!("cannot find function `main()`");
         }
 
         loop {
@@ -198,6 +198,7 @@ impl VM {
 
                 Instruction::Append(value) => {
                     let slice = self.stack.pop().expect("something");
+
                     match slice {
                         Value::Slice(mut slice) => {
                             slice.push(value);
@@ -209,6 +210,7 @@ impl VM {
 
                 Instruction::GetByIndex(index) => {
                     let slice = self.stack.pop().expect("something");
+
                     match slice {
                         Value::Slice(slice) => {
                             self.stack.push(slice[index as usize].clone());
@@ -217,12 +219,13 @@ impl VM {
                     }
                 }
 
-                Instruction::SetByIndex(index, val) => {
+                Instruction::SetByIndex(index, value) => {
                     let slice = self.stack.pop().expect("something");
+
                     match slice {
                         Value::Slice(mut slice) => {
-                            slice[index as usize] = val;
-                            self.stack.push(instruction::Value::Slice(slice));
+                            slice[index as usize] = value;
+                            self.stack.push(Value::Slice(slice));
                         }
                         _ => {}
                     }
@@ -469,20 +472,20 @@ impl VM {
 
                 Instruction::SetField(field_name, field_value) => {
                     let struct_value = match self.stack.pop() {
-                        Some(val) => val,
+                        Some(value) => value,
                         None => {
-                            panic!("Стек пуст при попытке проверить поле '{}'", field_name);
+                            panic!("stack is empty while setting the field '{}'", field_name);
                         }
                     };
 
-                    //TODO мб тут надо проверку на соответствие типов
+                    //TODO may require type mismatch checking
                     match struct_value {
                         Value::Struct(mut map) => {
                             if let Some(_) = map.get(&field_name.clone()) {
                                 map.insert(field_name.clone(), field_value.clone());
                                 self.stack.push(Value::Struct(map));
                             } else {
-                                panic!("Unknown field");
+                                panic!("unknown struct field");
                             }
                         }
                         _ => {}
@@ -528,25 +531,28 @@ impl VM {
             match &self.input[process_counter] {
                 Instruction::Func(func_name) => {
                     if inside_function {
-                        panic!("Нельзя объявлять функцию внутри другой функции");
+                        panic!("cannot define function inside function body");
                     }
 
                     let func_start = process_counter + 1;
                     let mut func_end = None;
+
                     for i in (process_counter + 1)..self.input.len() {
                         if let Instruction::EndFunc = self.input[i] {
                             func_end = Some(i);
                             break;
                         }
                     }
+
                     if let Some(end) = func_end {
                         self.functions.insert(func_name.clone(), func_start);
                         process_counter = end + 1;
                         inside_function = false;
+
                         continue;
                     } else {
                         panic!(
-                            "Func без соответствующего EndFunc для функции {}",
+                            "Func without corresponding EndFunc for function {}",
                             func_name
                         );
                     }
@@ -554,11 +560,12 @@ impl VM {
 
                 Instruction::Struct(struct_name) => {
                     if inside_function {
-                        panic!("Нельзя объявлять структуру внутри функции");
+                        panic!("cannot define struct inside function body");
                     }
 
                     let mut fields = HashMap::new();
                     process_counter += 1;
+
                     while process_counter < self.input.len() {
                         match &self.input[process_counter] {
                             Instruction::Field(field_name, field_type) => {
@@ -568,17 +575,20 @@ impl VM {
                                 break;
                             }
                             _ => {
-                                panic!("Неправильная инструкция внутри структуры");
+                                panic!("unsupported instruction inside struct definition");
                             }
                         }
+
                         process_counter += 1;
                     }
+
                     if process_counter >= self.input.len() {
                         panic!(
-                            "STRUCTSTART без соответствующего STRUCTEND для структуры {}",
+                            "Struct without corresponding EndStruct for struct {}",
                             struct_name
                         );
                     }
+
                     self.structures.insert(struct_name.clone(), fields);
                 }
 
