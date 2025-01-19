@@ -6,4 +6,5 @@ pub mod location;
 pub mod module;
 pub mod operator;
 pub mod print;
+pub mod reassignment;
 pub mod statement;
