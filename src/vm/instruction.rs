@@ -7,6 +7,7 @@ pub enum Instruction {
     PushFloat(f64),
     PushStr(EcoString),
     PushChar(char),
+    PushSlice(Vec<Value>),
 
     Load(EcoString),  // value from map in stack
     Store(EcoString), // value from stack in map
@@ -21,6 +22,10 @@ pub enum Instruction {
     SubFloat,
     MulFloat,
     DivFloat,
+
+    Append(Value),
+    GetByIndex(i64),
+    SetByIndex(i64, Value),
 
     Equal,
     NotEqual,
@@ -68,5 +73,6 @@ pub enum Value {
     Float(f64),
     String(EcoString),
     Char(char),
+    Slice(Vec<Value>),
     Struct(HashMap<EcoString, Value>),
 }

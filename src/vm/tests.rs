@@ -253,3 +253,24 @@ fn test_concat() {
 
     vm.run();
 }
+
+#[test]
+fn test_slice() {
+    let bytecode = vec![
+        Instruction::Func("main".into()),
+        Instruction::PushSlice(vec![Value::Int(1), Value::Int(2), Value::Int(3)]),
+        Instruction::Println,
+        Instruction::Append(Value::Int(4)),
+        Instruction::Println,
+        Instruction::SetByIndex(1, Value::Int(-1)),
+        Instruction::Println,
+        Instruction::GetByIndex(1),
+        Instruction::Println,
+        Instruction::Halt,
+        Instruction::EndFunc,
+    ];
+
+    let mut vm = VM::new(bytecode);
+
+    vm.run();
+}

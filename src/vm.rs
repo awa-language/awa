@@ -2,7 +2,7 @@ pub mod instruction;
 
 #[cfg(test)]
 pub mod tests;
-use std::collections::HashMap;
+use std::{collections::HashMap, ops::Index};
 
 use ecow::EcoString;
 use instruction::{Instruction, Value};
@@ -68,6 +68,9 @@ impl VM {
                 }
                 Instruction::PushChar(value) => {
                     self.stack.push(Value::Char(value));
+                }
+                Instruction::PushSlice(value) => {
+                    self.stack.push(Value::Slice(value));
                 }
 
                 Instruction::Load(variable) => {
@@ -190,6 +193,38 @@ impl VM {
                             self.stack.push(Value::Float(lhs / rhs));
                         }
                         _ => panic!("type mismatch for DivFloat"),
+                    }
+                }
+
+                Instruction::Append(value) => {
+                    let slice = self.stack.pop().expect("something");
+                    match slice {
+                        Value::Slice(mut slice) => {
+                            slice.push(value);
+                            self.stack.push(Value::Slice(slice));
+                        }
+                        _ => {}
+                    }
+                }
+
+                Instruction::GetByIndex(index) => {
+                    let slice = self.stack.pop().expect("something");
+                    match slice {
+                        Value::Slice(slice) => {
+                            self.stack.push(slice[index]);
+                        }
+                        _ => {}
+                    }
+                }
+
+                Instruction::SetByIndex(index, val) => {
+                    let slice = self.stack.pop().expect("something");
+                    match slice {
+                        Value::Slice(mut slice) => {
+                            slice[index] = val;
+                            self.stack.push(slice);
+                        }
+                        _ => {}
                     }
                 }
 
