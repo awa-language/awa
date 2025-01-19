@@ -25,7 +25,7 @@ pub enum Instruction {
 
     Append(Value),
     GetByIndex(i64),
-    SetByIndex(i64, Value),
+    SetByIndex(i64),
 
     Equal,
     NotEqual,
@@ -56,7 +56,7 @@ pub enum Instruction {
     EndStruct,
     NewStruct(EcoString),
     Field(EcoString, Value),
-    SetField(EcoString, Value),
+    SetField(EcoString), // from stack
     GetField(EcoString),
 
     Print,
@@ -74,5 +74,8 @@ pub enum Value {
     String(EcoString),
     Char(char),
     Slice(Vec<Value>),
-    Struct(HashMap<EcoString, Value>),
+    Struct {
+        name: EcoString,
+        fields: HashMap<EcoString, Value>,
+    },
 }

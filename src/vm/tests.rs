@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use super::{instruction::Instruction, instruction::Value, VM};
 
 #[test]
@@ -221,9 +223,13 @@ fn test_structs() {
         Instruction::Func("main".into()),
         Instruction::NewStruct("Person".into()),
         Instruction::Store("a".into()),
+        Instruction::PushStr("nikitka".into()),
         Instruction::Load("a".into()),
-        Instruction::SetField("name".into(), Value::String("nikitka".into())),
-        Instruction::SetField("age".into(), Value::Int(22)),
+        Instruction::SetField("name".into()),
+        Instruction::Store("a".into()),
+        Instruction::PushInt(22),
+        Instruction::Load("a".into()),
+        Instruction::SetField("age".into()),
         Instruction::Store("a".into()),
         Instruction::Load("a".into()),
         Instruction::Println,
@@ -261,7 +267,10 @@ fn test_slice() {
         Instruction::Println,
         Instruction::Append(Value::Int(4)),
         Instruction::Println,
-        Instruction::SetByIndex(1, Value::Int(-1)),
+        Instruction::Store("qwe".into()),
+        Instruction::PushInt(22),
+        Instruction::Load("qwe".into()),
+        Instruction::SetByIndex(1),
         Instruction::Println,
         Instruction::GetByIndex(1),
         Instruction::Println,
@@ -273,3 +282,103 @@ fn test_slice() {
 
     vm.run();
 }
+#[test]
+fn test_complex() {
+    let bytecode = vec![
+        Instruction::Struct("Custom".into()),
+        Instruction::Field("name".into(), Value::Char('.')),
+        Instruction::Field("age".into(), Value::Float(0.0)),
+        Instruction::EndStruct,
+        //
+        Instruction::Struct("Wrapper".into()),
+        Instruction::Field(
+            "custom".into(),
+            Value::Struct {
+                name: "Custom".into(),
+                fields: HashMap::from([
+                    ("name".into(), Value::Char('.')),
+                    ("age".into(), Value::Float(0.0)),
+                ]),
+            },
+        ),
+        Instruction::Field("height".into(), Value::Float(0.0)),
+        Instruction::EndStruct,
+        //
+        Instruction::Func("main".into()),
+        Instruction::NewStruct("Wrapper".into()),
+        Instruction::Store("w".into()),
+        //
+        Instruction::PushFloat(20.0),
+        Instruction::NewStruct("Custom".into()),
+        Instruction::SetField("age".into()),
+        Instruction::Store("c".into()),
+        Instruction::Load("c".into()),
+        Instruction::Load("w".into()),
+        Instruction::SetField("custom".into()),
+        Instruction::Println,
+        Instruction::Halt,
+        Instruction::EndFunc,
+    ];
+    let mut vm = VM::new(bytecode);
+
+    vm.run();
+}
+
+#[test]
+fn test_recursion() {
+    let bytecode = vec![
+        Instruction::Func("factorial".into()), //20
+        Instruction::Store("value".into()),    //
+        Instruction::Load("value".into()),     //20
+        Instruction::PushInt(1),               //1, 20
+        Instruction::GreaterInt,               //1
+        Instruction::JumpIfTrue(8),            //
+        Instruction::PushInt(1),               // 1
+        Instruction::Return,
+        Instruction::Load("value".into()),     //20
+        Instruction::Load("value".into()),     //20, 20
+        Instruction::PushInt(1),               //1, 20, 20
+        Instruction::SubInt,                   // 19, 20
+        Instruction::Call("factorial".into()), //20
+        Instruction::MulInt,                   //20 * x
+        Instruction::Return,
+        Instruction::EndFunc,
+        Instruction::Func("main".into()),
+        Instruction::PushInt(20),
+        Instruction::Call("factorial".into()),
+        Instruction::Println,
+        Instruction::Halt,
+        Instruction::EndFunc,
+    ];
+    let mut vm = VM::new(bytecode);
+
+    vm.run();
+}
+
+/*
+#[test]
+fn test_oom() {
+    let bytecode = vec![
+        Instruction::Func("counter".into()),
+        Instruction::Store("value".into()),
+        Instruction::Load("value".into()),
+        Instruction::PushInt(1),
+        Instruction::AddInt,
+        Instruction::Println,
+        Instruction::Store("value".into()),
+        Instruction::Load("value".into()),
+        Instruction::Call("counter".into()),
+        Instruction::Return,
+        Instruction::EndFunc,
+        Instruction::Func("main".into()),
+        Instruction::PushInt(0),
+        Instruction::Call("counter".into()),
+        Instruction::Println,
+        Instruction::Halt,
+        Instruction::EndFunc,
+    ];
+    let mut vm = VM::new(bytecode);
+
+    vm.run();
+}
+*/

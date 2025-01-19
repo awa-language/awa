@@ -206,15 +206,16 @@ impl VM {
                 }
 
                 Instruction::GetByIndex(index) => {
-                    let slice = self.stack.pop().expect("something");
+                    let slice = self.stack.pop().expect("something 3");
 
                     if let Value::Slice(slice) = slice {
                         self.stack.push(slice[index as usize].clone());
                     }
                 }
 
-                Instruction::SetByIndex(index, value) => {
-                    let slice = self.stack.pop().expect("something");
+                Instruction::SetByIndex(index) => {
+                    let slice = self.stack.pop().expect("something 1");
+                    let value = self.stack.pop().expect("something 2");
 
                     if let Value::Slice(mut slice) = slice {
                         slice[index as usize] = value;
@@ -455,25 +456,39 @@ impl VM {
 
                 Instruction::NewStruct(struct_type) => {
                     if let Some(fields) = self.structures.get(&struct_type.clone()) {
-                        self.stack.push(Value::Struct(fields.clone()));
+                        self.stack.push(Value::Struct {
+                            name: struct_type.clone(),
+                            fields: fields.clone(),
+                        });
                     } else {
-                        panic!("undefined structer: {struct_type}")
+                        panic!("undefined struct: {struct_type}")
                     }
                 }
 
-                Instruction::SetField(field_name, field_value) => {
+                Instruction::SetField(field_name) => {
                     let struct_value = match self.stack.pop() {
                         Some(value) => value,
                         None => {
-                            panic!("stack is empty while setting the field '{field_name}'");
+                            panic!("stack is empty while setting the struct value '{field_name}'");
+                        }
+                    };
+
+                    let field_value = match self.stack.pop() {
+                        Some(value) => value,
+                        None => {
+                            panic!("stack is empty while getting the field value '{field_name}'");
                         }
                     };
 
                     //TODO may require type mismatch checking
-                    if let Value::Struct(mut map) = struct_value {
+                    if let Value::Struct {
+                        name,
+                        fields: mut map,
+                    } = struct_value
+                    {
                         if let Some(_) = map.get(&field_name.clone()) {
                             map.insert(field_name.clone(), field_value.clone());
-                            self.stack.push(Value::Struct(map));
+                            self.stack.push(Value::Struct { name, fields: map });
                         } else {
                             panic!("unknown struct field");
                         }
@@ -482,7 +497,7 @@ impl VM {
 
                 Instruction::GetField(field_name) => {
                     let struct_value = match self.stack.pop().expect("expected struct on stack") {
-                        Value::Struct(map) => map,
+                        Value::Struct { fields: map, .. } => map,
                         _ => panic!("GetField expects a struct"),
                     };
 
