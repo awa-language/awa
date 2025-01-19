@@ -2,7 +2,7 @@ use crate::{ast::location::Location, type_::Type};
 use ecow::EcoString;
 use vec1::Vec1;
 
-use super::argument::CallArgument;
+use super::{argument::CallArgument, operator::BinaryOperator};
 
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub enum Expression {
@@ -25,6 +25,12 @@ pub enum Expression {
     VariableValue {
         location: Location,
         name: EcoString,
+    },
+    BinaryOperation {
+        location: Location,
+        operator: BinaryOperator,
+        left: Box<Self>,
+        right: Box<Self>,
     },
     FunctionCall {
         location: Location,
@@ -62,6 +68,7 @@ impl Expression {
             | Expression::CharLiteral { location, .. }
             | Expression::StringLiteral { location, .. }
             | Expression::VariableValue { location, .. }
+            | Expression::BinaryOperation { location, .. }
             | Expression::FunctionCall { location, .. }
             | Expression::StructFieldAccess { location, .. }
             | Expression::ArrayElementAccess { location, .. }

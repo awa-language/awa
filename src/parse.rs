@@ -11,6 +11,7 @@ use vec1::Vec1;
 use crate::ast::definition::StructField;
 use crate::ast::expression::StructFieldValue;
 use crate::ast::location::Location;
+use crate::ast::reassignment::{Reassignment, ReassignmentTarget};
 use crate::{
     ast::{
         argument,
@@ -165,38 +166,61 @@ impl<T: Iterator<Item = LexResult>> Parser<T> {
         let mut last_operator_end = 0;
 
         loop {
-            match self.parse_expression_unit()? {
-                Some(unit) => expression_stack.push(unit),
-                _ if expression_stack.is_empty() => return Ok(None),
-                _ => {
-                    return Err(ParsingError {
-                        error: MissingRightOperand,
-                        location: LexLocation {
-                            start: last_operator_start,
-                            end: last_operator_end,
-                        },
-                    });
+            if let Some(token_span) = self.current_token.clone() {
+                if token_span.token == Token::LeftParenthesis {
+                    let _ = self.advance_token();
+
+                    match self.parse_expression()? {
+                        Some(inner_expression) => {
+                            let _ = self.expect_token(&Token::RightParenthesis)?;
+                            expression_stack.push(inner_expression);
+                        }
+                        None => {
+                            return Err(ParsingError {
+                                error: error::Type::UnexpectedToken {
+                                    token: token_span.token,
+                                    expected: "expression inside parentheses".to_string().into(),
+                                },
+                                location: LexLocation {
+                                    start: token_span.start,
+                                    end: token_span.end,
+                                },
+                            });
+                        }
+                    }
+                } else {
+                    match self.parse_expression_unit()? {
+                        Some(unit) => expression_stack.push(unit),
+                        None if expression_stack.is_empty() => return Ok(None),
+                        _ => {
+                            return Err(ParsingError {
+                                error: MissingRightOperand,
+                                location: LexLocation {
+                                    start: last_operator_start,
+                                    end: last_operator_end,
+                                },
+                            });
+                        }
+                    }
                 }
+            } else {
+                break;
             }
 
             if let Some(token_span) = self.current_token.clone() {
-                // if it has precedence, it is a binary operator
                 if let Some(precedence) = get_precedence(&token_span.token) {
                     let _ = self.advance_token();
-
                     last_operator_start = token_span.start;
                     last_operator_end = token_span.end;
-
                     let _ = handle_operator(
                         Some(OperatorToken {
-                            _token_span: token_span,
+                            token_span,
                             precedence,
                         }),
                         &mut operator_stack,
                         &mut expression_stack,
                     );
                 } else {
-                    // TODO: figure whether to advance here?
                     break;
                 }
             } else {
@@ -212,7 +236,7 @@ impl<T: Iterator<Item = LexResult>> Parser<T> {
     }
 
     fn parse_expression_unit(&mut self) -> Result<Option<expression::Expression>, ParsingError> {
-        match self.current_token.take() {
+        match self.current_token.clone() {
             Some(token_span) => match token_span.token {
                 // NOTE: name can be either:
                 // - variable value access (varName)
@@ -283,6 +307,27 @@ impl<T: Iterator<Item = LexResult>> Parser<T> {
                                     index_expression: Box::new(index_value),
                                 }
                             }
+                            Token::LeftBrace => {
+                                let _ = self.advance_token();
+                                let _ = self.advance_token();
+                                let fields = self.parse_series(
+                                    &Self::parse_struct_field_value,
+                                    Some(&Token::Comma),
+                                )?;
+                                let fields = match Vec1::try_from_vec(fields) {
+                                    Ok(fields) => Some(fields),
+                                    Err(_) => None,
+                                };
+                                let right_brace_span = self.expect_token(&Token::RightBrace)?;
+                                expression::Expression::StructInitialization {
+                                    location: AstLocation {
+                                        start: start_location,
+                                        end: right_brace_span.end,
+                                    },
+                                    type_annotation: Type::Custom { name: sth_name },
+                                    fields,
+                                }
+                            }
                             _ => {
                                 let _ = self.advance_token();
                                 expression::Expression::VariableValue {
@@ -344,6 +389,42 @@ impl<T: Iterator<Item = LexResult>> Parser<T> {
                             end: token_span.end,
                         },
                         value,
+                    }))
+                }
+                Token::LeftSquare => {
+                    let array_type_annotation =
+                        self.parse_type_annotation()?.ok_or_else(|| ParsingError {
+                            error: error::Type::UnexpectedToken {
+                                token: self.current_token.clone().unwrap().token,
+                                expected: "array initializations type annotation"
+                                    .to_string()
+                                    .into(),
+                            },
+                            location: LexLocation {
+                                start: self.current_token.clone().unwrap().start,
+                                end: self.current_token.clone().unwrap().end,
+                            },
+                        })?;
+
+                    let _ = self.expect_token(&Token::LeftBrace)?;
+
+                    let elements =
+                        self.parse_series(&Self::parse_expression, Some(&Token::Comma))?;
+
+                    let elements = match Vec1::try_from_vec(elements) {
+                        Ok(elements) => Some(elements),
+                        Err(_) => None,
+                    };
+
+                    let right_brace_span = self.expect_token(&Token::RightBrace)?;
+
+                    Ok(Some(expression::Expression::ArrayInitialization {
+                        location: AstLocation {
+                            start: token_span.start,
+                            end: right_brace_span.end,
+                        },
+                        type_annotation: array_type_annotation,
+                        elements,
                     }))
                 }
                 _ => {
@@ -430,7 +511,7 @@ impl<T: Iterator<Item = LexResult>> Parser<T> {
         })
     }
 
-    fn _parse_struct_field_value(&mut self) -> Result<Option<StructFieldValue>, ParsingError> {
+    fn parse_struct_field_value(&mut self) -> Result<Option<StructFieldValue>, ParsingError> {
         let name_token_span = self.advance_token().ok_or_else(|| ParsingError {
             error: error::Type::UnexpectedEof,
             location: LexLocation { start: 0, end: 0 },
@@ -684,12 +765,13 @@ impl<T: Iterator<Item = LexResult>> Parser<T> {
     }
 
     fn parse_statement(&mut self) -> Result<Option<statement::Untyped>, ParsingError> {
-        match self.current_token.take() {
+        match self.current_token.clone() {
             Some(token_span) => match token_span.token {
                 Token::Var => {
                     let _ = self.advance_token();
                     Ok(Some(self.parse_assignment(token_span.start)?))
                 }
+                Token::Name { .. } => Ok(Some(self.parse_reassignment(token_span)?)),
                 Token::Loop => {
                     let _ = self.advance_token();
                     let _ = self.expect_token(&Token::LeftBrace)?;
@@ -877,9 +959,142 @@ impl<T: Iterator<Item = LexResult>> Parser<T> {
 
         Ok(Statement::Assignment(Assignment {
             location: AstLocation { start, end },
+            variable_name: name.clone(),
             value: Box::new(value),
-            annotation: type_annotation,
+            type_annotation,
         }))
+    }
+
+    fn parse_reassignment(
+        &mut self,
+        name_token: TokenSpan,
+    ) -> Result<statement::Untyped, ParsingError> {
+        let Token::Name {
+            value: ref sth_name,
+        } = name_token.token
+        else {
+            return Err(ParsingError {
+                error: error::Type::UnexpectedToken {
+                    token: name_token.token,
+                    expected: "reassignment target name".to_string().into(),
+                },
+                location: LexLocation {
+                    start: name_token.start,
+                    end: name_token.end,
+                },
+            });
+        };
+        if let Some(next_token_span) = self.peek_token() {
+            match &next_token_span.token {
+                Token::Equal => {
+                    let _ = self.advance_token();
+                    let _ = self.advance_token();
+                    let new_value = self.parse_expression()?.ok_or_else(|| ParsingError {
+                        error: error::Type::UnexpectedEof,
+                        location: LexLocation { start: 0, end: 0 },
+                    })?;
+                    Ok(Statement::Reassignment(Reassignment {
+                        location: Location {
+                            start: name_token.start,
+                            end: new_value.get_location().end,
+                        },
+                        target: ReassignmentTarget::Variable {
+                            location: Location {
+                                start: name_token.start,
+                                end: name_token.end,
+                            },
+                            name: sth_name.clone(),
+                        },
+                        new_value: Box::new(new_value),
+                    }))
+                }
+                Token::Dot => {
+                    let _ = self.advance_token();
+                    let _ = self.advance_token();
+                    let field_name_token_span =
+                        self.advance_token().ok_or_else(|| ParsingError {
+                            error: error::Type::UnexpectedEof,
+                            location: LexLocation { start: 0, end: 0 },
+                        })?;
+                    let Token::Name { value: field_name } = field_name_token_span.token else {
+                        return Err(ParsingError {
+                            error: error::Type::UnexpectedToken {
+                                token: field_name_token_span.token,
+                                expected: "reassignmented field name".to_string().into(),
+                            },
+                            location: LexLocation {
+                                start: field_name_token_span.start,
+                                end: field_name_token_span.end,
+                            },
+                        });
+                    };
+                    let _ = self.expect_token(&Token::Equal)?;
+                    let new_value = self.parse_expression()?.ok_or_else(|| ParsingError {
+                        error: error::Type::UnexpectedEof,
+                        location: LexLocation { start: 0, end: 0 },
+                    })?;
+                    Ok(Statement::Reassignment(Reassignment {
+                        location: Location {
+                            start: name_token.start,
+                            end: new_value.get_location().end,
+                        },
+                        target: ReassignmentTarget::FieldAccess {
+                            location: Location {
+                                start: name_token.start,
+                                end: field_name_token_span.end,
+                            },
+                            struct_name: sth_name.clone(),
+                            field_name,
+                        },
+                        new_value: Box::new(new_value),
+                    }))
+                }
+                Token::LeftSquare => {
+                    let _ = self.advance_token();
+                    let _ = self.advance_token();
+                    let index_expr = self.parse_expression()?.ok_or_else(|| ParsingError {
+                        error: error::Type::UnexpectedEof,
+                        location: LexLocation { start: 0, end: 0 },
+                    })?;
+                    let right_bracket = self.expect_token(&Token::RightSquare)?;
+                    let _ = self.expect_token(&Token::Equal)?;
+                    let new_value = self.parse_expression()?.ok_or_else(|| ParsingError {
+                        error: error::Type::UnexpectedEof,
+                        location: LexLocation { start: 0, end: 0 },
+                    })?;
+                    Ok(Statement::Reassignment(Reassignment {
+                        location: Location {
+                            start: name_token.start,
+                            end: new_value.get_location().end,
+                        },
+                        target: ReassignmentTarget::ArrayAccess {
+                            location: Location {
+                                start: name_token.start,
+                                end: right_bracket.end,
+                            },
+                            array_name: sth_name.clone(),
+                            index_expression: Box::new(index_expr),
+                        },
+                        new_value: Box::new(new_value),
+                    }))
+                }
+                _ => {
+                    self.current_token = Some(name_token);
+                    let expression = self.parse_expression()?.map(Statement::Expression);
+                    Ok(expression.ok_or_else(|| ParsingError {
+                        error: error::Type::UnexpectedEof,
+                        location: LexLocation { start: 0, end: 0 },
+                    })?)
+                }
+            }
+        } else {
+            self.current_token = Some(name_token);
+            let expression = self.parse_expression()?.map(Statement::Expression);
+            Ok(expression.ok_or_else(|| ParsingError {
+                error: error::Type::UnexpectedEof,
+                location: LexLocation { start: 0, end: 0 },
+            })?)
+        }
     }
 
     fn parse_type_annotation(&mut self) -> Result<Option<Type>, ParsingError> {
@@ -904,7 +1119,7 @@ impl<T: Iterator<Item = LexResult>> Parser<T> {
                 Token::Name { value } => {
                     let name = value;
                     let _ = self.advance_token();
-                    Ok(Some(Type::Custom { name, fields: None }))
+                    Ok(Some(Type::Custom { name }))
                 }
                 Token::LeftSquare => {
                     self.advance_token();
@@ -1015,7 +1230,11 @@ impl<T: Iterator<Item = LexResult>> Parser<T> {
 }
 
 fn get_precedence(token: &Token) -> Option<u8> {
-    token_to_binary_operator(token).map(|operator| operator.get_precedence())
+    match token {
+        Token::LeftParenthesis => Some(0),
+        Token::RightParenthesis => None,
+        _ => token_to_binary_operator(token).map(|operator| operator.get_precedence()),
+    }
 }
 
 fn token_to_binary_operator(token: &Token) -> Option<BinaryOperator> {
@@ -1048,47 +1267,55 @@ fn token_to_binary_operator(token: &Token) -> Option<BinaryOperator> {
 }
 
 struct OperatorToken {
-    _token_span: TokenSpan,
+    token_span: TokenSpan,
     precedence: u8,
 }
 
-fn handle_operator<T>(
-    operator_token: Option<OperatorToken>,
+fn handle_operator(
+    current_operator: Option<OperatorToken>,
     operator_stack: &mut Vec<OperatorToken>,
-    expression_stack: &mut Vec<T>,
-) -> Option<T> {
-    let mut operator_token = operator_token;
-
-    loop {
-        match (operator_stack.pop(), operator_token.take()) {
-            (Some(lhs), Some(rhs)) => match lhs.precedence.cmp(&rhs.precedence) {
-                std::cmp::Ordering::Equal | std::cmp::Ordering::Greater => {
-                    operator_token = Some(rhs);
-                }
-                std::cmp::Ordering::Less => {
-                    operator_stack.push(lhs);
-                    operator_stack.push(rhs);
-
-                    break;
-                }
-            },
-            (Some(_), None) => {}
-            (None, Some(operator_token)) => {
-                operator_stack.push(operator_token);
-
+    expression_stack: &mut Vec<expression::Expression>,
+) -> Option<expression::Expression> {
+    while let Some(stack_top_operator) = operator_stack.last() {
+        if let Some(new_operator) = &current_operator {
+            if stack_top_operator.precedence < new_operator.precedence {
                 break;
             }
-            (None, None) => {
-                if let Some(expression) = expression_stack.pop() {
-                    if expression_stack.is_empty() {
-                        return Some(expression);
-                    }
-                } else {
-                    return None;
-                }
-            }
         }
+
+        if expression_stack.len() < 2 {
+            return None;
+        }
+
+        let right = expression_stack.pop().unwrap();
+        let left = expression_stack.pop().unwrap();
+        let operator = operator_stack.pop().unwrap();
+
+        let operator = token_to_binary_operator(&operator.token_span.token)
+            .expect("invalid binary operator token");
+
+        let location = Location {
+            start: left.get_location().start,
+            end: right.get_location().end,
+        };
+
+        let binary_expression = expression::Expression::BinaryOperation {
+            location,
+            operator,
+            left: Box::new(left),
+            right: Box::new(right),
+        };
+
+        expression_stack.push(binary_expression);
     }
 
-    None
+    if let Some(operator) = current_operator {
+        operator_stack.push(operator);
+    }
+
+    if operator_stack.is_empty() {
+        expression_stack.pop()
+    } else {
+        None
+    }
 }

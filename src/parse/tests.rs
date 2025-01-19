@@ -25,7 +25,8 @@ macro_rules! assert_parse_module {
     };
 }
 
-#[must_use] pub fn expect_module_error(src: &str) -> String {
+#[must_use]
+pub fn expect_module_error(src: &str) -> String {
     let result = parse_module(src).expect_err("should not parse");
     let error = Error::Parsing {
         path: "test/path.awa".into(),
@@ -36,7 +37,8 @@ macro_rules! assert_parse_module {
     error.to_pretty_string()
 }
 
-#[must_use] pub fn expect_error(src: &str) -> String {
+#[must_use]
+pub fn expect_error(src: &str) -> String {
     let result = parse_statement_sequence(src).expect_err("should not parse");
     let error = crate::error::Error::Parsing {
         src: src.into(),
@@ -282,7 +284,7 @@ fn test_function_with_if_statement() {
 
 #[test]
 fn test_array_element_access_expression() {
-    assert_parse_module!("func main() {arr[i + 2]}");
+    assert_parse_module!("func main() {arr[i + 2] = 2}");
 }
 
 #[test]
@@ -301,4 +303,19 @@ fn test_function_definition() {
 #[test]
 fn test_complex_function_definition() {
     assert_parse_module!("func main(a int, b string, c float, g char, e [][][]int, h custom) {}");
+}
+
+#[test]
+fn test_struct_initialization() {
+    assert_parse_module!("func main() { var a Person = Person{ age : 50, money : 30 }}");
+}
+
+#[test]
+fn test_array_initialization() {
+    assert_parse_module!("func main() { var a []int = []int{1, 2}}");
+}
+
+#[test]
+fn test_complex_array_initialization() {
+    assert_parse_module!("func main() { var a [][]int = [][]int{[]int{2,3}, []int{3,4}}}");
 }
