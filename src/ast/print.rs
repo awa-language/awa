@@ -448,6 +448,36 @@ fn print_expression(expr: &Expression, levels: &[bool], f: &mut fmt::Formatter<'
                 location.end
             )?;
         }
+        Expression::BinaryOperation {
+            location,
+            operator,
+            left,
+            right,
+        } => {
+            writeln!(
+                f,
+                "{}Binary operation: {:?} ({}..{})",
+                make_prefix(levels),
+                operator,
+                location.start,
+                location.end
+            )?;
+
+            let mut new_levels = levels.to_vec();
+
+            new_levels.push(true);
+            writeln!(f, "{}Left operand:", make_prefix(&new_levels))?;
+            let mut left_levels = new_levels.clone();
+            left_levels.push(false);
+            print_expression(left, &left_levels, f)?;
+            new_levels.pop();
+
+            new_levels.push(false);
+            writeln!(f, "{}Right operand:", make_prefix(&new_levels))?;
+            let mut right_levels = new_levels.clone();
+            right_levels.push(false);
+            print_expression(right, &right_levels, f)?;
+        }
         Expression::FunctionCall {
             location,
             function_name,

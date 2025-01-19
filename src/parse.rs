@@ -166,38 +166,61 @@ impl<T: Iterator<Item = LexResult>> Parser<T> {
         let mut last_operator_end = 0;
 
         loop {
-            match self.parse_expression_unit()? {
-                Some(unit) => expression_stack.push(unit),
-                _ if expression_stack.is_empty() => return Ok(None),
-                _ => {
-                    return Err(ParsingError {
-                        error: MissingRightOperand,
-                        location: LexLocation {
-                            start: last_operator_start,
-                            end: last_operator_end,
-                        },
-                    });
+            if let Some(token_span) = self.current_token.clone() {
+                if token_span.token == Token::LeftParenthesis {
+                    let _ = self.advance_token();
+
+                    match self.parse_expression()? {
+                        Some(inner_expr) => {
+                            let _ = self.expect_token(&Token::RightParenthesis)?;
+                            expression_stack.push(inner_expr);
+                        }
+                        None => {
+                            return Err(ParsingError {
+                                error: error::Type::UnexpectedToken {
+                                    token: token_span.token,
+                                    expected: "expression inside parentheses".to_string().into(),
+                                },
+                                location: LexLocation {
+                                    start: token_span.start,
+                                    end: token_span.end,
+                                },
+                            });
+                        }
+                    }
+                } else {
+                    match self.parse_expression_unit()? {
+                        Some(unit) => expression_stack.push(unit),
+                        None if expression_stack.is_empty() => return Ok(None),
+                        _ => {
+                            return Err(ParsingError {
+                                error: MissingRightOperand,
+                                location: LexLocation {
+                                    start: last_operator_start,
+                                    end: last_operator_end,
+                                },
+                            });
+                        }
+                    }
                 }
+            } else {
+                break;
             }
 
             if let Some(token_span) = self.current_token.clone() {
-                // if it has precedence, it is a binary operator
                 if let Some(precedence) = get_precedence(&token_span.token) {
                     let _ = self.advance_token();
-
                     last_operator_start = token_span.start;
                     last_operator_end = token_span.end;
-
                     let _ = handle_operator(
                         Some(OperatorToken {
-                            _token_span: token_span,
+                            token_span,
                             precedence,
                         }),
                         &mut operator_stack,
                         &mut expression_stack,
                     );
                 } else {
-                    // TODO: figure whether to advance here?
                     break;
                 }
             } else {
@@ -1207,7 +1230,11 @@ impl<T: Iterator<Item = LexResult>> Parser<T> {
 }
 
 fn get_precedence(token: &Token) -> Option<u8> {
-    token_to_binary_operator(token).map(|operator| operator.get_precedence())
+    match token {
+        Token::LeftParenthesis => Some(0),
+        Token::RightParenthesis => None,
+        _ => token_to_binary_operator(token).map(|operator| operator.get_precedence()),
+    }
 }
 
 fn token_to_binary_operator(token: &Token) -> Option<BinaryOperator> {
@@ -1240,47 +1267,55 @@ fn token_to_binary_operator(token: &Token) -> Option<BinaryOperator> {
 }
 
 struct OperatorToken {
-    _token_span: TokenSpan,
+    token_span: TokenSpan,
     precedence: u8,
 }
 
-fn handle_operator<T>(
-    operator_token: Option<OperatorToken>,
+fn handle_operator(
+    current_operator: Option<OperatorToken>,
     operator_stack: &mut Vec<OperatorToken>,
-    expression_stack: &mut Vec<T>,
-) -> Option<T> {
-    let mut operator_token = operator_token;
-
-    loop {
-        match (operator_stack.pop(), operator_token.take()) {
-            (Some(lhs), Some(rhs)) => match lhs.precedence.cmp(&rhs.precedence) {
-                std::cmp::Ordering::Equal | std::cmp::Ordering::Greater => {
-                    operator_token = Some(rhs);
-                }
-                std::cmp::Ordering::Less => {
-                    operator_stack.push(lhs);
-                    operator_stack.push(rhs);
-
-                    break;
-                }
-            },
-            (Some(_), None) => {}
-            (None, Some(operator_token)) => {
-                operator_stack.push(operator_token);
-
+    expression_stack: &mut Vec<expression::Expression>,
+) -> Option<expression::Expression> {
+    while let Some(top_operator) = operator_stack.last() {
+        if let Some(curr_op) = &current_operator {
+            if top_operator.precedence < curr_op.precedence {
                 break;
             }
-            (None, None) => {
-                if let Some(expression) = expression_stack.pop() {
-                    if expression_stack.is_empty() {
-                        return Some(expression);
-                    }
-                } else {
-                    return None;
-                }
-            }
         }
+
+        if expression_stack.len() < 2 {
+            return None;
+        }
+
+        let right = expression_stack.pop().unwrap();
+        let left = expression_stack.pop().unwrap();
+        let op = operator_stack.pop().unwrap();
+
+        let operator =
+            token_to_binary_operator(&op.token_span.token).expect("Invalid binary operator token");
+
+        let location = Location {
+            start: left.get_location().start,
+            end: right.get_location().end,
+        };
+
+        let binary_expr = expression::Expression::BinaryOperation {
+            location,
+            operator,
+            left: Box::new(left),
+            right: Box::new(right),
+        };
+
+        expression_stack.push(binary_expr);
     }
 
-    None
+    if let Some(op) = current_operator {
+        operator_stack.push(op);
+    }
+
+    if operator_stack.is_empty() {
+        expression_stack.pop()
+    } else {
+        None
+    }
 }
