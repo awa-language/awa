@@ -13,7 +13,7 @@ pub type Untyped = Argument<()>;
 pub struct Argument<T> {
     pub name: Name,
     pub location: Location,
-    pub annotation: Option<Type>,
+    pub type_annotation: Type,
     pub type_: T,
 }
 

@@ -661,7 +661,7 @@ impl<T: Iterator<Item = LexResult>> Parser<T> {
                 start: name_token_span.start,
                 end: self.current_token.clone().unwrap().start,
             },
-            annotation: Some(type_annotation),
+            type_annotation,
             type_: (),
         }))
     }
