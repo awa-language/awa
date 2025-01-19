@@ -11,4 +11,9 @@ pub enum Type {
     Array {
         type_: Box<Self>, // Needed for empty array
     },
+    FunctionCall,
+    StructFieldAccess,
+    ArrayElementAccess,
+    ArrayInitialization,
+    StructInitialization,
 }
