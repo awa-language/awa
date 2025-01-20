@@ -1274,8 +1274,8 @@ struct OperatorToken {
 fn handle_operator(
     current_operator: Option<OperatorToken>,
     operator_stack: &mut Vec<OperatorToken>,
-    expression_stack: &mut Vec<expression::Expression>,
-) -> Option<expression::Expression> {
+    expression_stack: &mut Vec<expression_untyped::Expression>,
+) -> Option<expression_untyped::Expression> {
     while let Some(stack_top_operator) = operator_stack.last() {
         if let Some(new_operator) = &current_operator {
             if stack_top_operator.precedence < new_operator.precedence {
@@ -1299,7 +1299,7 @@ fn handle_operator(
             end: right.get_location().end,
         };
 
-        let binary_expression = expression::Expression::BinaryOperation {
+        let binary_expression = expression_untyped::Expression::BinaryOperation {
             location,
             operator,
             left: Box::new(left),

@@ -165,7 +165,7 @@ fn print_argument(
                 location.end
             )?;
 
-            if let Some(annotation) = &arg.type_annotation {
+            if let annotation = &arg.type_annotation {
                 let mut new_indentation_levels = indentation_levels.to_vec();
                 new_indentation_levels.push(false);
                 writeln!(
