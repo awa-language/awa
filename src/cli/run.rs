@@ -14,6 +14,6 @@ pub fn handle(filename: Option<Utf8PathBuf>) {
         Err(_err) => todo!(),
     };
 
-    let _ = interpreter::build_ast(&input);
+    let () = interpreter::build_ast(&input);
     interpreter::run(); // TODO: will take typed ast module as an argument
 }

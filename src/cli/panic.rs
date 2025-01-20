@@ -5,7 +5,7 @@ use termcolor::{Color, ColorSpec, WriteColor};
 
 pub fn add_handler() {
     std::panic::set_hook(Box::new(move |info: &PanicInfo<'_>| {
-        print_wrapped_panic(info)
+        print_wrapped_panic(info);
     }));
 }
 
@@ -20,7 +20,7 @@ fn print_wrapped_panic(info: &PanicInfo<'_>) {
     };
 
     let location = match info.location() {
-        None => "".into(),
+        None => String::new(),
         Some(location) => format!("{}:{}\n\t", location.file(), location.line()),
     };
 

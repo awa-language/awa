@@ -13,9 +13,10 @@ pub struct Module<Definitions> {
 pub type Untyped = Module<definition::Untyped>;
 
 impl fmt::Display for Module<definition::Untyped> {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        writeln!(f, "\nAST structure:")?;
-        writeln!(f, "-------------")?;
-        print_parse_tree(self, f)
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        writeln!(formatter, "\nAST structure:")?;
+        writeln!(formatter, "-------------")?;
+
+        print_parse_tree(self, formatter)
     }
 }
