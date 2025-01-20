@@ -1,4 +1,5 @@
 pub mod ast;
+pub mod cli;
 pub mod diagnostic;
 pub mod error;
 pub mod lex;

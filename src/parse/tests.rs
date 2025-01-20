@@ -200,6 +200,20 @@ fn test_int_literals() {
 }
 
 #[test]
+fn test_double_minus_sign() {
+    assert_error!(
+        "func main() { var a int = --1 }",
+        ParsingError {
+            error: crate::parse::error::Type::UnexpectedToken {
+                token: crate::lex::token::Token::Func,
+                expected: "function or struct definitions".into(),
+            },
+            location: Location { start: 0, end: 4 },
+        }
+    );
+}
+
+#[test]
 fn test_float_literals() {
     assert_error!(
         "123.",
