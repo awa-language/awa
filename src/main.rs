@@ -16,9 +16,9 @@ use clap::{
 
 {all-args}{after-help}",
     styles = Styles::styled()
-        .header(AnsiColor::Yellow.on_default())
-        .usage(AnsiColor::Yellow.on_default())
-        .literal(AnsiColor::Green.on_default())
+        .header(AnsiColor::Cyan.on_default())
+        .usage(AnsiColor::Cyan.on_default())
+        .literal(AnsiColor::BrightBlue.on_default())
 )]
 enum Command {
     /// Check the code.
