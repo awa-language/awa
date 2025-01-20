@@ -1,4 +1,5 @@
 use awa::cli;
+use camino::Utf8PathBuf;
 use clap::{
     builder::{styling::AnsiColor, Styles},
     Parser,
@@ -20,24 +21,24 @@ use clap::{
         .literal(AnsiColor::Green.on_default())
 )]
 enum Command {
-    /// Check the code.
+    /// Check the code in specified file.
     ///
     /// Performs lexing, parsing and translating from untyped to typed AST, thus
     /// identifying lexing, parsing and type mismatch errors.
     /// By default, checks `main.awa`
-    Check,
+    Check { filename: Option<Utf8PathBuf> },
 
     /// Run the specified file in interactive environment.
     ///
     /// By default, runs `main.awa`
-    Run,
+    Run { filename: Option<Utf8PathBuf> },
 }
 
 fn main() {
     cli::panic::add_handler();
 
     match Command::parse() {
-        Command::Check => cli::check::handle(),
-        Command::Run => cli::run::handle(),
+        Command::Check { filename } => cli::check::handle(filename),
+        Command::Run { filename } => cli::run::handle(filename),
     }
 }
