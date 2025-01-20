@@ -2,7 +2,7 @@ use ecow::EcoString;
 
 use crate::ast::location::Location;
 
-use super::expression::Expression;
+use super::expression_untyped::Expression;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Reassignment<ExpressionT> {

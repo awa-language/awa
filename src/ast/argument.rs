@@ -1,19 +1,19 @@
 use std::sync::Arc;
 
 use ecow::EcoString;
-
 use crate::type_::Type;
+use crate::untyped_type::UntypedType;
 
 use super::location::Location;
 
-pub type Typed = Argument<Arc<Type>>;
+pub type Typed = Argument<Type>;
 pub type Untyped = Argument<()>;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Argument<T> {
     pub name: Name,
     pub location: Location,
-    pub type_annotation: Type,
+    pub type_annotation: UntypedType,
     pub type_: T,
 }
 

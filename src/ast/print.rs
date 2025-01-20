@@ -1,5 +1,5 @@
 use crate::ast::argument::Name;
-use crate::ast::expression::Expression;
+use crate::ast::expression_untyped::Expression;
 use crate::ast::module::Module;
 use crate::ast::statement::Statement;
 use crate::ast::{argument, definition, statement};

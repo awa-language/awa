@@ -1,6 +1,6 @@
 use ecow::EcoString;
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub enum Type {
+pub enum UntypedType {
     Int,
     Float,
     String,

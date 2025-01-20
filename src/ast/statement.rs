@@ -1,7 +1,8 @@
 use vec1::Vec1;
-
+use crate::ast::expression_typed::ExpressionTyped;
 use super::{
-    assignment::Assignment, expression::Expression, location::Location, reassignment::Reassignment,
+    assignment::Assignment, expression_untyped::Expression, location::Location,
+    reassignment::Reassignment,
 };
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -37,10 +38,28 @@ pub enum Statement<ExpressionT> {
     },
 }
 
-pub type Typed = Statement<Expression>;
+pub type Typed = Statement<ExpressionTyped>;
 pub type Untyped = Statement<Expression>;
 
 impl Untyped {
+    #[must_use]
+    pub fn get_location(&self) -> Location {
+        match self {
+            Statement::Expression(expression) => expression.get_location(),
+            Statement::Assignment(assignment) => assignment.location,
+            Statement::Reassignment(reassignment) => reassignment.location,
+            Statement::Loop { location, .. }
+            | Statement::If { location, .. }
+            | Statement::Return { location, .. }
+            | Statement::Todo { location, .. }
+            | Statement::Panic { location, .. }
+            | Statement::Exit { location, .. }
+            | Statement::Break { location, .. } => *location,
+        }
+    }
+}
+
+impl Typed {
     #[must_use]
     pub fn get_location(&self) -> Location {
         match self {

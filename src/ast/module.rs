@@ -11,6 +11,7 @@ pub struct Module<Definitions> {
 }
 
 pub type Untyped = Module<definition::Untyped>;
+pub type Typed = Module<definition::Typed>;
 
 impl fmt::Display for Module<definition::Untyped> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
