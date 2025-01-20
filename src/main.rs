@@ -21,7 +21,7 @@ use clap::{
         .literal(AnsiColor::Green.on_default())
 )]
 enum Command {
-    /// Check the code in specified file.
+    /// Check the code.
     ///
     /// Performs lexing, parsing and translating from untyped to typed AST, thus
     /// identifying lexing, parsing and type mismatch errors.
