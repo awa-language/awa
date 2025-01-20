@@ -1,9 +1,10 @@
-use super::argument::CallArgument;
 use crate::ast::expression_typed::ExpressionTyped;
 use crate::{ast::location::Location, untyped_type::UntypedType};
 use ecow::EcoString;
 use vec1::Vec1;
 use crate::lex::error::Type;
+use super::{argument::CallArgument, operator::BinaryOperator};
+
 
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub enum Expression {
@@ -26,6 +27,12 @@ pub enum Expression {
     VariableValue {
         location: Location,
         name: EcoString,
+    },
+    BinaryOperation {
+        location: Location,
+        operator: BinaryOperator,
+        left: Box<Self>,
+        right: Box<Self>,
     },
     FunctionCall {
         location: Location,
@@ -63,6 +70,7 @@ impl Expression {
             | Expression::CharLiteral { location, .. }
             | Expression::StringLiteral { location, .. }
             | Expression::VariableValue { location, .. }
+            | Expression::BinaryOperation { location, .. }
             | Expression::FunctionCall { location, .. }
             | Expression::StructFieldAccess { location, .. }
             | Expression::ArrayElementAccess { location, .. }
