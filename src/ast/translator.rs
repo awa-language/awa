@@ -1,10 +1,13 @@
-use crate::ast::argument::{ArgumentTyped};
+use crate::ast::argument::ArgumentTyped;
+use crate::ast::assignment::{Assignment, TypedAssignment};
 use crate::ast::definition::Untyped;
 use crate::ast::expression::{
     StructFieldValue, StructFieldValueTyped, TypedExpression, UntypedExpression,
 };
 use crate::ast::module::Module;
 use crate::ast::operator::BinaryOperator;
+use crate::ast::reassignment::{Reassignment, ReassignmentTarget};
+use crate::ast::statement::{TypedStatement, UntypedStatement};
 use crate::ast::{argument, definition};
 use crate::type_::{Type, UntypedType};
 use ecow::EcoString;
@@ -28,6 +31,138 @@ pub fn translate_to_tast(
 
 fn convert_definition_tdefinition(p0: &Untyped, p1: &[bool; 1]) -> definition::Typed {
     todo!()
+}
+
+pub fn convert_statement_to_typed(stmt: &UntypedStatement) -> Result<TypedStatement, String> {
+    match stmt {
+        UntypedStatement::Expression(expression) => {
+            let typed_expression = convert_expression_to_typed(expression)?;
+            Ok(TypedStatement::Expression(typed_expression))
+        }
+        UntypedStatement::Assignment(assignment) => {
+            let typed_value = convert_expression_to_typed(&assignment.value)?;
+            Ok(TypedStatement::Assignment(TypedAssignment {
+                location: assignment.location,
+                variable_name: assignment.variable_name.clone(),
+                value: Box::new(typed_value),
+                type_annotation: assignment.type_annotation.clone(),
+            }))
+        }
+        UntypedStatement::Reassignment(reassignment) => {
+            let typed_new_value = convert_expression_to_typed(&reassignment.new_value)?;
+            let typed_target = match &reassignment.target {
+                ReassignmentTarget::Variable { location, name } => ReassignmentTarget::Variable {
+                    location: location.clone(),
+                    name: name.clone(),
+                },
+                ReassignmentTarget::FieldAccess {
+                    location,
+                    struct_name,
+                    field_name,
+                } => ReassignmentTarget::FieldAccess {
+                    location: location.clone(),
+                    struct_name: struct_name.clone(),
+                    field_name: field_name.clone(),
+                },
+                ReassignmentTarget::ArrayAccess {
+                    location,
+                    array_name,
+                    index_expression,
+                } => ReassignmentTarget::ArrayAccess {
+                    location: location.clone(),
+                    array_name: array_name.clone(),
+                    index_expression: Box::new(convert_expression_to_typed(index_expression)?),
+                },
+            };
+
+            Ok(TypedStatement::Reassignment(Reassignment {
+                location: reassignment.location.clone(),
+                target: typed_target,
+                new_value: Box::new(typed_new_value),
+            }))
+        }
+        UntypedStatement::Loop { body, location } => {
+            let typed_body = if let Some(b) = body.as_ref() {
+                let mut iter = b.iter().map(convert_statement_to_typed);
+                let first = iter.next().ok_or("Loop body can't be empty")??;
+                let mut vec1_body = Vec1::new(first);
+                for stmt in iter {
+                    vec1_body.push(stmt?);
+                }
+                Some(vec1_body)
+            } else {
+                None
+            };
+
+            Ok(TypedStatement::Loop {
+                body: typed_body,
+                location: *location,
+            })
+        }
+        UntypedStatement::If {
+            condition,
+            if_body,
+            else_body,
+            location,
+        } => {
+            let typed_condition = convert_expression_to_typed(condition)?;
+
+            let typed_if_body = if_body
+                .as_ref()
+                .map(|b| {
+                    let mut iter = b.iter().map(convert_statement_to_typed);
+                    let first = iter.next().ok_or("If body can't be empty")??;
+                    let mut vec1_if_body = Vec1::new(first);
+                    for stmt in iter {
+                        vec1_if_body.push(stmt?);
+                    }
+                    Ok(vec1_if_body)
+                })
+                .transpose()?;
+
+            let typed_else_body = else_body
+                .as_ref()
+                .map(|b| {
+                    let mut iter = b.iter().map(convert_statement_to_typed);
+                    let first = iter.next().ok_or("Else body can't be empty")??;
+                    let mut vec1_else_body = Vec1::new(first);
+                    for stmt in iter {
+                        vec1_else_body.push(stmt?);
+                    }
+                    Ok(vec1_else_body)
+                })
+                .transpose()?;
+
+            Ok(TypedStatement::If {
+                condition: Box::new(typed_condition),
+                if_body: typed_if_body,
+                else_body: typed_else_body,
+                location: *location,
+            })
+        }
+        UntypedStatement::Break { location } => Ok(TypedStatement::Break {
+            location: *location,
+        }),
+        UntypedStatement::Return { location, value } => {
+            let typed_value = value
+                .as_ref()
+                .map(|v| convert_expression_to_typed(v))
+                .transpose()?;
+            Ok(TypedStatement::Return {
+                location: *location,
+                value: typed_value.map(Box::new),
+            })
+        }
+        UntypedStatement::Todo { location } => Ok(TypedStatement::Todo {
+            location: *location,
+        }),
+        UntypedStatement::Panic { location } => Ok(TypedStatement::Panic {
+            location: *location,
+        }),
+        UntypedStatement::Exit { location } => Ok(TypedStatement::Exit {
+            location: *location,
+        }),
+    }
 }
 
 fn convert_expression_to_typed(expr: &UntypedExpression) -> Result<TypedExpression, String> {
