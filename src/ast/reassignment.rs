@@ -2,7 +2,7 @@ use ecow::EcoString;
 
 use crate::ast::location::Location;
 
-use super::expression::UntypedExpression;
+use super::expression::{TypedExpression, UntypedExpression};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Reassignment<ExpressionT> {
@@ -11,7 +11,7 @@ pub struct Reassignment<ExpressionT> {
     pub new_value: Box<ExpressionT>,
 }
 
-pub type TypedReassignment = Reassignment<UntypedExpression>;
+pub type TypedReassignment = Reassignment<TypedExpression>;
 pub type UntypedReassignment = Reassignment<UntypedExpression>;
 
 #[derive(Debug, Clone, PartialEq, Eq)]

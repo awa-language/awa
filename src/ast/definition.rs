@@ -32,7 +32,7 @@ pub enum Typed {
     Struct {
         location: Location,
         name: EcoString,
-        fields: Option<Vec1<StructField>>,
+        fields: Option<Vec1<StructFieldTyped>>,
     },
     Function {
         location: Location,
@@ -45,7 +45,7 @@ pub enum Typed {
 
 
 #[derive(Debug)]
-pub struct StructFieldType {
+pub struct StructFieldTyped {
     pub name: EcoString,
     pub type_annotation: Type,
 }

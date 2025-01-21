@@ -1,10 +1,10 @@
+use crate::ast::argument::CallArgument;
 use crate::ast::location::Location;
+use crate::ast::operator::BinaryOperator;
 use crate::lex::error::Type;
+use crate::type_::UntypedType;
 use ecow::EcoString;
 use vec1::Vec1;
-use crate::ast::argument::CallArgument;
-use crate::ast::operator::BinaryOperator;
-use crate::type_::UntypedType;
 
 #[derive(Debug, Clone)]
 pub enum TypedExpression {
@@ -37,7 +37,7 @@ pub enum TypedExpression {
         location: Location,
         function_name: EcoString,
         arguments: Option<Vec1<CallArgumentTyped<Self>>>,
-        type_: Vec1<Type>,
+        type_: Type,
     },
     StructFieldAccess {
         location: Location,
@@ -94,7 +94,7 @@ pub struct StructFieldValueTyped {
 pub struct CallArgumentTyped<A> {
     pub location: Location,
     pub value: A,
-    pub _type: Type,
+    pub type_: Type,
 }
 
 impl PartialEq for TypedExpression {
