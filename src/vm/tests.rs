@@ -7,15 +7,13 @@ fn test_push_load_store() {
     let bytecode = vec![
         Instruction::Func("main".into()),
         Instruction::PushInt(42),
-        Instruction::StoreFromStackToMap("x".into()),
+        Instruction::StoreInMap("x".into()),
         Instruction::LoadToStack("x".into()),
         Instruction::Println,
         Instruction::Halt,
         Instruction::EndFunc,
     ];
-
     let mut vm = VM::new(bytecode);
-
     vm.run();
 }
 
@@ -26,25 +24,23 @@ fn test_arithmetic_int() {
         Instruction::PushInt(10),
         Instruction::PushInt(5),
         Instruction::AddInt,
-        Instruction::Println, // Expected output: 15
+        Instruction::Println,
         Instruction::PushInt(3),
         Instruction::SubInt,
-        Instruction::Println, // Expected output: 12
+        Instruction::Println,
         Instruction::PushInt(4),
         Instruction::MulInt,
-        Instruction::Println, // Expected output: 48
+        Instruction::Println,
         Instruction::PushInt(6),
         Instruction::DivInt,
-        Instruction::Println, // Expected output: 8
+        Instruction::Println,
         Instruction::PushInt(3),
         Instruction::Mod,
-        Instruction::Println, // Expected output: 2
+        Instruction::Println,
         Instruction::Halt,
         Instruction::EndFunc,
     ];
-
     let mut vm = VM::new(bytecode);
-
     vm.run();
 }
 
@@ -52,25 +48,23 @@ fn test_arithmetic_int() {
 fn test_arithmetic_float() {
     let bytecode = vec![
         Instruction::Func("main".into()),
-        Instruction::PushFloat(10.5),
+        Instruction::PushFloat(10.0),
         Instruction::PushFloat(2.5),
         Instruction::AddFloat,
-        Instruction::Println, // Expected output: 13.0
+        Instruction::Println,
         Instruction::PushFloat(5.0),
         Instruction::SubFloat,
-        Instruction::Println, // Expected output: 8.0
+        Instruction::Println,
         Instruction::PushFloat(3.0),
         Instruction::MulFloat,
-        Instruction::Println, // Expected output: 24.0
+        Instruction::Println,
         Instruction::PushFloat(4.0),
         Instruction::DivFloat,
-        Instruction::Println, // Expected output: 6.0
+        Instruction::Println,
         Instruction::Halt,
         Instruction::EndFunc,
     ];
-
     let mut vm = VM::new(bytecode);
-
     vm.run();
 }
 
@@ -78,47 +72,38 @@ fn test_arithmetic_float() {
 fn test_comparisons() {
     let bytecode = vec![
         Instruction::Func("main".into()),
-        // a = 10, b = 20
         Instruction::PushInt(10),
-        Instruction::StoreFromStackToMap("a".into()),
+        Instruction::StoreInMap("a".into()),
         Instruction::PushInt(20),
-        Instruction::StoreFromStackToMap("b".into()),
-        // a == b -> false (0)
+        Instruction::StoreInMap("b".into()),
         Instruction::LoadToStack("a".into()),
         Instruction::LoadToStack("b".into()),
         Instruction::Equal,
-        Instruction::Println, // Expected output: 0
-        // a != b -> true (1)
+        Instruction::Println,
         Instruction::LoadToStack("a".into()),
         Instruction::LoadToStack("b".into()),
         Instruction::NotEqual,
-        Instruction::Println, // Expected output: 1
-        // a < b -> true (1)
+        Instruction::Println,
         Instruction::LoadToStack("a".into()),
         Instruction::LoadToStack("b".into()),
         Instruction::LessInt,
-        Instruction::Println, // Expected output: 1
-        // a <= 10 -> true (1)
+        Instruction::Println,
         Instruction::LoadToStack("a".into()),
         Instruction::PushInt(10),
         Instruction::LessEqualInt,
-        Instruction::Println, // Expected output: 1
-        // b > 15 -> true (1)
+        Instruction::Println,
         Instruction::LoadToStack("b".into()),
         Instruction::PushInt(15),
         Instruction::GreaterInt,
-        Instruction::Println, // Expected output: 1
-        // b >= 25 -> false (0)
+        Instruction::Println,
         Instruction::LoadToStack("b".into()),
         Instruction::PushInt(25),
         Instruction::GreaterEqualInt,
-        Instruction::Println, // Expected output: 0
+        Instruction::Println,
         Instruction::Halt,
         Instruction::EndFunc,
     ];
-
     let mut vm = VM::new(bytecode);
-
     vm.run();
 }
 
@@ -126,26 +111,19 @@ fn test_comparisons() {
 fn test_jumps() {
     let bytecode = vec![
         Instruction::Func("main".into()),
-        // Push 1 (true)
         Instruction::PushInt(1),
-        Instruction::JumpIfTrue(5), // Jump to instruction 5
-        // This code is skipped
+        Instruction::JumpIfTrue(5),
         Instruction::PushInt(999),
         Instruction::Println,
-        // Label 5: Push 2 and print
         Instruction::PushInt(2),
         Instruction::Println,
-        // Jump to Halt
         Instruction::Jump(10),
-        // This code is skipped
         Instruction::PushInt(888),
         Instruction::Println,
         Instruction::Halt,
         Instruction::EndFunc,
     ];
-
     let mut vm = VM::new(bytecode);
-
     vm.run();
 }
 
@@ -153,35 +131,27 @@ fn test_jumps() {
 fn test_if_else() {
     let bytecode = vec![
         Instruction::Func("main".into()),
-        // a = 10
         Instruction::PushInt(10),
-        Instruction::StoreFromStackToMap("a".into()),
-        // b = 20
+        Instruction::StoreInMap("a".into()),
         Instruction::PushInt(20),
-        Instruction::StoreFromStackToMap("b".into()),
-        // c = a + b
+        Instruction::StoreInMap("b".into()),
         Instruction::LoadToStack("a".into()),
         Instruction::LoadToStack("b".into()),
         Instruction::AddInt,
-        Instruction::StoreFromStackToMap("c".into()),
-        // if (c > 25) { println("c is greater than 25"); } else { println("c is not greater than 25"); }
+        Instruction::StoreInMap("c".into()),
         Instruction::LoadToStack("c".into()),
-        Instruction::PushInt(25),
-        Instruction::GreaterInt,      // Stack: 1 (true)
-        Instruction::JumpIfFalse(16), // If false, jump to instruction 16
-        // True block
+        Instruction::PushInt(250),
+        Instruction::GreaterInt,
+        Instruction::JumpIfTrue(16),
         Instruction::PushString("c is greater than 25".into()),
         Instruction::Println,
-        Instruction::Jump(17), // Jump to instruction 18
-        // False block
+        Instruction::Jump(18),
         Instruction::PushString("c is not greater than 25".into()),
         Instruction::Println,
         Instruction::Halt,
         Instruction::EndFunc,
     ];
-
     let mut vm = VM::new(bytecode);
-
     vm.run();
 }
 
@@ -189,8 +159,8 @@ fn test_if_else() {
 fn test_functions() {
     let bytecode = vec![
         Instruction::Func("add".into()),
-        Instruction::StoreFromStackToMap("a".into()),
-        Instruction::StoreFromStackToMap("b".into()),
+        Instruction::StoreInMap("a".into()),
+        Instruction::StoreInMap("b".into()),
         Instruction::LoadToStack("a".into()),
         Instruction::LoadToStack("b".into()),
         Instruction::AddInt,
@@ -199,16 +169,14 @@ fn test_functions() {
         Instruction::Func("main".into()),
         Instruction::PushInt(5),
         Instruction::PushInt(7),
-        Instruction::Call("add".into()), // Stack: 12
-        Instruction::StoreFromStackToMap("c".into()),
+        Instruction::Call("add".into()),
+        Instruction::StoreInMap("c".into()),
         Instruction::LoadToStack("c".into()),
-        Instruction::Println, // Expected output: 12
+        Instruction::Println,
         Instruction::Halt,
         Instruction::EndFunc,
     ];
-
     let mut vm = VM::new(bytecode);
-
     vm.run();
 }
 
@@ -221,23 +189,21 @@ fn test_structs() {
         Instruction::EndStruct,
         Instruction::Func("main".into()),
         Instruction::NewStruct("Person".into()),
-        Instruction::StoreFromStackToMap("a".into()),
+        Instruction::StoreInMap("a".into()),
         Instruction::PushString("nikitka".into()),
         Instruction::LoadToStack("a".into()),
         Instruction::SetField("name".into()),
-        Instruction::StoreFromStackToMap("a".into()),
+        Instruction::StoreInMap("a".into()),
         Instruction::PushInt(22),
         Instruction::LoadToStack("a".into()),
         Instruction::SetField("age".into()),
-        Instruction::StoreFromStackToMap("a".into()),
+        Instruction::StoreInMap("a".into()),
         Instruction::LoadToStack("a".into()),
         Instruction::Println,
         Instruction::Halt,
         Instruction::EndFunc,
     ];
-
     let mut vm = VM::new(bytecode);
-
     vm.run();
 }
 
@@ -248,13 +214,11 @@ fn test_concat() {
         Instruction::PushString("Hello, ".into()),
         Instruction::PushString("World!".into()),
         Instruction::Concat,
-        Instruction::Println, // Expected output: "Hello, World!"
+        Instruction::Println,
         Instruction::Halt,
         Instruction::EndFunc,
     ];
-
     let mut vm = VM::new(bytecode);
-
     vm.run();
 }
 
@@ -266,7 +230,7 @@ fn test_slice() {
         Instruction::Println,
         Instruction::Append(Value::Int(4)),
         Instruction::Println,
-        Instruction::StoreFromStackToMap("qwe".into()),
+        Instruction::StoreInMap("qwe".into()),
         Instruction::PushInt(22),
         Instruction::LoadToStack("qwe".into()),
         Instruction::SetByIndex(1),
@@ -276,11 +240,10 @@ fn test_slice() {
         Instruction::Halt,
         Instruction::EndFunc,
     ];
-
     let mut vm = VM::new(bytecode);
-
     vm.run();
 }
+
 #[test]
 fn test_complex() {
     let bytecode = vec![
@@ -288,7 +251,6 @@ fn test_complex() {
         Instruction::Field("name".into(), Value::Char('.')),
         Instruction::Field("age".into(), Value::Float(0.0)),
         Instruction::EndStruct,
-        //
         Instruction::Struct("Wrapper".into()),
         Instruction::Field(
             "custom".into(),
@@ -302,15 +264,13 @@ fn test_complex() {
         ),
         Instruction::Field("height".into(), Value::Float(0.0)),
         Instruction::EndStruct,
-        //
         Instruction::Func("main".into()),
         Instruction::NewStruct("Wrapper".into()),
-        Instruction::StoreFromStackToMap("w".into()),
-        //
+        Instruction::StoreInMap("w".into()),
         Instruction::PushFloat(20.0),
         Instruction::NewStruct("Custom".into()),
         Instruction::SetField("age".into()),
-        Instruction::StoreFromStackToMap("c".into()),
+        Instruction::StoreInMap("c".into()),
         Instruction::LoadToStack("c".into()),
         Instruction::LoadToStack("w".into()),
         Instruction::SetField("custom".into()),
@@ -319,27 +279,26 @@ fn test_complex() {
         Instruction::EndFunc,
     ];
     let mut vm = VM::new(bytecode);
-
     vm.run();
 }
 
 #[test]
 fn test_recursion() {
     let bytecode = vec![
-        Instruction::Func("factorial".into()),            // 20
-        Instruction::StoreFromStackToMap("value".into()), //
-        Instruction::LoadToStack("value".into()),         // 20
-        Instruction::PushInt(1),                          // 1, 20
-        Instruction::GreaterInt,                          // 1
-        Instruction::JumpIfTrue(8),                       //
-        Instruction::PushInt(1),                          // 1
+        Instruction::Func("factorial".into()),
+        Instruction::StoreInMap("value".into()),
+        Instruction::LoadToStack("value".into()),
+        Instruction::PushInt(1),
+        Instruction::GreaterInt,
+        Instruction::JumpIfTrue(8),
+        Instruction::PushInt(1),
         Instruction::Return,
-        Instruction::LoadToStack("value".into()), // 20
-        Instruction::LoadToStack("value".into()), // 20, 20
-        Instruction::PushInt(1),                  // 1, 20, 20
-        Instruction::SubInt,                      //  19, 20
-        Instruction::Call("factorial".into()),    // 20
-        Instruction::MulInt,                      // 20 * x
+        Instruction::LoadToStack("value".into()),
+        Instruction::LoadToStack("value".into()),
+        Instruction::PushInt(1),
+        Instruction::SubInt,
+        Instruction::Call("factorial".into()),
+        Instruction::MulInt,
         Instruction::Return,
         Instruction::EndFunc,
         Instruction::Func("main".into()),
@@ -350,7 +309,6 @@ fn test_recursion() {
         Instruction::EndFunc,
     ];
     let mut vm = VM::new(bytecode);
-
     vm.run();
 }
 
@@ -379,5 +337,113 @@ fn test_oom() {
     let mut vm = VM::new(bytecode);
 
     vm.run();
+}
+*/
+
+#[test]
+fn test_gc_local_alloc_print() {
+    let code = vec![
+        Instruction::Func("foo".into()),
+        Instruction::PushSlice(vec![Value::Int(1), Value::Int(2), Value::Int(3)]),
+        Instruction::StoreInMap("local_arr".into()),
+        Instruction::Return,
+        Instruction::EndFunc,
+        Instruction::Func("main".into()),
+        Instruction::Call("foo".into()),
+        Instruction::Halt,
+        Instruction::EndFunc,
+    ];
+
+    let mut vm = VM::new(code);
+    vm.run();
+
+    println!("Heap before manual GC:");
+    for (i, obj) in vm.gc.heap.iter().enumerate() {
+        println!("  [{}] {:?}", i, obj);
+    }
+
+    vm.gc
+        .collect_garbage(&vm.stack, &vm.environments_stack, &vm.global_variables);
+
+    println!("Heap after manual GC:");
+    for (i, obj) in vm.gc.heap.iter().enumerate() {
+        println!("  [{}] {:?}", i, obj);
+    }
+}
+
+#[test]
+fn test_gc_auto_trigger() {
+    let code = vec![
+        Instruction::Func("creator".into()),
+        Instruction::PushSlice(vec![Value::Int(42)]),
+        Instruction::StoreInMap("temp_arr".into()),
+        Instruction::Return,
+        Instruction::EndFunc,
+        Instruction::Func("main".into()),
+        Instruction::Call("creator".into()),
+        Instruction::Call("creator".into()),
+        Instruction::Call("creator".into()),
+        Instruction::Halt,
+        Instruction::EndFunc,
+    ];
+
+    let mut vm = VM::new(code);
+
+    vm.gc.threshold = 2;
+
+    vm.run();
+
+    println!("Heap after auto-run with threshold=2:");
+    for (i, obj) in vm.gc.heap.iter().enumerate() {
+        println!("  [{}] {:?}", i, obj);
+    }
+}
+
+/*
+#[test]
+fn test_gc_recursion() {
+    let mut big_vector = Vec::with_capacity(10_000);
+    for i in 0..10_000 {
+        big_vector.push(Value::Int(i as i64));
+    }
+
+    let mut code = vec![
+        Instruction::Func("rec".into()),
+        Instruction::LoadToStack("n".into()),
+        Instruction::PushSlice(big_vector.clone()),
+        Instruction::StoreInMap("big_arr".into()),
+        Instruction::LoadToStack("n".into()),
+        Instruction::PushInt(1),
+        Instruction::SubInt,
+        Instruction::StoreInMap("n".into()),
+        Instruction::Call("rec".into()),
+        Instruction::Return,
+        Instruction::EndFunc,
+        Instruction::Func("main".into()),
+        Instruction::PushInt(20),
+        Instruction::StoreInMap("n".into()),
+        Instruction::Call("rec".into()),
+        Instruction::Halt,
+        Instruction::EndFunc,
+    ];
+
+    let mut vm = VM::new(code);
+
+    vm.gc.threshold = 5;
+
+    vm.run();
+
+    println!("=== After run() completed (deep recursion) ===");
+    for (i, obj) in vm.gc.heap.iter().enumerate() {
+        println!("  [{}] {:?}", i, obj);
+    }
+
+    vm.gc
+        .collect_garbage(&vm.stack, &vm.environments_stack, &vm.global_variables);
+
+    println!("=== After manual GC ===");
+    for (i, obj) in vm.gc.heap.iter().enumerate() {
+        println!("  [{}] {:?}", i, obj);
+    }
 }
 */
