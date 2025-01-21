@@ -131,7 +131,7 @@ impl<T: Iterator<Item = LexResult>> Parser<T> {
         }
     }
 
-    fn parse_definition(&mut self) -> Result<Option<definition::Untyped>, ParsingError> {
+    fn parse_definition(&mut self) -> Result<Option<definition::DefinitionUntyped>, ParsingError> {
         match self.current_token.take() {
             // NOTE: no global variables because i'm too lazy to add variable definition
             // (now they are available only as an expression)
@@ -467,7 +467,7 @@ impl<T: Iterator<Item = LexResult>> Parser<T> {
         })
     }
 
-    fn parse_struct_defenition(&mut self) -> Result<definition::Untyped, ParsingError> {
+    fn parse_struct_defenition(&mut self) -> Result<definition::DefinitionUntyped, ParsingError> {
         let _ = self.advance_token();
         let name_token_span = self.advance_token().ok_or_else(|| ParsingError {
             error: error::Type::UnexpectedEof,
@@ -501,7 +501,7 @@ impl<T: Iterator<Item = LexResult>> Parser<T> {
             Err(_) => None,
         };
 
-        Ok(definition::Untyped::Struct {
+        Ok(definition::DefinitionUntyped::Struct {
             location: AstLocation {
                 start: name_token_span.start,
                 end: right_brace_token_span.end,
@@ -551,7 +551,7 @@ impl<T: Iterator<Item = LexResult>> Parser<T> {
         }))
     }
 
-    fn parse_function_definition(&mut self) -> Result<definition::Untyped, ParsingError> {
+    fn parse_function_definition(&mut self) -> Result<definition::DefinitionUntyped, ParsingError> {
         let _ = self.advance_token();
         let name_token_span = self.advance_token().ok_or_else(|| ParsingError {
             error: error::Type::UnexpectedEof,
@@ -605,7 +605,7 @@ impl<T: Iterator<Item = LexResult>> Parser<T> {
             }),
         }?;
 
-        Ok(definition::Untyped::Function {
+        Ok(definition::DefinitionUntyped::Function {
             location: AstLocation {
                 start: name_token_span.start,
                 end,

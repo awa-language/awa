@@ -102,8 +102,9 @@ impl TypedExpression {
             | TypedExpression::StructFieldAccess { type_, .. }
             | TypedExpression::ArrayElementAccess { type_, .. }
             | TypedExpression::ArrayInitialization { type_, .. }
-            | TypedExpression::BinaryOperation { type_, .. }
-            | TypedExpression::StructInitialization { type_, .. } => type_,
+            |TypedExpression::BinaryOperation { type_, .. }=> type_,
+
+            TypedExpression::StructInitialization { type_, .. }  => todo!(),
         }
     }
 }

@@ -1,36 +1,112 @@
-use crate::ast::argument::ArgumentTyped;
+use crate::ast::argument::{ArgumentTyped, ArgumentUntyped};
 use crate::ast::assignment::{Assignment, TypedAssignment};
-use crate::ast::definition::Untyped;
+use crate::ast::definition::{DefinitionTyped, DefinitionUntyped, StructField, StructFieldTyped};
 use crate::ast::expression::{
     StructFieldValue, StructFieldValueTyped, TypedExpression, UntypedExpression,
 };
-use crate::ast::module::Module;
+use crate::ast::module::{Module, Typed};
 use crate::ast::operator::BinaryOperator;
 use crate::ast::reassignment::{Reassignment, ReassignmentTarget};
 use crate::ast::statement::{TypedStatement, UntypedStatement};
-use crate::ast::{argument, definition};
+use crate::ast::{argument, definition, module};
 use crate::type_::{Type, UntypedType};
 use ecow::EcoString;
 use vec1::Vec1;
 
-#[must_use]
-pub fn translate_to_tast(
-    module: &Module<definition::Untyped>,
-) -> Result<Module<definition::Typed>, String> {
-    let mut result = Vec::new();
+fn convert_ast_to_tast(
+    untyped_ast: &Module<DefinitionUntyped>,
+) -> Result<Module<DefinitionTyped>, String> {
+    let mut typed_definitions = Vec::new();
 
-    for (i, definition) in module.definitions.iter().enumerate() {
-        let has_next = i < module.definitions.len() - 1;
+    for definition in &untyped_ast.definitions {
+        match definition {
+            DefinitionUntyped::Function {
+                location,
+                name,
+                arguments,
+                body,
+                return_type_annotation,
+            } => {
+                let typed_args = arguments
+                    .as_ref()
+                    .map(|args| {
+                        let vec: Vec<_> = args
+                            .iter()
+                            .map(|arg| convert_arguments(arg))
+                            .collect::<Result<_, _>>()?;
+                        Vec1::try_from_vec(vec)
+                            .map_err(|_| "Function must have at least one argument".to_string())
+                    })
+                    .transpose()?;
 
-        let typed_module = convert_definition_tdefinition(definition, &[has_next]);
-        result.push((typed_module));
+                let typed_body = body
+                    .as_ref()
+                    .map(|stmts| {
+                        let vec: Vec<_> = stmts
+                            .iter()
+                            .map(|stmt| convert_statement_to_typed(stmt))
+                            .collect::<Result<_, _>>()?;
+                        Vec1::try_from_vec(vec).map_err(|_| {
+                            "Function body must have at least one statement".to_string()
+                        })
+                    })
+                    .transpose()?;
+
+                let return_type = return_type_annotation
+                    .as_ref()
+                    .map(|t| convert_untyped_to_typed(t))
+                    .transpose()?;
+
+                typed_definitions.push(DefinitionTyped::Function {
+                    name: name.clone(),
+                    location: location.clone(),
+                    arguments: typed_args,
+                    body: typed_body,
+                    return_type_annotation: return_type,
+                });
+            }
+            DefinitionUntyped::Struct {
+                location,
+                name,
+                fields,
+            } => {
+                let typed_fields = fields
+                    .as_ref()
+                    .map(|fs| {
+                        let vec: Vec<_> = fs
+                            .iter()
+                            .map(|field| convert_struct_field(field))
+                            .collect::<Result<_, _>>()?;
+                        Vec1::try_from_vec(vec)
+                            .map_err(|_| "Struct must have at least one field".to_string())
+                    })
+                    .transpose()?;
+
+                typed_definitions.push(DefinitionTyped::Struct {
+                    location: location.clone(),
+                    name: name.clone(),
+                    fields: typed_fields,
+                });
+            }
+        }
     }
 
-    return todo!();
+    Ok(Module {
+        name: untyped_ast.name.clone(),
+        definitions: typed_definitions,
+    })
 }
 
-fn convert_definition_tdefinition(p0: &Untyped, p1: &[bool; 1]) -> definition::Typed {
+fn convert_arguments(p0: &ArgumentUntyped) -> Result<ArgumentTyped, String> {
     todo!()
+}
+
+pub fn convert_struct_field(field: &StructField) -> Result<StructFieldTyped, String> {
+    let resolved_type = convert_untyped_to_typed(&field.type_annotation)?;
+    Ok(StructFieldTyped {
+        name: field.name.clone(),
+        type_annotation: resolved_type,
+    })
 }
 
 pub fn convert_statement_to_typed(stmt: &UntypedStatement) -> Result<TypedStatement, String> {
@@ -116,7 +192,8 @@ pub fn convert_statement_to_typed(stmt: &UntypedStatement) -> Result<TypedStatem
                     for stmt in iter {
                         vec1_if_body.push(stmt?);
                     }
-                    Ok(vec1_if_body)
+                    Ok(vec1_if_body: Vec1<TypedStatement>)
+
                 })
                 .transpose()?;
 
@@ -129,7 +206,7 @@ pub fn convert_statement_to_typed(stmt: &UntypedStatement) -> Result<TypedStatem
                     for stmt in iter {
                         vec1_else_body.push(stmt?);
                     }
-                    Ok(vec1_else_body)
+                    Ok(vec1_else_body: Vec1<TypedStatement>)
                 })
                 .transpose()?;
 
@@ -278,18 +355,19 @@ fn convert_expression_to_typed(expr: &UntypedExpression) -> Result<TypedExpressi
             elements,
         } => {
             let typed_elements = match elements {
-                Some(el) => Some(
-                    el.iter()
+                Some(el) => {
+                    let vec: Vec<_> = el.iter()
                         .map(|e| convert_expression_to_typed(e))
-                        .collect::<Result<Vec<_>, _>>()?,
-                ),
+                        .collect::<Result<Vec<_>, _>>()?;
+                    Some(Vec1::try_from_vec(vec).map_err(|_| "Array must have at least one element".to_string())?)
+                }
                 None => None,
             };
             let resolved_type = convert_untyped_to_typed(type_annotation)?;
             Ok(TypedExpression::ArrayInitialization {
                 location: location.clone(),
                 type_annotation: resolved_type.clone(),
-                elements: typed_elements.clone()[0],
+                elements: typed_elements,
                 type_: resolved_type,
             })
         }
@@ -298,19 +376,23 @@ fn convert_expression_to_typed(expr: &UntypedExpression) -> Result<TypedExpressi
             type_annotation,
             fields,
         } => {
-            let typed_fields = match fields {
-                Some(f) => Some(
-                    f.iter()
-                        .map(|field| convert_struct_field_value(field))
-                        .collect::<Result<Vec<_>, _>>()?,
-                ),
-                None => None,
-            };
+            let typed_fields = fields
+                .as_ref()
+                .map(|f| {
+                    let vec: Vec<_> = f
+                        .iter()
+                        .map(convert_struct_field_value)
+                        .collect::<Result<_, _>>()?;
+                    Vec1::try_from_vec(vec)
+                        .map_err(|_| "Struct must have at least one field".to_string())
+                })
+                .transpose()?;
+
             let resolved_type = convert_untyped_to_typed(type_annotation)?;
             Ok(TypedExpression::StructInitialization {
                 location: location.clone(),
                 type_annotation: resolved_type.clone(),
-                fields: typed_fields.clone()[0],
+                fields: typed_fields.clone(),
                 type_: vec1::vec1![resolved_type],
             })
         }
@@ -403,8 +485,13 @@ fn convert_untyped_to_typed(untyped_type: &UntypedType) -> Result<Type, String> 
         UntypedType::Float => Ok(Type::Float),
         UntypedType::String => Ok(Type::String),
         UntypedType::Char => Ok(Type::Char),
-        UntypedType::Custom => Ok(Type::Custom), // TODO
-        UntypedType::Array => Ok(Type::Array),   // TODO
+        UntypedType::Custom { name } => Ok(Type::Custom { name: name.clone() }),
+        UntypedType::Array { type_ } => {
+            let element_type = convert_untyped_to_typed(type_)?;
+            Ok(Type::Array {
+                type_: Box::new(element_type),
+            })
+        }
         UntypedType::Boolean => Ok(Type::Boolean),
         _ => Err("Unsupported type".into()),
     }

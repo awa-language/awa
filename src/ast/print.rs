@@ -31,7 +31,7 @@ fn make_prefix(indentation_levels: &[bool]) -> String {
 }
 
 pub fn print_parse_tree(
-    module: &Module<definition::Untyped>,
+    module: &Module<definition::DefinitionUntyped>,
     f: &mut fmt::Formatter<'_>,
 ) -> fmt::Result {
     writeln!(f, "{}Module:", make_prefix(&[]))?;
@@ -44,12 +44,12 @@ pub fn print_parse_tree(
 }
 
 fn print_definition(
-    definition: &definition::Untyped,
+    definition: &definition::DefinitionUntyped,
     indentation_levels: &[bool],
     f: &mut fmt::Formatter<'_>,
 ) -> fmt::Result {
     match definition {
-        definition::Untyped::Struct {
+        definition::DefinitionUntyped::Struct {
             location,
             name,
             fields,
@@ -79,7 +79,7 @@ fn print_definition(
                 }
             }
         }
-        definition::Untyped::Function {
+        definition::DefinitionUntyped::Function {
             location,
             name,
             arguments,

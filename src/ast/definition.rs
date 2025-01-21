@@ -6,7 +6,7 @@ use crate::type_::UntypedType;
 use super::{argument, location::Location, statement};
 
 #[derive(Debug)]
-pub enum Untyped {
+pub enum DefinitionUntyped {
     Struct {
         location: Location,
         name: EcoString,
@@ -28,7 +28,7 @@ pub struct StructField {
 }
 
 #[derive(Debug)]
-pub enum Typed {
+pub enum DefinitionTyped {
     Struct {
         location: Location,
         name: EcoString,
