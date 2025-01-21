@@ -1,5 +1,5 @@
 use crate::ast::argument::Name;
-use crate::ast::expression_untyped::Expression;
+use crate::ast::expression::UntypedExpression;
 use crate::ast::module::Module;
 use crate::ast::statement::Statement;
 use crate::ast::{argument, definition, statement};
@@ -181,7 +181,7 @@ fn print_argument(
 }
 
 fn print_statement(
-    stmt: &statement::Untyped,
+    stmt: &statement::UntypedStatement,
     indentation_levels: &[bool],
     f: &mut fmt::Formatter<'_>,
 ) -> fmt::Result {
@@ -414,12 +414,12 @@ fn print_statement(
 }
 
 fn print_expression(
-    expr: &Expression,
+    expr: &UntypedExpression,
     indentation_levels: &[bool],
     f: &mut fmt::Formatter<'_>,
 ) -> fmt::Result {
     match expr {
-        Expression::IntLiteral { location, value } => {
+        UntypedExpression::IntLiteral { location, value } => {
             writeln!(
                 f,
                 "{}Integer: {} ({}..{})",
@@ -429,7 +429,7 @@ fn print_expression(
                 location.end
             )?;
         }
-        Expression::FloatLiteral { location, value } => {
+        UntypedExpression::FloatLiteral { location, value } => {
             writeln!(
                 f,
                 "{}Float: {} ({}..{})",
@@ -439,7 +439,7 @@ fn print_expression(
                 location.end
             )?;
         }
-        Expression::StringLiteral { location, value } => {
+        UntypedExpression::StringLiteral { location, value } => {
             writeln!(
                 f,
                 "{}String: {} ({}..{})",
@@ -449,7 +449,7 @@ fn print_expression(
                 location.end
             )?;
         }
-        Expression::CharLiteral { location, value } => {
+        UntypedExpression::CharLiteral { location, value } => {
             writeln!(
                 f,
                 "{}Char: {} ({}..{})",
@@ -459,7 +459,7 @@ fn print_expression(
                 location.end
             )?;
         }
-        Expression::VariableValue { location, name } => {
+        UntypedExpression::VariableValue { location, name } => {
             writeln!(
                 f,
                 "{}Variable: {} ({}..{})",
@@ -469,7 +469,7 @@ fn print_expression(
                 location.end
             )?;
         }
-        Expression::BinaryOperation {
+        UntypedExpression::BinaryOperation {
             location,
             operator,
             left,
@@ -499,7 +499,7 @@ fn print_expression(
             right_levels.push(false);
             print_expression(right, &right_levels, f)?;
         }
-        Expression::FunctionCall {
+        UntypedExpression::FunctionCall {
             location,
             function_name,
             arguments,
@@ -531,7 +531,7 @@ fn print_expression(
                 }
             }
         }
-        Expression::StructFieldAccess {
+        UntypedExpression::StructFieldAccess {
             location,
             struct_name,
             field_name,
@@ -546,7 +546,7 @@ fn print_expression(
                 location.end
             )?;
         }
-        Expression::ArrayElementAccess {
+        UntypedExpression::ArrayElementAccess {
             location,
             array_name,
             index_expression,
@@ -568,7 +568,7 @@ fn print_expression(
             index_levels.push(false);
             print_expression(index_expression, &index_levels, f)?;
         }
-        Expression::ArrayInitialization {
+        UntypedExpression::ArrayInitialization {
             location,
             type_annotation,
             elements,
@@ -594,7 +594,7 @@ fn print_expression(
                 }
             }
         }
-        Expression::StructInitialization {
+        UntypedExpression::StructInitialization {
             location,
             type_annotation,
             fields,

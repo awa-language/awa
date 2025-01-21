@@ -1,7 +1,7 @@
 use vec1::Vec1;
-use crate::ast::expression_typed::ExpressionTyped;
+use crate::ast::expression::{TypedExpression, UntypedExpression};
 use super::{
-    assignment::Assignment, expression_untyped::Expression, location::Location,
+    assignment::Assignment, location::Location,
     reassignment::Reassignment,
 };
 
@@ -38,10 +38,10 @@ pub enum Statement<ExpressionT> {
     },
 }
 
-pub type Typed = Statement<ExpressionTyped>;
-pub type Untyped = Statement<Expression>;
+pub type TypedStatement = Statement<TypedExpression>;
+pub type UntypedStatement = Statement<UntypedExpression>;
 
-impl Untyped {
+impl UntypedStatement {
     #[must_use]
     pub fn get_location(&self) -> Location {
         match self {
@@ -59,7 +59,7 @@ impl Untyped {
     }
 }
 
-impl Typed {
+impl TypedStatement {
     #[must_use]
     pub fn get_location(&self) -> Location {
         match self {

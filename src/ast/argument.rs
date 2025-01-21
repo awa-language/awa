@@ -1,8 +1,6 @@
-use std::sync::Arc;
-
 use ecow::EcoString;
 use crate::type_::Type;
-use crate::untyped_type::UntypedType;
+use crate::type_::UntypedType;
 
 use super::location::Location;
 

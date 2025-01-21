@@ -1,8 +1,7 @@
 use ecow::EcoString;
-
-use crate::{ast::location::Location, untyped_type::UntypedType};
-
-use super::expression_untyped::Expression;
+use crate::{ast::location::Location, type_::UntypedType};
+use super::expression::TypedExpression;
+use super::expression::UntypedExpression;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Assignment<ExpressionT> {
@@ -12,5 +11,5 @@ pub struct Assignment<ExpressionT> {
     pub type_annotation: UntypedType,
 }
 
-pub type Typed = Assignment<Expression>;
-pub type Untyped = Assignment<Expression>;
+pub type TypedAssignment = Assignment<TypedExpression>;
+pub type UntypedAssignment = Assignment<UntypedExpression>;

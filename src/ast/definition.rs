@@ -1,7 +1,7 @@
 use ecow::EcoString;
 use vec1::Vec1;
 use crate::type_::Type;
-use crate::untyped_type::UntypedType;
+use crate::type_::UntypedType;
 
 use super::{argument, location::Location, statement};
 
@@ -16,7 +16,7 @@ pub enum Untyped {
         location: Location,
         name: EcoString,
         arguments: Option<Vec1<argument::Untyped>>,
-        body: Option<Vec1<statement::Untyped>>,
+        body: Option<Vec1<statement::UntypedStatement>>,
         return_type_annotation: Option<UntypedType>,
     },
 }
@@ -38,7 +38,7 @@ pub enum Typed {
         location: Location,
         name: EcoString,
         arguments: Option<Vec1<argument::Typed>>,
-        body: Option<Vec1<statement::Typed>>,
+        body: Option<Vec1<statement::TypedStatement>>,
         return_type_annotation: Option<Type>,
     },
 }
