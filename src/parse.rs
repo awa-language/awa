@@ -642,7 +642,7 @@ impl<T: Iterator<Item = LexResult>> Parser<T> {
         }))
     }
 
-    fn parse_function_argument(&mut self) -> Result<Option<argument::Untyped>, ParsingError> {
+    fn parse_function_argument(&mut self) -> Result<Option<argument::ArgumentUntyped>, ParsingError> {
         let name_token_span = self.advance_token().ok_or_else(|| ParsingError {
             error: error::Type::UnexpectedEof,
             location: LexLocation { start: 0, end: 0 },
@@ -672,7 +672,7 @@ impl<T: Iterator<Item = LexResult>> Parser<T> {
             },
         })?;
 
-        Ok(Some(argument::Untyped {
+        Ok(Some(argument::ArgumentUntyped {
             name: argument::Name::Named {
                 name,
                 location: Location {

@@ -8,3 +8,4 @@ pub mod print;
 pub mod reassignment;
 pub mod statement;
 pub mod expression;
+pub mod translator;

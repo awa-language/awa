@@ -150,7 +150,7 @@ fn print_definition(
 }
 
 fn print_argument(
-    arg: &argument::Untyped,
+    arg: &argument::ArgumentUntyped,
     indentation_levels: &[bool],
     f: &mut fmt::Formatter<'_>,
 ) -> fmt::Result {

@@ -10,7 +10,8 @@ pub enum Type {
     },
     Array {
         type_: Box<Self>, // Needed for empty array
-    }
+    },
+    Boolean,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -24,5 +25,6 @@ pub enum UntypedType {
     },
     Array {
         type_: Box<Self>, // Needed for empty array
-    }
+    },
+    Boolean,
 }

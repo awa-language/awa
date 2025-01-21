@@ -1,11 +1,11 @@
-use ecow::EcoString;
 use crate::type_::Type;
 use crate::type_::UntypedType;
+use ecow::EcoString;
 
 use super::location::Location;
 
-pub type Typed = Argument<Type>;
-pub type Untyped = Argument<()>;
+pub type ArgumentTyped = Argument<Type>;
+pub type ArgumentUntyped = Argument<()>;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Argument<T> {

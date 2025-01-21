@@ -1,8 +1,7 @@
 use crate::ast::argument::CallArgument;
 use crate::ast::location::Location;
 use crate::ast::operator::BinaryOperator;
-use crate::lex::error::Type;
-use crate::type_::UntypedType;
+use crate::type_::{Type, UntypedType};
 use ecow::EcoString;
 use vec1::Vec1;
 
@@ -63,6 +62,13 @@ pub enum TypedExpression {
         fields: Option<Vec1<StructFieldValueTyped>>,
         type_: Vec1<Type>,
     },
+    BinaryOperation {
+        location: Location,
+        operator: BinaryOperator,
+        left: Box<Self>,
+        right: Box<Self>,
+        type_: Type,
+    },
 }
 
 impl TypedExpression {
@@ -78,7 +84,26 @@ impl TypedExpression {
             | TypedExpression::StructFieldAccess { location, .. }
             | TypedExpression::ArrayElementAccess { location, .. }
             | TypedExpression::ArrayInitialization { location, .. }
+            | TypedExpression::BinaryOperation { location, .. }
             | TypedExpression::StructInitialization { location, .. } => *location,
+        }
+    }
+}
+
+impl TypedExpression {
+    pub fn get_type(&self) -> &Type {
+        match self {
+            TypedExpression::IntLiteral { type_, .. }
+            | TypedExpression::FloatLiteral { type_, .. }
+            | TypedExpression::StringLiteral { type_, .. }
+            | TypedExpression::CharLiteral { type_, .. }
+            | TypedExpression::VariableValue { type_, .. }
+            | TypedExpression::FunctionCall { type_, .. }
+            | TypedExpression::StructFieldAccess { type_, .. }
+            | TypedExpression::ArrayElementAccess { type_, .. }
+            | TypedExpression::ArrayInitialization { type_, .. }
+            | TypedExpression::BinaryOperation { type_, .. }
+            | TypedExpression::StructInitialization { type_, .. } => type_,
         }
     }
 }
