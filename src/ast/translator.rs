@@ -13,80 +13,77 @@ use crate::type_::{Type, UntypedType};
 use ecow::EcoString;
 use vec1::Vec1;
 
+use super::argument::CallArgument;
+use super::expression::CallArgumentTyped;
+use super::statement;
+
 fn convert_ast_to_tast(
     untyped_ast: &Module<DefinitionUntyped>,
 ) -> Result<Module<DefinitionTyped>, String> {
-    let mut typed_definitions = Vec::new();
+    let mut typed_definitions = None;
 
-    for definition in &untyped_ast.definitions {
-        match definition {
-            DefinitionUntyped::Function {
-                location,
-                name,
-                arguments,
-                body,
-                return_type_annotation,
-            } => {
-                let typed_args = arguments
-                    .as_ref()
-                    .map(|args| {
-                        let vec: Vec<_> = args
-                            .iter()
-                            .map(|arg| convert_arguments(arg))
-                            .collect::<Result<_, _>>()?;
-                        Vec1::try_from_vec(vec)
-                            .map_err(|_| "Function must have at least one argument".to_string())
-                    })
-                    .transpose()?;
+    if let Some(definitions) = &untyped_ast.definitions {
+        for definition in definitions {
+            let typed_definition = match definition {
+                DefinitionUntyped::Function {
+                    location,
+                    name,
+                    arguments,
+                    body,
+                    return_type_annotation,
+                } => {
+                    let typed_args = arguments
+                        .as_ref()
+                        .map(|args| args.clone().try_mapped(|arg| convert_arguments(&arg)))
+                        .transpose()?;
 
-                let typed_body = body
-                    .as_ref()
-                    .map(|stmts| {
-                        let vec: Vec<_> = stmts
-                            .iter()
-                            .map(|stmt| convert_statement_to_typed(stmt))
-                            .collect::<Result<_, _>>()?;
-                        Vec1::try_from_vec(vec).map_err(|_| {
-                            "Function body must have at least one statement".to_string()
+                    let typed_body = body
+                        .as_ref()
+                        .map(|statements| {
+                            statements
+                                .clone()
+                                .try_mapped(|statement| convert_statement_to_typed(&statement))
                         })
-                    })
-                    .transpose()?;
+                        .transpose()?;
 
-                let return_type = return_type_annotation
-                    .as_ref()
-                    .map(|t| convert_untyped_to_typed(t))
-                    .transpose()?;
+                    let return_type = return_type_annotation
+                        .as_ref()
+                        .map(|t| convert_untyped_to_typed(t))
+                        .transpose()?;
 
-                typed_definitions.push(DefinitionTyped::Function {
-                    name: name.clone(),
-                    location: location.clone(),
-                    arguments: typed_args,
-                    body: typed_body,
-                    return_type_annotation: return_type,
-                });
-            }
-            DefinitionUntyped::Struct {
-                location,
-                name,
-                fields,
-            } => {
-                let typed_fields = fields
-                    .as_ref()
-                    .map(|fs| {
-                        let vec: Vec<_> = fs
-                            .iter()
-                            .map(|field| convert_struct_field(field))
-                            .collect::<Result<_, _>>()?;
-                        Vec1::try_from_vec(vec)
-                            .map_err(|_| "Struct must have at least one field".to_string())
-                    })
-                    .transpose()?;
+                    DefinitionTyped::Function {
+                        name: name.clone(),
+                        location: location.clone(),
+                        arguments: typed_args,
+                        body: typed_body,
+                        return_type_annotation: return_type,
+                    }
+                }
+                DefinitionUntyped::Struct {
+                    location,
+                    name,
+                    fields,
+                } => {
+                    let typed_fields = fields
+                        .as_ref()
+                        .map(|fields| {
+                            fields
+                                .clone()
+                                .try_mapped(|field| convert_struct_field(&field))
+                        })
+                        .transpose()?;
 
-                typed_definitions.push(DefinitionTyped::Struct {
-                    location: location.clone(),
-                    name: name.clone(),
-                    fields: typed_fields,
-                });
+                    DefinitionTyped::Struct {
+                        location: location.clone(),
+                        name: name.clone(),
+                        fields: typed_fields,
+                    }
+                }
+            };
+
+            match &mut typed_definitions {
+                None => typed_definitions = Some(Vec1::new(typed_definition)),
+                Some(defs) => defs.push(typed_definition),
             }
         }
     }
@@ -158,17 +155,14 @@ pub fn convert_statement_to_typed(stmt: &UntypedStatement) -> Result<TypedStatem
             }))
         }
         UntypedStatement::Loop { body, location } => {
-            let typed_body = if let Some(b) = body.as_ref() {
-                let mut iter = b.iter().map(convert_statement_to_typed);
-                let first = iter.next().ok_or("Loop body can't be empty")??;
-                let mut vec1_body = Vec1::new(first);
-                for stmt in iter {
-                    vec1_body.push(stmt?);
-                }
-                Some(vec1_body)
-            } else {
-                None
-            };
+            let typed_body = body
+                .as_ref()
+                .map(|statements| {
+                    statements
+                        .clone()
+                        .try_mapped(|statement| convert_statement_to_typed(&statement))
+                })
+                .transpose()?;
 
             Ok(TypedStatement::Loop {
                 body: typed_body,
@@ -185,28 +179,19 @@ pub fn convert_statement_to_typed(stmt: &UntypedStatement) -> Result<TypedStatem
 
             let typed_if_body = if_body
                 .as_ref()
-                .map(|b| {
-                    let mut iter = b.iter().map(convert_statement_to_typed);
-                    let first = iter.next().ok_or("If body can't be empty")??;
-                    let mut vec1_if_body = Vec1::new(first);
-                    for stmt in iter {
-                        vec1_if_body.push(stmt?);
-                    }
-                    Ok(vec1_if_body: Vec1<TypedStatement>)
-
+                .map(|statements| {
+                    statements
+                        .clone()
+                        .try_mapped(|statement| convert_statement_to_typed(&statement))
                 })
                 .transpose()?;
 
             let typed_else_body = else_body
                 .as_ref()
-                .map(|b| {
-                    let mut iter = b.iter().map(convert_statement_to_typed);
-                    let first = iter.next().ok_or("Else body can't be empty")??;
-                    let mut vec1_else_body = Vec1::new(first);
-                    for stmt in iter {
-                        vec1_else_body.push(stmt?);
-                    }
-                    Ok(vec1_else_body: Vec1<TypedStatement>)
+                .map(|statements| {
+                    statements
+                        .clone()
+                        .try_mapped(|statement| convert_statement_to_typed(&statement))
                 })
                 .transpose()?;
 
@@ -306,14 +291,14 @@ fn convert_expression_to_typed(expr: &UntypedExpression) -> Result<TypedExpressi
             function_name,
             arguments,
         } => {
-            let typed_args = match arguments {
-                Some(args) => Some(
-                    args.iter()
-                        .map(|arg| convert_call_argument_to_typed(arg))
-                        .collect::<Result<Vec1<_>, _>>()?,
-                ),
-                None => None,
-            };
+            let typed_args = arguments
+                .as_ref()
+                .map(|args| {
+                    args.clone()
+                        .try_mapped(|arg| convert_call_argument_to_typed(&arg))
+                })
+                .transpose()?;
+
             let function_type = resolve_function_type(function_name)?;
             Ok(TypedExpression::FunctionCall {
                 location: location.clone(),
@@ -354,15 +339,15 @@ fn convert_expression_to_typed(expr: &UntypedExpression) -> Result<TypedExpressi
             type_annotation,
             elements,
         } => {
-            let typed_elements = match elements {
-                Some(el) => {
-                    let vec: Vec<_> = el.iter()
-                        .map(|e| convert_expression_to_typed(e))
-                        .collect::<Result<Vec<_>, _>>()?;
-                    Some(Vec1::try_from_vec(vec).map_err(|_| "Array must have at least one element".to_string())?)
-                }
-                None => None,
-            };
+            let typed_elements = elements
+                .as_ref()
+                .map(|expressions| {
+                    expressions
+                        .clone()
+                        .try_mapped(|expression| convert_expression_to_typed(&expression))
+                })
+                .transpose()?;
+
             let resolved_type = convert_untyped_to_typed(type_annotation)?;
             Ok(TypedExpression::ArrayInitialization {
                 location: location.clone(),
@@ -378,13 +363,10 @@ fn convert_expression_to_typed(expr: &UntypedExpression) -> Result<TypedExpressi
         } => {
             let typed_fields = fields
                 .as_ref()
-                .map(|f| {
-                    let vec: Vec<_> = f
-                        .iter()
-                        .map(convert_struct_field_value)
-                        .collect::<Result<_, _>>()?;
-                    Vec1::try_from_vec(vec)
-                        .map_err(|_| "Struct must have at least one field".to_string())
+                .map(|fields| {
+                    fields
+                        .clone()
+                        .try_mapped(|field| convert_struct_field_value(&field))
                 })
                 .transpose()?;
 
@@ -400,7 +382,7 @@ fn convert_expression_to_typed(expr: &UntypedExpression) -> Result<TypedExpressi
 }
 
 fn convert_struct_field_value(
-    structFieldValue: &StructFieldValue,
+    struct_field_value: &StructFieldValue,
 ) -> Result<StructFieldValueTyped, String> {
     todo!()
 }
@@ -475,7 +457,7 @@ fn check_type_of_binary_operation(
 
 fn convert_call_argument_to_typed(
     arg: &argument::CallArgument<UntypedExpression>,
-) -> ArgumentTyped {
+) -> Result<CallArgumentTyped<TypedExpression>, String> {
     todo!()
 }
 

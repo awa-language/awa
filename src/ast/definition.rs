@@ -1,7 +1,7 @@
-use ecow::EcoString;
-use vec1::Vec1;
 use crate::type_::Type;
 use crate::type_::UntypedType;
+use ecow::EcoString;
+use vec1::Vec1;
 
 use super::{argument, location::Location, statement};
 
@@ -21,7 +21,7 @@ pub enum DefinitionUntyped {
     },
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct StructField {
     pub name: EcoString,
     pub type_annotation: UntypedType,
@@ -43,9 +43,9 @@ pub enum DefinitionTyped {
     },
 }
 
-
 #[derive(Debug)]
 pub struct StructFieldTyped {
     pub name: EcoString,
     pub type_annotation: Type,
 }
+
