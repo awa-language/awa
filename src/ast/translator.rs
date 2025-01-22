@@ -14,8 +14,7 @@ use crate::ast::operator::BinaryOperator;
 use crate::ast::reassignment::{Reassignment, ReassignmentTarget};
 use crate::ast::statement::{TypedStatement, UntypedStatement};
 use crate::ast::{argument, definition, module};
-use crate::parse::error;
-use crate::parse::error::{ConvertingError, ConvertingErrorType, ParsingError};
+use crate::parse::error::{ConvertingError, ConvertingErrorType};
 use crate::type_::{Type, UntypedType};
 use ecow::EcoString;
 use vec1::Vec1;
@@ -83,6 +82,7 @@ impl ProgramState {
     }
 
     fn convert_ast_to_tast(
+        &mut self,
         untyped_ast: &Module<DefinitionUntyped>,
     ) -> Result<Module<DefinitionTyped>, ConvertingError> {
         let mut typed_definitions = None;
@@ -100,25 +100,21 @@ impl ProgramState {
                     } => {
                         let typed_args = arguments
                             .as_ref()
-                            .map(|args| {
-                                args.clone().try_mapped(|arg| Self::convert_arguments(&arg))
-                            })
+                            .map(|args| args.clone().try_mapped(|arg| self.convert_arguments(&arg)))
                             .transpose()?;
 
                         let typed_body = body
                             .as_ref()
                             .map(|statements| {
                                 statements.clone().try_mapped(|statement| {
-                                    Self::convert_statement_to_typed(&statement)
+                                    self.convert_statement_to_typed(&statement)
                                 })
                             })
                             .transpose()?;
 
                         let return_type = return_type_annotation
                             .as_ref()
-                            .map(|t| {
-                                Self::convert_untyped_to_typed(t, location.start, location.end)
-                            })
+                            .map(|t| self.convert_untyped_to_typed(t, location.start, location.end))
                             .transpose()?;
 
                         let typed_function = DefinitionTyped::Function {
@@ -143,7 +139,7 @@ impl ProgramState {
                             .map(|fields| {
                                 fields
                                     .clone()
-                                    .try_mapped(|field| Self::convert_struct_field(&field))
+                                    .try_mapped(|field| self.convert_struct_field(&field))
                             })
                             .transpose()?;
 
@@ -172,28 +168,101 @@ impl ProgramState {
         })
     }
 
-    fn convert_arguments(p0: &ArgumentUntyped) -> Result<ArgumentTyped, ConvertingError> {
+    fn convert_arguments(
+        &mut self,
+        p0: &ArgumentUntyped,
+    ) -> Result<ArgumentTyped, ConvertingError> {
         todo!()
     }
 
-    pub fn convert_struct_field(field: &StructField) -> Result<StructFieldTyped, ConvertingError> {
-        let resolved_type = Self::convert_untyped_to_typed(&field.type_annotation, 0, 0)?;
+    fn convert_struct_field(
+        &mut self,
+        field: &StructField,
+    ) -> Result<StructFieldTyped, ConvertingError> {
+        let resolved_type = self.convert_untyped_to_typed(&field.type_annotation, 0, 0)?;
         Ok(StructFieldTyped {
             name: field.name.clone(),
             type_annotation: resolved_type,
         })
     }
 
+    fn convert_struct_field_value(
+        &mut self,
+        struct_field_value: &StructFieldValue,
+        struct_name: &EcoString,
+    ) -> Result<StructFieldValueTyped, ConvertingError> {
+        let typed_value = self.convert_expression_to_typed(&struct_field_value.value)?;
+        let location = typed_value.get_location();
+
+        let struct_def = self.get_struct(struct_name).ok_or(ConvertingError {
+            error: ConvertingErrorType::StructNotFound,
+            location: crate::lex::location::Location {
+                start: location.start,
+                end: location.end,
+            },
+        })?;
+
+        match struct_def {
+            DefinitionTyped::Struct { fields, .. } => {
+                let fields = fields.as_ref().ok_or(ConvertingError {
+                    error: ConvertingErrorType::EmptyStruct,
+                    location: crate::lex::location::Location {
+                        start: location.start,
+                        end: location.end,
+                    },
+                })?;
+
+                let field = fields
+                    .iter()
+                    .find(|f| f.name == struct_field_value.name)
+                    .ok_or(ConvertingError {
+                        error: ConvertingErrorType::FieldNotFound,
+                        location: crate::lex::location::Location {
+                            start: location.start,
+                            end: location.end,
+                        },
+                    })?;
+
+                if Self::compare_types(&field.type_annotation, &typed_value.get_type()) {
+                    return Err(ConvertingError {
+                        error: ConvertingErrorType::TypeMismatch {
+                            expected: field.type_annotation.clone(),
+                            found: typed_value.get_type().clone(),
+                        },
+                        location: crate::lex::location::Location {
+                            start: location.start,
+                            end: location.end,
+                        },
+                    });
+                }
+
+                Ok(StructFieldValueTyped {
+                    name: struct_field_value.name.clone(),
+                    value: typed_value,
+                    type_: field.type_annotation.clone(),
+                })
+            }
+            _ => Err(ConvertingError {
+                error: ConvertingErrorType::StructNotFound,
+                location: crate::lex::location::Location {
+                    start: location.start,
+                    end: location.end,
+                },
+            }),
+        }
+    }
+
     pub fn convert_statement_to_typed(
+        &mut self,
         stmt: &UntypedStatement,
     ) -> Result<TypedStatement, ConvertingError> {
         match stmt {
             UntypedStatement::Expression(expression) => {
-                let typed_expression = Self::convert_expression_to_typed(expression)?;
+                let typed_expression = self.convert_expression_to_typed(expression)?;
                 Ok(TypedStatement::Expression(typed_expression))
             }
             UntypedStatement::Assignment(assignment) => {
-                let typed_value = Self::convert_expression_to_typed(&assignment.value)?;
+                let typed_value = self.convert_expression_to_typed(&assignment.value)?;
                 Ok(TypedStatement::Assignment(TypedAssignment {
                     location: assignment.location,
                     variable_name: assignment.variable_name.clone(),
@@ -202,7 +271,7 @@ impl ProgramState {
                 }))
             }
             UntypedStatement::Reassignment(reassignment) => {
-                let typed_new_value = Self::convert_expression_to_typed(&reassignment.new_value)?;
+                let typed_new_value = self.convert_expression_to_typed(&reassignment.new_value)?;
                 let typed_target = match &reassignment.target {
                     ReassignmentTarget::Variable { location, name } => {
                         ReassignmentTarget::Variable {
@@ -226,9 +295,9 @@ impl ProgramState {
                     } => ReassignmentTarget::ArrayAccess {
                         location: location.clone(),
                         array_name: array_name.clone(),
-                        index_expression: Box::new(Self::convert_expression_to_typed(
-                            index_expression,
-                        )?),
+                        index_expression: Box::new(
+                            self.convert_expression_to_typed(index_expression)?,
+                        ),
                     },
                 };
 
@@ -244,7 +313,7 @@ impl ProgramState {
                     .map(|statements| {
                         statements
                             .clone()
-                            .try_mapped(|statement| Self::convert_statement_to_typed(&statement))
+                            .try_mapped(|statement| self.convert_statement_to_typed(&statement))
                     })
                     .transpose()?;
 
@@ -259,14 +328,14 @@ impl ProgramState {
                 else_body,
                 location,
             } => {
-                let typed_condition = Self::convert_expression_to_typed(condition)?;
+                let typed_condition = self.convert_expression_to_typed(condition)?;
 
                 let typed_if_body = if_body
                     .as_ref()
                     .map(|statements| {
                         statements
                             .clone()
-                            .try_mapped(|statement| Self::convert_statement_to_typed(&statement))
+                            .try_mapped(|statement| self.convert_statement_to_typed(&statement))
                     })
                     .transpose()?;
 
@@ -275,7 +344,7 @@ impl ProgramState {
                     .map(|statements| {
                         statements
                             .clone()
-                            .try_mapped(|statement| Self::convert_statement_to_typed(&statement))
+                            .try_mapped(|statement| self.convert_statement_to_typed(&statement))
                     })
                     .transpose()?;
 
@@ -292,7 +361,7 @@ impl ProgramState {
             UntypedStatement::Return { location, value } => {
                 let typed_value = value
                     .as_ref()
-                    .map(|v| Self::convert_expression_to_typed(v))
+                    .map(|v| self.convert_expression_to_typed(v))
                     .transpose()?;
                 Ok(TypedStatement::Return {
                     location: *location,
@@ -312,6 +381,7 @@ impl ProgramState {
     }
 
     fn convert_expression_to_typed(
+        &mut self,
         expr: &UntypedExpression,
     ) -> Result<TypedExpression, ConvertingError> {
         let start_expression_location = expr.get_location().start;
@@ -363,7 +433,7 @@ impl ProgramState {
                 })
             }
             UntypedExpression::VariableValue { location, name } => {
-                let resolved_type = Self::resolve_variable_type(name)?;
+                let resolved_type = self.resolve_variable_type(name)?;
                 Ok(TypedExpression::VariableValue {
                     location: location.clone(),
                     name: name.clone(),
@@ -376,10 +446,10 @@ impl ProgramState {
                 left,
                 right,
             } => {
-                let typed_left = Self::convert_expression_to_typed(left)?;
-                let typed_right = Self::convert_expression_to_typed(right)?;
+                let typed_left = self.convert_expression_to_typed(left)?;
+                let typed_right = self.convert_expression_to_typed(right)?;
                 if typed_left != typed_right {}
-                let result_type = Self::check_type_of_binary_operation(
+                let result_type = self.check_type_of_binary_operation(
                     &typed_left.get_type(),
                     &typed_right.get_type(),
                     operator,
@@ -403,11 +473,11 @@ impl ProgramState {
                     .as_ref()
                     .map(|args| {
                         args.clone()
-                            .try_mapped(|arg| Self::convert_call_argument_to_typed(&arg))
+                            .try_mapped(|arg| self.convert_call_argument_to_typed(&arg))
                     })
                     .transpose()?;
 
-                let function_type = Self::resolve_function_type(function_name)?;
+                let function_type = self.resolve_function_type(function_name)?;
                 Ok(TypedExpression::FunctionCall {
                     location: location.clone(),
                     function_name: function_name.clone(),
@@ -420,7 +490,7 @@ impl ProgramState {
                 struct_name,
                 field_name,
             } => {
-                let field_type = Self::resolve_struct_field_type(struct_name, field_name)?;
+                let field_type = self.resolve_struct_field_type(struct_name, field_name)?;
                 Ok(TypedExpression::StructFieldAccess {
                     location: location.clone(),
                     struct_name: struct_name.clone(),
@@ -433,8 +503,8 @@ impl ProgramState {
                 array_name,
                 index_expression,
             } => {
-                let typed_index = Self::convert_expression_to_typed(index_expression)?;
-                let element_type = Self::resolve_array_element_type(array_name)?;
+                let typed_index = self.convert_expression_to_typed(index_expression)?;
+                let element_type = self.resolve_array_element_type(array_name)?;
                 Ok(TypedExpression::ArrayElementAccess {
                     location: location.clone(),
                     array_name: array_name.clone(),
@@ -452,11 +522,11 @@ impl ProgramState {
                     .map(|expressions| {
                         expressions
                             .clone()
-                            .try_mapped(|expression| Self::convert_expression_to_typed(&expression))
+                            .try_mapped(|expression| self.convert_expression_to_typed(&expression))
                     })
                     .transpose()?;
 
-                let resolved_type = Self::convert_untyped_to_typed(
+                let resolved_type = self.convert_untyped_to_typed(
                     type_annotation,
                     start_expression_location,
                     end_expression_location,
@@ -473,56 +543,70 @@ impl ProgramState {
                 type_annotation,
                 fields,
             } => {
+                let resolved_type = self.convert_untyped_to_typed(
+                    type_annotation,
+                    start_expression_location,
+                    end_expression_location,
+                )?;
+
+                let type_name = if let Type::Custom { name } = &resolved_type {
+                    name
+                } else {
+                    return Err(ConvertingError {
+                        error: ConvertingErrorType::UnsupportedType,
+                        location: crate::lex::location::Location {
+                            start: start_expression_location,
+                            end: end_expression_location,
+                        },
+                    });
+                };
+
                 let typed_fields = fields
                     .as_ref()
                     .map(|fields| {
                         fields
                             .clone()
-                            .try_mapped(|field| Self::convert_struct_field_value(&field))
+                            .try_mapped(|field| self.convert_struct_field_value(&field, type_name))
                     })
                     .transpose()?;
 
-                let resolved_type = Self::convert_untyped_to_typed(
-                    type_annotation,
-                    start_expression_location,
-                    end_expression_location,
-                )?;
                 Ok(TypedExpression::StructInitialization {
                     location: location.clone(),
-                    type_annotation: resolved_type.clone(),
+                    type_: resolved_type.clone(),
                     fields: typed_fields.clone(),
-                    type_: vec1::vec1![resolved_type],
                 })
             }
         }
     }
 
-    fn convert_struct_field_value(
-        struct_field_value: &StructFieldValue,
-    ) -> Result<StructFieldValueTyped, ConvertingError> {
-        todo!()
-    }
-
-    fn resolve_array_element_type(str: &EcoString) -> Result<Type, ConvertingError> {
+    fn resolve_array_element_type(&mut self, str: &EcoString) -> Result<Type, ConvertingError> {
         todo!()
     }
 
     fn resolve_struct_field_type(
+        &mut self,
         str: &EcoString,
         str1: &EcoString,
     ) -> Result<Type, ConvertingError> {
         todo!()
     }
 
-    fn resolve_function_type(function_name: &EcoString) -> Result<Type, ConvertingError> {
+    fn resolve_function_type(
+        &mut self,
+        function_name: &EcoString,
+    ) -> Result<Type, ConvertingError> {
         todo!()
     }
 
-    fn resolve_variable_type(variable_name: &EcoString) -> Result<Type, ConvertingError> {
+    fn resolve_variable_type(
+        &mut self,
+        variable_name: &EcoString,
+    ) -> Result<Type, ConvertingError> {
         todo!()
     }
 
     fn check_type_of_binary_operation(
+        &mut self,
         left_type: &Type,
         right_type: &Type,
         operator: &BinaryOperator,
@@ -601,12 +685,14 @@ impl ProgramState {
     }
 
     fn convert_call_argument_to_typed(
+        &mut self,
         arg: &argument::CallArgument<UntypedExpression>,
     ) -> Result<CallArgumentTyped<TypedExpression>, ConvertingError> {
         todo!()
     }
 
     fn convert_untyped_to_typed(
+        &mut self,
         untyped_type: &UntypedType,
         start_location: u32,
         end_location: u32,
@@ -619,7 +705,7 @@ impl ProgramState {
             UntypedType::Custom { name } => Ok(Type::Custom { name: name.clone() }),
             UntypedType::Array { type_ } => {
                 let element_type =
-                    Self::convert_untyped_to_typed(type_, start_location, end_location)?;
+                    self.convert_untyped_to_typed(type_, start_location, end_location)?;
                 Ok(Type::Array {
                     type_: Box::new(element_type),
                 })
@@ -632,6 +718,14 @@ impl ProgramState {
                     end: end_location,
                 },
             }),
+        }
+    }
+
+    fn compare_types(expected: &Type, found: &Type) -> bool {
+        match (expected, found) {
+            (Type::Custom { name: n1 }, Type::Custom { name: n2 }) => n1 == n2,
+            (Type::Array { type_: t1 }, Type::Array { type_: t2 }) => Self::compare_types(t1, t2),
+            (a, b) => a == b,
         }
     }
 }

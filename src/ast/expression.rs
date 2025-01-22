@@ -58,9 +58,8 @@ pub enum TypedExpression {
     },
     StructInitialization {
         location: Location,
-        type_annotation: Type,
         fields: Option<Vec1<StructFieldValueTyped>>,
-        type_: Vec1<Type>,
+        type_: Type,
     },
     BinaryOperation {
         location: Location,
@@ -102,9 +101,8 @@ impl TypedExpression {
             | TypedExpression::StructFieldAccess { type_, .. }
             | TypedExpression::ArrayElementAccess { type_, .. }
             | TypedExpression::ArrayInitialization { type_, .. }
-            |TypedExpression::BinaryOperation { type_, .. }=> type_,
-
-            TypedExpression::StructInitialization { type_, .. }  => todo!(),
+            | TypedExpression::StructInitialization { type_, .. }
+            | TypedExpression::BinaryOperation { type_, .. } => type_,
         }
     }
 }
@@ -245,17 +243,15 @@ impl PartialEq for TypedExpression {
             (
                 TypedExpression::StructInitialization {
                     location: l1,
-                    type_annotation: ta1,
                     fields: f1,
                     type_: t1,
                 },
                 TypedExpression::StructInitialization {
                     location: l2,
-                    type_annotation: ta2,
                     fields: f2,
                     type_: t2,
                 },
-            ) => l1 == l2 && ta1 == ta2 && f1 == f2 && t1 == t2,
+            ) => l1 == l2 && f1 == f2 && t1 == t2,
             _ => false,
         }
     }

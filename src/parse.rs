@@ -52,7 +52,9 @@ pub fn parse_module(input: &str) -> Result<module::Untyped, ParsingError> {
 }
 
 #[cfg(test)]
-pub fn parse_statement_sequence(input: &str) -> Result<Vec1<statement::UntypedStatement>, ParsingError> {
+pub fn parse_statement_sequence(
+    input: &str,
+) -> Result<Vec1<statement::UntypedStatement>, ParsingError> {
     let lex = lexer::lex(input);
 
     let mut parser = Parser::new(peek_nth(lex));
@@ -241,7 +243,9 @@ impl<T: Iterator<Item = LexResult>> Parser<T> {
         ))
     }
 
-    fn parse_expression_unit(&mut self) -> Result<Option<expression::UntypedExpression>, ParsingError> {
+    fn parse_expression_unit(
+        &mut self,
+    ) -> Result<Option<expression::UntypedExpression>, ParsingError> {
         match self.current_token.clone() {
             Some(token_span) => match token_span.token {
                 // NOTE: name can be either:
@@ -648,7 +652,9 @@ impl<T: Iterator<Item = LexResult>> Parser<T> {
         }))
     }
 
-    fn parse_function_argument(&mut self) -> Result<Option<argument::ArgumentUntyped>, ParsingError> {
+    fn parse_function_argument(
+        &mut self,
+    ) -> Result<Option<argument::ArgumentUntyped>, ParsingError> {
         let name_token_span = self.advance_token().ok_or_else(|| ParsingError {
             error: error::Type::UnexpectedEof,
             location: LexLocation { start: 0, end: 0 },
@@ -903,7 +909,10 @@ impl<T: Iterator<Item = LexResult>> Parser<T> {
         }
     }
 
-    fn parse_assignment(&mut self, start: u32) -> Result<statement::UntypedStatement, ParsingError> {
+    fn parse_assignment(
+        &mut self,
+        start: u32,
+    ) -> Result<statement::UntypedStatement, ParsingError> {
         let name_token_span = self.advance_token().ok_or_else(|| ParsingError {
             error: error::Type::UnexpectedEof,
             location: LexLocation { start: 0, end: 0 },
