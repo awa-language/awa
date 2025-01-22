@@ -27,7 +27,7 @@ pub struct StructField {
     pub type_annotation: UntypedType,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum DefinitionTyped {
     Struct {
         location: Location,
@@ -43,9 +43,8 @@ pub enum DefinitionTyped {
     },
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct StructFieldTyped {
     pub name: EcoString,
     pub type_annotation: Type,
 }
-
