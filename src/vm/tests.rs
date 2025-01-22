@@ -1,7 +1,10 @@
 use std::collections::HashMap;
 
+use super::*;
 use super::{instruction::Instruction, instruction::Value, VM};
-
+use std::sync::{Arc, Mutex};
+use std::thread;
+use std::time::Duration;
 #[test]
 fn test_push_load_store() {
     let bytecode = vec![
@@ -447,3 +450,66 @@ fn test_gc_recursion() {
     }
 }
 */
+#[test]
+fn test_hotswap() {
+    let code = vec![
+        // func rec
+        Instruction::Func("rec".into()),
+        Instruction::PushString("recur...".into()),
+        Instruction::Println,
+        Instruction::Call("rec".into()),
+        Instruction::Return,
+        Instruction::EndFunc,
+        // func main
+        Instruction::Func("main".into()),
+        Instruction::Call("rec".into()),
+        Instruction::Halt,
+        Instruction::EndFunc,
+    ];
+
+    let mut vm = VM::new(code);
+
+    for i in 1..=100 {
+        vm.run();
+    }
+
+    let new_code = vec![
+        Instruction::Func("rec".into()),
+        Instruction::PushString("hot_swap_e_boy".into()),
+        Instruction::Println,
+        Instruction::Return,
+        Instruction::EndFunc,
+    ];
+
+    vm.hotswap_function(new_code);
+
+    for i in 1..=100 {
+        vm.run();
+    }
+}
+
+#[test]
+fn test_slice_2d() {
+    let bytecode = vec![
+        Instruction::Func("main".into()),
+        Instruction::PushSlice(vec![Value::Slice(vec![
+            Value::Int(1),
+            Value::Int(2),
+            Value::Int(3),
+        ])]),
+        Instruction::Println,
+        Instruction::Append(Value::Slice(vec![Value::Int(4)])),
+        Instruction::Println,
+        Instruction::StoreInMap("ab".into()),
+        Instruction::PushSlice(vec![Value::Int(5)]),
+        Instruction::LoadToStack("ab".into()),
+        Instruction::SetByIndex(1),
+        Instruction::Println,
+        Instruction::GetByIndex(0),
+        Instruction::Println,
+        Instruction::Halt,
+        Instruction::EndFunc,
+    ];
+    let mut vm = VM::new(bytecode);
+    vm.run();
+}
