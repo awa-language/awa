@@ -194,62 +194,26 @@ impl ProgramState {
         let typed_value = self.convert_expression_to_typed(&struct_field_value.value)?;
         let location = typed_value.get_location();
 
-        let struct_def = self.get_struct(struct_name).ok_or(ConvertingError {
-            error: ConvertingErrorType::StructNotFound,
-            location: crate::lex::location::Location {
-                start: location.start,
-                end: location.end,
-            },
-        })?;
+        let field_type = self.resolve_struct_field_type(struct_name, &struct_field_value.name)?;
 
-        match struct_def {
-            DefinitionTyped::Struct { fields, .. } => {
-                let fields = fields.as_ref().ok_or(ConvertingError {
-                    error: ConvertingErrorType::EmptyStruct,
-                    location: crate::lex::location::Location {
-                        start: location.start,
-                        end: location.end,
-                    },
-                })?;
-
-                let field = fields
-                    .iter()
-                    .find(|f| f.name == struct_field_value.name)
-                    .ok_or(ConvertingError {
-                        error: ConvertingErrorType::FieldNotFound,
-                        location: crate::lex::location::Location {
-                            start: location.start,
-                            end: location.end,
-                        },
-                    })?;
-
-                if Self::compare_types(&field.type_annotation, &typed_value.get_type()) {
-                    return Err(ConvertingError {
-                        error: ConvertingErrorType::TypeMismatch {
-                            expected: field.type_annotation.clone(),
-                            found: typed_value.get_type().clone(),
-                        },
-                        location: crate::lex::location::Location {
-                            start: location.start,
-                            end: location.end,
-                        },
-                    });
-                }
-
-                Ok(StructFieldValueTyped {
-                    name: struct_field_value.name.clone(),
-                    value: typed_value,
-                    type_: field.type_annotation.clone(),
-                })
-            }
-            _ => Err(ConvertingError {
-                error: ConvertingErrorType::StructNotFound,
+        if !Self::compare_types(&field_type, &typed_value.get_type()) {
+            return Err(ConvertingError {
+                error: ConvertingErrorType::TypeMismatch {
+                    expected: field_type.clone(),
+                    found: typed_value.get_type().clone(),
+                },
                 location: crate::lex::location::Location {
                     start: location.start,
                     end: location.end,
                 },
-            }),
+            });
         }
+
+        Ok(StructFieldValueTyped {
+            name: struct_field_value.name.clone(),
+            value: typed_value,
+            type_: field_type,
+        })
     }
 
     pub fn convert_statement_to_typed(
@@ -584,11 +548,36 @@ impl ProgramState {
     }
 
     fn resolve_struct_field_type(
-        &mut self,
-        str: &EcoString,
-        str1: &EcoString,
+        &self,
+        struct_name: &EcoString,
+        field_name: &EcoString,
     ) -> Result<Type, ConvertingError> {
-        todo!()
+        let struct_def = self.get_struct(struct_name).ok_or(ConvertingError {
+            error: ConvertingErrorType::StructNotFound,
+            location: crate::lex::location::Location { start: 0, end: 0 },
+        })?;
+
+        if let DefinitionTyped::Struct { fields, .. } = struct_def {
+            let fields = fields.as_ref().ok_or(ConvertingError {
+                error: ConvertingErrorType::EmptyStruct,
+                location: crate::lex::location::Location { start: 0, end: 0 },
+            })?;
+
+            let field = fields
+                .iter()
+                .find(|f| f.name == *field_name)
+                .ok_or(ConvertingError {
+                    error: ConvertingErrorType::FieldNotFound,
+                    location: crate::lex::location::Location { start: 0, end: 0 },
+                })?;
+
+            Ok(field.type_annotation.clone())
+        } else {
+            Err(ConvertingError {
+                error: ConvertingErrorType::StructNotFound,
+                location: crate::lex::location::Location { start: 0, end: 0 },
+            })
+        }
     }
 
     fn resolve_function_type(
