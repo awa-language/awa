@@ -1,3 +1,4 @@
+use core::f64;
 use std::collections::HashMap;
 
 use ecow::EcoString;
@@ -99,28 +100,28 @@ impl VM {
                 let b = self.stack.pop().expect("stack underflow");
                 let a = self.stack.pop().expect("stack underflow");
 
-                let (x, y) = (self.get_int(a), self.get_int(b));
+                let (x, y) = (VM::get_int(&a), VM::get_int(&b));
 
                 self.stack.push(Value::Int(x + y));
             }
             Instruction::SubInt => {
                 let b = self.stack.pop().expect("stack underflow");
                 let a = self.stack.pop().expect("stack underflow");
-                let (x, y) = (self.get_int(a), self.get_int(b));
+                let (x, y) = (VM::get_int(&a), VM::get_int(&b));
 
                 self.stack.push(Value::Int(x - y));
             }
             Instruction::MulInt => {
                 let b = self.stack.pop().expect("stack underflow");
                 let a = self.stack.pop().expect("stack underflow");
-                let (x, y) = (self.get_int(a), self.get_int(b));
+                let (x, y) = (VM::get_int(&a), VM::get_int(&b));
 
                 self.stack.push(Value::Int(x * y));
             }
             Instruction::DivInt => {
                 let b = self.stack.pop().expect("stack underflow");
                 let a = self.stack.pop().expect("stack underflow");
-                let (x, y) = (self.get_int(a), self.get_int(b));
+                let (x, y) = (VM::get_int(&a), VM::get_int(&b));
 
                 assert!(y != 0, "division by zero");
                 self.stack.push(Value::Int(x / y));
@@ -128,7 +129,7 @@ impl VM {
             Instruction::Mod => {
                 let b = self.stack.pop().expect("stack underflow");
                 let a = self.stack.pop().expect("stack underflow");
-                let (x, y) = (self.get_int(a), self.get_int(b));
+                let (x, y) = (VM::get_int(&a), VM::get_int(&b));
 
                 assert!(y != 0, "mod by zero");
                 self.stack.push(Value::Int(x % y));
@@ -136,28 +137,28 @@ impl VM {
             Instruction::AddFloat => {
                 let b = self.stack.pop().expect("stack underflow");
                 let a = self.stack.pop().expect("stack underflow");
-                let (x, y) = (self.get_float(a), self.get_float(b));
+                let (x, y) = (VM::get_float(&a), VM::get_float(&b));
 
                 self.stack.push(Value::Float(x + y));
             }
             Instruction::SubFloat => {
                 let b = self.stack.pop().expect("stack underflow");
                 let a = self.stack.pop().expect("stack underflow");
-                let (x, y) = (self.get_float(a), self.get_float(b));
+                let (x, y) = (VM::get_float(&a), VM::get_float(&b));
 
                 self.stack.push(Value::Float(x - y));
             }
             Instruction::MulFloat => {
                 let b = self.stack.pop().expect("stack underflow");
                 let a = self.stack.pop().expect("stack underflow");
-                let (x, y) = (self.get_float(a), self.get_float(b));
+                let (x, y) = (VM::get_float(&a), VM::get_float(&b));
 
                 self.stack.push(Value::Float(x * y));
             }
             Instruction::DivFloat => {
                 let b = self.stack.pop().expect("stack underflow");
                 let a = self.stack.pop().expect("stack underflow");
-                let (x, y) = (self.get_float(a), self.get_float(b));
+                let (x, y) = (VM::get_float(&a), VM::get_float(&b));
 
                 assert!(!(y == 0.0), "division by zero");
                 self.stack.push(Value::Float(x / y));
@@ -224,56 +225,56 @@ impl VM {
             Instruction::LessInt => {
                 let b = self.stack.pop().expect("stack underflow");
                 let a = self.stack.pop().expect("stack underflow");
-                let (x, y) = (self.get_int(a), self.get_int(b));
+                let (x, y) = (VM::get_int(&a), VM::get_int(&b));
 
                 self.stack.push(Value::Int(i64::from(x < y)));
             }
             Instruction::LessEqualInt => {
                 let b = self.stack.pop().expect("stack underflow");
                 let a = self.stack.pop().expect("stack underflow");
-                let (x, y) = (self.get_int(a), self.get_int(b));
+                let (x, y) = (VM::get_int(&a), VM::get_int(&b));
 
                 self.stack.push(Value::Int(i64::from(x <= y)));
             }
             Instruction::GreaterInt => {
                 let b = self.stack.pop().expect("stack underflow");
                 let a = self.stack.pop().expect("stack underflow");
-                let (x, y) = (self.get_int(a), self.get_int(b));
+                let (x, y) = (VM::get_int(&a), VM::get_int(&b));
 
                 self.stack.push(Value::Int(i64::from(x > y)));
             }
             Instruction::GreaterEqualInt => {
                 let b = self.stack.pop().expect("stack underflow");
                 let a = self.stack.pop().expect("stack underflow");
-                let (x, y) = (self.get_int(a), self.get_int(b));
+                let (x, y) = (VM::get_int(&a), VM::get_int(&b));
 
                 self.stack.push(Value::Int(i64::from(x >= y)));
             }
             Instruction::LessFloat => {
                 let b = self.stack.pop().expect("stack underflow");
                 let a = self.stack.pop().expect("stack underflow");
-                let (x, y) = (self.get_float(a), self.get_float(b));
+                let (x, y) = (VM::get_float(&a), VM::get_float(&b));
 
                 self.stack.push(Value::Int(i64::from(x < y)));
             }
             Instruction::LessEqualFloat => {
                 let b = self.stack.pop().expect("stack underflow");
                 let a = self.stack.pop().expect("stack underflow");
-                let (x, y) = (self.get_float(a), self.get_float(b));
+                let (x, y) = (VM::get_float(&a), VM::get_float(&b));
 
                 self.stack.push(Value::Int(i64::from(x <= y)));
             }
             Instruction::GreaterFloat => {
                 let b = self.stack.pop().expect("stack underflow");
                 let a = self.stack.pop().expect("stack underflow");
-                let (x, y) = (self.get_float(a), self.get_float(b));
+                let (x, y) = (VM::get_float(&a), VM::get_float(&b));
 
                 self.stack.push(Value::Int(i64::from(x > y)));
             }
             Instruction::GreaterEqualFloat => {
                 let b = self.stack.pop().expect("stack underflow");
                 let a = self.stack.pop().expect("stack underflow");
-                let (x, y) = (self.get_float(a), self.get_float(b));
+                let (x, y) = (VM::get_float(&a), VM::get_float(&b));
 
                 self.stack.push(Value::Int(i64::from(x >= y)));
             }
@@ -299,7 +300,7 @@ impl VM {
             Instruction::JumpIfTrue(addr) => {
                 let c = self.stack.pop().expect("stack underflow");
 
-                if self.is_true(c) {
+                if VM::is_true(c) {
                     assert!(addr < self.input.len(), "jump out of range");
                     self.program_counter = addr;
                     return;
@@ -307,7 +308,7 @@ impl VM {
             }
             Instruction::JumpIfFalse(addr) => {
                 let c = self.stack.pop().expect("stack underflow");
-                if !self.is_true(c) {
+                if !VM::is_true(c) {
                     assert!(addr < self.input.len(), "jump out of range");
                     self.program_counter = addr;
                     return;
@@ -319,18 +320,16 @@ impl VM {
                     self.call_stack.push(self.program_counter + 1);
                     self.program_counter = addr;
                     return;
-                } else {
-                    panic!("call to undefined function {name}");
                 }
+                panic!("call to undefined function {name}");
             }
             Instruction::Return => {
                 self.environments_stack.pop();
                 if let Some(addr) = self.call_stack.pop() {
                     self.program_counter = addr;
                     return;
-                } else {
-                    return;
                 }
+                return;
             }
             Instruction::Struct(_) | Instruction::EndStruct => {
                 panic!("struct definition in main block");
@@ -355,19 +354,19 @@ impl VM {
                 panic!("Field encountered in main block");
             }
             Instruction::SetField(fname) => {
-                let s = self.stack.pop().expect("stack underflow");
-                let v = self.stack.pop().expect("stack underflow");
-                if let Value::Ref(h) = s {
-                    if let Object::Struct { fields, .. } = self.gc.get_mut(h) {
+                let r#struct = self.stack.pop().expect("stack underflow");
+                let value = self.stack.pop().expect("stack underflow");
+                if let Value::Ref(heap) = r#struct {
+                    if let Object::Struct { fields, .. } = self.gc.get_mut(heap) {
                         if fields.contains_key(&fname) {
-                            fields.insert(fname.clone(), v);
+                            fields.insert(fname.clone(), value);
                         } else {
                             panic!("no such field {fname}");
                         }
                     } else {
                         panic!("setField on non-struct");
                     }
-                    self.stack.push(Value::Ref(h));
+                    self.stack.push(Value::Ref(heap));
                 } else {
                     panic!("setField expects struct ref");
                 }
@@ -431,9 +430,8 @@ impl VM {
                         i = end + 1;
 
                         continue;
-                    } else {
-                        panic!("Func without EndFunc");
                     }
+                    panic!("Func without EndFunc");
                 }
                 Instruction::Struct(struct_name) => {
                     let mut fields = HashMap::new();
@@ -441,8 +439,8 @@ impl VM {
 
                     while i < self.input.len() {
                         match &self.input[i] {
-                            Instruction::Field(k, v) => {
-                                fields.insert(k.clone(), v.clone());
+                            Instruction::Field(key, value) => {
+                                fields.insert(key.clone(), value.clone());
                             }
                             Instruction::EndStruct => {
                                 break;
@@ -483,17 +481,17 @@ impl VM {
         }
     }
 
-    fn get_int(&self, value: Value) -> i64 {
+    fn get_int(value: &Value) -> i64 {
         match value {
-            Value::Int(int) => int,
+            Value::Int(int) => *int,
             Value::Ref(_) => panic!("expected int, found Ref"),
             _ => panic!("expected int"),
         }
     }
 
-    fn get_float(&self, value: Value) -> f64 {
+    fn get_float(value: &Value) -> f64 {
         match value {
-            Value::Float(float) => float,
+            Value::Float(float) => *float,
             Value::Ref(_) => panic!("expected float, found Ref"),
             _ => panic!("expected float"),
         }
@@ -510,10 +508,10 @@ impl VM {
         }
     }
 
-    fn is_equal_values(&self, a: Value, b: Value) -> bool {
-        match (a, b) {
+    fn is_equal_values(&self, value1: Value, value2: Value) -> bool {
+        match (value1, value2) {
             (Value::Int(x), Value::Int(y)) => x == y,
-            (Value::Float(x), Value::Float(y)) => x == y,
+            (Value::Float(x), Value::Float(y)) => (x - y).abs() < f64::EPSILON,
             (Value::Char(x), Value::Char(y)) => x == y,
             (Value::String(s1), Value::String(s2)) => s1 == s2,
             (Value::Ref(r1), Value::Ref(r2)) => {
@@ -540,15 +538,14 @@ impl VM {
         }
     }
 
-    fn is_true(&self, value: Value) -> bool {
+    fn is_true(value: Value) -> bool {
         match value {
             Value::Int(int) => int != 0,
             Value::Float(float) => float != 0.0,
             Value::Char(char) => char != '\0',
             Value::String(string) => !string.is_empty(),
             Value::Slice(slice) => !slice.is_empty(),
-            Value::Struct { .. } => true,
-            Value::Ref(_) => true,
+            Value::Struct { .. } | Value::Ref(_) => true,
             Value::Nil => false,
         }
     }
@@ -575,18 +572,18 @@ impl VM {
             Value::Struct { name, fields } => {
                 print!("Struct {name} {{");
                 let mut first = true;
-                for (k, val) in fields {
+                for (name, val) in fields {
                     if !first {
                         print!(", ");
                     }
-                    print!("{k}: ");
+                    print!("{name}: ");
                     self.print_value(val);
                     first = false;
                 }
                 print!("}}");
             }
-            Value::Ref(h) => {
-                let object = self.gc.get(*h);
+            Value::Ref(heap) => {
+                let object = self.gc.get(*heap);
 
                 match object {
                     Object::String(string) => print!("{string}"),
@@ -605,11 +602,11 @@ impl VM {
                     Object::Struct { name, fields } => {
                         print!("Struct {name} {{");
                         let mut first = true;
-                        for (k, val) in fields {
+                        for (name, val) in fields {
                             if !first {
                                 print!(", ");
                             }
-                            print!("{k}: ");
+                            print!("{name}: ");
                             self.print_value(val);
                             first = false;
                         }
@@ -628,11 +625,11 @@ impl VM {
     /// (2) Смещает Jump/JumpIfTrue/JumpIfFalse на offset = текущая длина self.input
     /// (3) Добавляет в self.input: Func(name), [тело], `EndFunc`
     /// (4) Обновляет functions[name] на начало вставленного тела
-    pub fn hotswap_function(&mut self, new_code: Vec<Instruction>) {
-        let (function_name, body) = self.extract_func_block(new_code);
+    pub fn hotswap_function(&mut self, new_code: &[Instruction]) {
+        let (function_name, body) = VM::extract_func_block(new_code);
         let offset = self.input.len();
 
-        let body_fixed = self.adjust_jumps(body, offset);
+        let body_fixed = VM::adjust_jumps(body, offset);
 
         self.input.push(Instruction::Func(function_name.clone()));
         let start_addr = self.input.len();
@@ -645,7 +642,7 @@ impl VM {
         self.functions.insert(function_name, start_addr);
     }
 
-    fn extract_func_block(&self, code: Vec<Instruction>) -> (EcoString, Vec<Instruction>) {
+    fn extract_func_block(code: &[Instruction]) -> (EcoString, Vec<Instruction>) {
         let mut name = EcoString::new();
         let mut start = None;
         let mut end = None;
@@ -666,14 +663,14 @@ impl VM {
             }
         }
 
-        let sstart = start.expect("No Func(...) in new_code");
+        let start = start.expect("No Func(...) in new_code");
         let end = end.expect("No EndFunc after Func(...)");
-        let body = code[sstart + 1..end].to_vec();
+        let body = code[start + 1..end].to_vec();
 
         (name, body)
     }
 
-    fn adjust_jumps(&self, body: Vec<Instruction>, offset: usize) -> Vec<Instruction> {
+    fn adjust_jumps(body: Vec<Instruction>, offset: usize) -> Vec<Instruction> {
         let mut result = Vec::with_capacity(body.len());
 
         for instruction in body {
