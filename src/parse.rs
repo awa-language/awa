@@ -92,6 +92,12 @@ impl<T: Iterator<Item = LexResult>> Parser<T> {
         let definitions = self.parse_series(&Self::parse_definition, None);
         let definitions = self.ensure_no_errors_or_remaining_tokens(definitions)?;
 
+        let definitions = if definitions.is_empty() {
+            None
+        } else {
+            Some(Vec1::try_from_vec(definitions).unwrap())
+        };
+
         Ok(module::Untyped {
             name: "".into(),
             definitions,

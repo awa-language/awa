@@ -18,9 +18,12 @@ pub fn print_parse_tree(
 ) -> fmt::Result {
     writeln!(formatter, "{}Module:", make_prefix(&[]))?;
 
-    for (i, definition) in module.definitions.iter().enumerate() {
-        let has_next = i < module.definitions.len() - 1;
-        print_definition(definition, &[has_next], formatter)?;
+    if let Some(definitions) = &module.definitions {
+        let total_len = definitions.len();
+        for (i, definition) in definitions.iter().enumerate() {
+            let has_next = i < total_len - 1;
+            print_definition(definition, &[has_next], formatter)?;
+        }
     }
 
     Ok(())
