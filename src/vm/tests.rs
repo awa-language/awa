@@ -1,10 +1,6 @@
 use std::collections::HashMap;
 
-use super::*;
 use super::{instruction::Instruction, instruction::Value, VM};
-use std::sync::{Arc, Mutex};
-use std::thread;
-use std::time::Duration;
 #[test]
 fn test_push_load_store() {
     let bytecode = vec![
@@ -229,7 +225,7 @@ fn test_concat() {
 fn test_slice() {
     let bytecode = vec![
         Instruction::Func("main".into()),
-        Instruction::PushSlice(vec![Value::Int(1), Value::Int(2), Value::Int(3)]),
+        Instruction::PushArray(vec![Value::Int(1), Value::Int(2), Value::Int(3)]),
         Instruction::Println,
         Instruction::Append(Value::Int(4)),
         Instruction::Println,
@@ -351,7 +347,7 @@ fn test_oom() {
 fn test_gc_local_alloc_print() {
     let code = vec![
         Instruction::Func("foo".into()),
-        Instruction::PushSlice(vec![Value::Int(1), Value::Int(2), Value::Int(3)]),
+        Instruction::PushArray(vec![Value::Int(1), Value::Int(2), Value::Int(3)]),
         Instruction::StoreInMap("local_arr".into()),
         Instruction::Return,
         Instruction::EndFunc,
@@ -366,7 +362,7 @@ fn test_gc_local_alloc_print() {
 
     println!("Heap before manual GC:");
     for (i, obj) in vm.gc.heap.iter().enumerate() {
-        println!("  [{}] {:?}", i, obj);
+        println!("  [{i}] {obj:?}");
     }
 
     vm.gc
@@ -374,7 +370,7 @@ fn test_gc_local_alloc_print() {
 
     println!("Heap after manual GC:");
     for (i, obj) in vm.gc.heap.iter().enumerate() {
-        println!("  [{}] {:?}", i, obj);
+        println!("  [{i}] {obj:?}");
     }
 }
 
@@ -382,7 +378,7 @@ fn test_gc_local_alloc_print() {
 fn test_gc_auto_trigger() {
     let code = vec![
         Instruction::Func("creator".into()),
-        Instruction::PushSlice(vec![Value::Int(42)]),
+        Instruction::PushArray(vec![Value::Int(42)]),
         Instruction::StoreInMap("temp_arr".into()),
         Instruction::Return,
         Instruction::EndFunc,
@@ -402,7 +398,7 @@ fn test_gc_auto_trigger() {
 
     println!("Heap after auto-run with threshold=2:");
     for (i, obj) in vm.gc.heap.iter().enumerate() {
-        println!("  [{}] {:?}", i, obj);
+        println!("  [{i}] {obj:?}");
     }
 }
 
@@ -496,7 +492,7 @@ fn test_hotswap() {
 fn test_slice_2d() {
     let bytecode = vec![
         Instruction::Func("main".into()),
-        Instruction::PushSlice(vec![Value::Slice(vec![
+        Instruction::PushArray(vec![Value::Slice(vec![
             Value::Int(1),
             Value::Int(2),
             Value::Int(3),
@@ -505,7 +501,7 @@ fn test_slice_2d() {
         Instruction::Append(Value::Slice(vec![Value::Int(4)])),
         Instruction::Println,
         Instruction::StoreInMap("ab".into()),
-        Instruction::PushSlice(vec![Value::Int(5)]),
+        Instruction::PushArray(vec![Value::Int(5)]),
         Instruction::LoadToStack("ab".into()),
         Instruction::SetByIndex(1),
         Instruction::Println,

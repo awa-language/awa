@@ -20,6 +20,12 @@ pub struct GC {
     pub threshold: usize,
 }
 
+impl Default for GC {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl GC {
     pub fn new() -> Self {
         Self {
@@ -212,8 +218,7 @@ impl GC {
                     // не может содержать Ref на «мёртвый».
                     // Но если такое случилось — либо паника, либо игнорируем.
                     panic!(
-                        "Live object had reference to dead object, old index = {}",
-                        old
+                        "Live object had reference to dead object, old index = {old}"
                     );
                 }
             }

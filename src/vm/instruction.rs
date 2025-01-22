@@ -7,7 +7,7 @@ pub enum Instruction {
     PushFloat(f64),
     PushString(EcoString),
     PushChar(char),
-    PushSlice(Vec<Value>),
+    PushArray(Vec<Value>),
 
     LoadToStack(EcoString),
     StoreInMap(EcoString),
