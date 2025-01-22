@@ -700,13 +700,6 @@ impl ProgramState {
                 })
             }
             UntypedType::Boolean => Ok(Type::Boolean),
-            _ => Err(ConvertingError {
-                error: ConvertingErrorType::UnsupportedBinaryOperation,
-                location: crate::lex::location::Location {
-                    start: start_location,
-                    end: end_location,
-                },
-            }),
         }
     }
 
