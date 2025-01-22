@@ -73,6 +73,10 @@ impl ConvertingError {
                 format!("type mismatch: expected {expected:?}, found {found:?}")
             }
             ConvertingErrorType::EmptyStruct => "empty struct".to_owned(),
+            ConvertingErrorType::UndefinedFunction => "before function call, it should be defined ".to_owned(),
+            ConvertingErrorType::NotTheRightAmountOfArguments { expected, found } => {
+                format!("amount arguments mismatch: expected {expected:?}, found {found:?}")
+            }
         }
     }
 }
@@ -95,4 +99,9 @@ pub enum ConvertingErrorType {
         found: crate::type_::Type,
     },
     EmptyStruct,
+    UndefinedFunction,
+    NotTheRightAmountOfArguments{
+        expected: usize,
+        found: usize,
+    },
 }

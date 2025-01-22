@@ -35,7 +35,7 @@ pub enum TypedExpression {
     FunctionCall {
         location: Location,
         function_name: EcoString,
-        arguments: Option<Vec1<CallArgumentTyped<Self>>>,
+        arguments: Option<Vec<CallArgumentTyped<Self>>>,
         type_: Type,
     },
     StructFieldAccess {

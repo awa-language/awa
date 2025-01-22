@@ -48,3 +48,13 @@ pub struct StructFieldTyped {
     pub name: EcoString,
     pub type_annotation: Type,
 }
+
+
+impl DefinitionTyped {
+    pub fn get_arguments(&self) -> Option<Vec1<argument::ArgumentTyped>> {
+        match self {
+            DefinitionTyped::Function { arguments, .. } => arguments.clone(),
+            DefinitionTyped::Struct { .. } => None,
+        }
+    }
+}

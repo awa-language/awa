@@ -3,6 +3,7 @@ use std::collections::HashMap;
 use super::argument::CallArgument;
 use super::expression::CallArgumentTyped;
 use super::statement;
+use crate::ast;
 use crate::ast::argument::{ArgumentTyped, ArgumentUntyped};
 use crate::ast::assignment::{Assignment, TypedAssignment};
 use crate::ast::definition::{DefinitionTyped, DefinitionUntyped, StructField, StructFieldTyped};
@@ -14,6 +15,7 @@ use crate::ast::operator::BinaryOperator;
 use crate::ast::reassignment::{Reassignment, ReassignmentTarget};
 use crate::ast::statement::{TypedStatement, UntypedStatement};
 use crate::ast::{argument, definition, module};
+use crate::lex::location::Location;
 use crate::parse::error::{ConvertingError, ConvertingErrorType};
 use crate::type_::{Type, UntypedType};
 use ecow::EcoString;
@@ -433,11 +435,38 @@ impl ProgramState {
                 function_name,
                 arguments,
             } => {
+                if let Some(function_def) = self.functions.get(function_name) {
+                    if let Some(expected_args) = function_def.get_arguments() {
+                        if arguments.clone().unwrap().len() > expected_args.len() {
+                            return Err(ConvertingError {
+                                error: ConvertingErrorType::NotTheRightAmountOfArguments {
+                                    expected: expected_args.len(),
+                                    found: arguments.clone().unwrap().len(),
+                                },
+                                location: Location {
+                                    start: location.start,
+                                    end: location.end,
+                                },
+                            });
+                        }
+                    }
+                }
+
                 let typed_args = arguments
                     .as_ref()
                     .map(|args| {
                         args.clone()
-                            .try_mapped(|arg| self.convert_call_argument_to_typed(&arg))
+                            .iter()
+                            .enumerate()
+                            .map(|(i, arg)| {
+                                self.convert_call_argument_to_typed(
+                                    function_name,
+                                    &arg,
+                                    location,
+                                    i,
+                                )
+                            })
+                            .collect::<Result<Vec<_>, _>>()
                     })
                     .transpose()?;
 
@@ -687,9 +716,53 @@ impl ProgramState {
 
     fn convert_call_argument_to_typed(
         &mut self,
-        arg: &argument::CallArgument<UntypedExpression>,
+        function_name: &EcoString,
+        argument: &CallArgument<UntypedExpression>,
+        location: &ast::location::Location,
+        i: usize,
     ) -> Result<CallArgumentTyped<TypedExpression>, ConvertingError> {
-        todo!()
+        let typed_argument = self.convert_expression_to_typed(&argument.value)?;
+        let function_def = self.functions.get(function_name).ok_or(ConvertingError {
+            error: ConvertingErrorType::UndefinedFunction,
+            location: Location {
+                start: location.start,
+                end: location.end,
+            },
+        })?;
+
+        if let Some(expected_args) = function_def.get_arguments() {
+            if expected_args.len() <= i {
+                return Err(ConvertingError {
+                    error: ConvertingErrorType::NotTheRightAmountOfArguments {
+                        expected: expected_args.len(),
+                        found: i + 1,
+                    },
+                    location: Location {
+                        start: location.start,
+                        end: location.end,
+                    },
+                });
+            }
+
+            if expected_args[i].type_ != *typed_argument.clone().get_type() {
+                return Err(ConvertingError {
+                    error: ConvertingErrorType::TypeMismatch {
+                        expected: expected_args[i].type_.clone(),
+                        found: typed_argument.get_type().clone(),
+                    },
+                    location: Location {
+                        start: location.start,
+                        end: location.end,
+                    },
+                });
+            }
+        }
+
+        Ok(CallArgumentTyped {
+            value: typed_argument.clone(),
+            location: location.clone(),
+            type_: typed_argument.get_type().clone(),
+        })
     }
 
     fn convert_untyped_to_typed(
