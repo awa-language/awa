@@ -172,9 +172,20 @@ impl ProgramState {
 
     fn convert_arguments(
         &mut self,
-        p0: &ArgumentUntyped,
+        argument_untyped: &ArgumentUntyped,
     ) -> Result<ArgumentTyped, ConvertingError> {
-        todo!()
+        let typed_type = self.convert_untyped_to_typed(
+            &argument_untyped.type_annotation,
+            argument_untyped.location.start,
+            argument_untyped.location.end,
+        )?;
+
+        Ok(ArgumentTyped {
+            name: argument_untyped.name.clone(),
+            location: argument_untyped.location.clone(),
+            type_annotation: argument_untyped.type_annotation.clone(),
+            type_: typed_type,
+        })
     }
 
     fn convert_struct_field(
