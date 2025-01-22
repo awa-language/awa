@@ -412,7 +412,7 @@ impl ProgramState {
             } => {
                 let typed_left = self.convert_expression_to_typed(left)?;
                 let typed_right = self.convert_expression_to_typed(right)?;
-                if typed_left != typed_right {}
+
                 let result_type = self.check_type_of_binary_operation(
                     &typed_left.get_type(),
                     &typed_right.get_type(),
@@ -468,7 +468,22 @@ impl ProgramState {
                 index_expression,
             } => {
                 let typed_index = self.convert_expression_to_typed(index_expression)?;
-                let element_type = self.resolve_array_element_type(array_name)?;
+
+                if *typed_index.get_type() != Type::Int {
+                    return Err(ConvertingError {
+                        error: ConvertingErrorType::TypeMismatch {
+                            expected: Type::Int,
+                            found: typed_index.get_type().clone(),
+                        },
+                        location: crate::lex::location::Location {
+                            start: location.start,
+                            end: location.end,
+                        },
+                    });
+                }
+
+                let element_type =
+                    self.resolve_array_element_type(array_name, location.start, location.end)?;
                 Ok(TypedExpression::ArrayElementAccess {
                     location: location.clone(),
                     array_name: array_name.clone(),
@@ -481,23 +496,36 @@ impl ProgramState {
                 type_annotation,
                 elements,
             } => {
-                let typed_elements = elements
-                    .as_ref()
-                    .map(|expressions| {
-                        expressions
-                            .clone()
-                            .try_mapped(|expression| self.convert_expression_to_typed(&expression))
-                    })
-                    .transpose()?;
-
                 let resolved_type = self.convert_untyped_to_typed(
                     type_annotation,
                     start_expression_location,
                     end_expression_location,
                 )?;
+
+                let typed_elements = elements
+                    .as_ref()
+                    .map(|expressions| {
+                        expressions.clone().try_mapped(|expression| {
+                            let typed_expr = self.convert_expression_to_typed(&expression)?;
+                            if !Self::compare_types(&resolved_type, &typed_expr.get_type()) {
+                                return Err(ConvertingError {
+                                    error: ConvertingErrorType::TypeMismatch {
+                                        expected: resolved_type.clone(),
+                                        found: typed_expr.get_type().clone(),
+                                    },
+                                    location: crate::lex::location::Location {
+                                        start: start_expression_location,
+                                        end: end_expression_location,
+                                    },
+                                });
+                            }
+                            Ok(typed_expr)
+                        })
+                    })
+                    .transpose()?;
+
                 Ok(TypedExpression::ArrayInitialization {
                     location: location.clone(),
-                    type_annotation: resolved_type.clone(),
                     elements: typed_elements,
                     type_: resolved_type,
                 })
@@ -543,8 +571,29 @@ impl ProgramState {
         }
     }
 
-    fn resolve_array_element_type(&mut self, str: &EcoString) -> Result<Type, ConvertingError> {
-        todo!()
+    fn resolve_array_element_type(
+        &mut self,
+        array_name: &EcoString,
+        start_location: u32,
+        end_location: u32,
+    ) -> Result<Type, ConvertingError> {
+        let array_type = self.get_variable_type(array_name).ok_or(ConvertingError {
+            error: ConvertingErrorType::UnsupportedType,
+            location: crate::lex::location::Location {
+                start: start_location,
+                end: end_location,
+            },
+        })?;
+        match array_type {
+            Type::Array { type_ } => Ok(*type_.clone()),
+            _ => Err(ConvertingError {
+                error: ConvertingErrorType::UnsupportedType,
+                location: crate::lex::location::Location {
+                    start: start_location,
+                    end: end_location,
+                },
+            }),
+        }
     }
 
     fn resolve_struct_field_type(

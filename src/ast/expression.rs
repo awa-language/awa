@@ -52,7 +52,6 @@ pub enum TypedExpression {
     },
     ArrayInitialization {
         location: Location,
-        type_annotation: Type,
         elements: Option<Vec1<Self>>,
         type_: Type,
     },
@@ -229,17 +228,15 @@ impl PartialEq for TypedExpression {
             (
                 TypedExpression::ArrayInitialization {
                     location: l1,
-                    type_annotation: ta1,
                     elements: e1,
                     type_: t1,
                 },
                 TypedExpression::ArrayInitialization {
                     location: l2,
-                    type_annotation: ta2,
                     elements: e2,
                     type_: t2,
                 },
-            ) => l1 == l2 && ta1 == ta2 && e1 == e2 && t1 == t2,
+            ) => l1 == l2 && e1 == e2 && t1 == t2,
             (
                 TypedExpression::StructInitialization {
                     location: l1,
