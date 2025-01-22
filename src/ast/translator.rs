@@ -602,22 +602,57 @@ impl ProgramState {
         start_location: u32,
         end_location: u32,
     ) -> Result<Type, ConvertingError> {
+        let err_location = crate::lex::location::Location {
+            start: start_location,
+            end: end_location,
+        };
+
         match operator {
-            /* logical operations in case we will add them
-            BinaryOperator::And | BinaryOperator::Or => {
-                match (left_type, right_type) {
-                    (Type::Bool, Type::Bool) => Ok(Type::Bool),
-                    _ => Err("Logical operations require boolean expressions in both sides".into()),
-                }
-            }
-            */
-            BinaryOperator::Equal
-            | BinaryOperator::NotEqual
-            | BinaryOperator::LessInt
+            BinaryOperator::And | BinaryOperator::Or => match (left_type, right_type) {
+                (Type::Boolean, Type::Boolean) => Ok(Type::Boolean),
+                _ => Err(ConvertingError {
+                    error: ConvertingErrorType::InvalidBooleanOperation,
+                    location: err_location,
+                }),
+            },
+
+            BinaryOperator::LessInt
             | BinaryOperator::LessEqualInt
             | BinaryOperator::GreaterInt
-            | BinaryOperator::GreaterEqualInt
-            | BinaryOperator::AdditionInt
+            | BinaryOperator::GreaterEqualInt => match (left_type, right_type) {
+                (Type::Int, Type::Int) => Ok(Type::Boolean),
+                _ => Err(ConvertingError {
+                    error: ConvertingErrorType::IntOperationInvalidType,
+                    location: err_location,
+                }),
+            },
+
+            BinaryOperator::LessFloat
+            | BinaryOperator::LessEqualFloat
+            | BinaryOperator::GreaterFloat
+            | BinaryOperator::GreaterEqualFloat => match (left_type, right_type) {
+                (Type::Float, Type::Float) => Ok(Type::Boolean),
+                _ => Err(ConvertingError {
+                    error: ConvertingErrorType::FloatOperationInvalidType,
+                    location: err_location,
+                }),
+            },
+
+            BinaryOperator::Equal | BinaryOperator::NotEqual => {
+                if left_type == right_type {
+                    Ok(Type::Boolean)
+                } else {
+                    Err(ConvertingError {
+                        error: ConvertingErrorType::TypeMismatch {
+                            expected: left_type.clone(),
+                            found: right_type.clone(),
+                        },
+                        location: err_location,
+                    })
+                }
+            }
+
+            BinaryOperator::AdditionInt
             | BinaryOperator::SubtractionInt
             | BinaryOperator::MultipicationInt
             | BinaryOperator::DivisionInt
@@ -625,30 +660,18 @@ impl ProgramState {
                 (Type::Int, Type::Int) => Ok(Type::Int),
                 _ => Err(ConvertingError {
                     error: ConvertingErrorType::IntOperationInvalidType,
-                    location: crate::lex::location::Location {
-                        start: start_location,
-                        end: end_location,
-                    },
+                    location: err_location,
                 }),
             },
 
-            BinaryOperator::Equal
-            | BinaryOperator::NotEqual
-            | BinaryOperator::LessFloat
-            | BinaryOperator::LessEqualFloat
-            | BinaryOperator::GreaterFloat
-            | BinaryOperator::GreaterEqualFloat
-            | BinaryOperator::AdditionFloat
+            BinaryOperator::AdditionFloat
             | BinaryOperator::SubtractionFloat
             | BinaryOperator::MultipicationFloat
             | BinaryOperator::DivisionFloat => match (left_type, right_type) {
                 (Type::Float, Type::Float) => Ok(Type::Float),
                 _ => Err(ConvertingError {
                     error: ConvertingErrorType::FloatOperationInvalidType,
-                    location: crate::lex::location::Location {
-                        start: start_location,
-                        end: end_location,
-                    },
+                    location: err_location,
                 }),
             },
 
@@ -656,20 +679,9 @@ impl ProgramState {
                 (Type::String, Type::String) => Ok(Type::String),
                 _ => Err(ConvertingError {
                     error: ConvertingErrorType::StringOperationInvalidType,
-                    location: crate::lex::location::Location {
-                        start: start_location,
-                        end: end_location,
-                    },
+                    location: err_location,
                 }),
             },
-
-            _ => Err(ConvertingError {
-                error: ConvertingErrorType::UnsupportedBinaryOperation,
-                location: crate::lex::location::Location {
-                    start: start_location,
-                    end: end_location,
-                },
-            }),
         }
     }
 

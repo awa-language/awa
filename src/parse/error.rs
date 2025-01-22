@@ -60,6 +60,9 @@ impl ConvertingError {
                 "string operations requires string expressions in both sides".to_owned()
             }
             ConvertingErrorType::InvalidCharLiteral => "invalid char literal".to_owned(),
+            ConvertingErrorType::InvalidBooleanOperation => {
+                "logical operations require boolean expressions in both sides".to_owned()
+            }
             ConvertingErrorType::UnsupportedBinaryOperation => {
                 "unsupported binary operation".to_owned()
             }
@@ -82,6 +85,7 @@ pub enum ConvertingErrorType {
     InvalidFloatLiteral,
     StringOperationInvalidType,
     InvalidCharLiteral,
+    InvalidBooleanOperation,
     UnsupportedBinaryOperation,
     UnsupportedType,
     StructNotFound,
@@ -92,4 +96,3 @@ pub enum ConvertingErrorType {
     },
     EmptyStruct,
 }
-
