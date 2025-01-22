@@ -6,18 +6,28 @@ pub enum Command {
 }
 
 // TODO: will take typed ast module as an argument
-pub fn run(receiver: std::sync::mpsc::Receiver<Command>, sender: std::sync::mpsc::Sender<()>) {
+pub fn run(
+    command_receiver: std::sync::mpsc::Receiver<Command>,
+    confirmation_sender: std::sync::mpsc::Sender<()>,
+) {
     // TODO: vm::new()
 
     loop {
-        dbg!("looping");
-        if let Ok(command) = receiver.try_recv() {
-            dbg!(command);
+        if let Ok(command) = command_receiver.try_recv() {
             match command {
                 Command::OpenMenu => {
-                    let user_input = cli::input::get_user_input();
-                    dbg!(user_input);
-                    let _ = sender.send(()).unwrap();
+                    let decision = cli::input::get_user_menu_decision();
+                    match decision {
+                        cli::input::MenuAction::PerformHotswap => {
+                            let user_input = cli::input::get_user_input();
+                            dbg!(user_input);
+
+                            // TODO: vm::perform_hotswap
+                        }
+                        cli::input::MenuAction::ReturnToExecution => {}
+                    }
+
+                    let _ = confirmation_sender.send(()).unwrap();
                 }
             }
         }
