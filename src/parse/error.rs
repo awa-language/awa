@@ -36,3 +36,39 @@ pub enum Type {
     InvalidName { token: Token },
     ExpectedStatementSequence,
 }
+
+
+
+#[derive(Debug, PartialEq, Eq, Clone)]
+pub struct ConvertingError {
+    pub error: ConvertingErrorType,
+    pub location: Location,
+}
+
+impl ConvertingError {
+    #[must_use] pub fn get_description(&self) -> String {
+        match &self.error {
+            ConvertingErrorType::IntOperationInvalidType => "integer operations require integer expressions in both sides".to_owned(),
+            ConvertingErrorType::InvalidIntLiteral => "invalid integer literal".to_owned(),
+            ConvertingErrorType::FloatOperationInvalidType => "float operations require float expressions in both sides".to_owned(),
+            ConvertingErrorType::InvalidFloatLiteral => "invalid float literal".to_owned(),
+            ConvertingErrorType::StringOperationInvalidType => "string operations requires string expressions in both sides".to_owned(),
+            ConvertingErrorType::InvalidCharLiteral => "invalid char literal".to_owned(),
+            ConvertingErrorType::UnsupportedBinaryOperation => "unsupported binary operation".to_owned(),
+            ConvertingErrorType::UnsupportedType => "unsupported type".to_owned(),
+
+        }
+    }
+}
+
+#[derive(Debug, PartialEq, Eq, Clone)]
+pub enum ConvertingErrorType {
+    IntOperationInvalidType,
+    InvalidIntLiteral,
+    FloatOperationInvalidType,
+    InvalidFloatLiteral,
+    StringOperationInvalidType,
+    InvalidCharLiteral,
+    UnsupportedBinaryOperation,
+    UnsupportedType,
+}

@@ -1,3 +1,6 @@
+use super::argument::CallArgument;
+use super::expression::CallArgumentTyped;
+use super::statement;
 use crate::ast::argument::{ArgumentTyped, ArgumentUntyped};
 use crate::ast::assignment::{Assignment, TypedAssignment};
 use crate::ast::definition::{DefinitionTyped, DefinitionUntyped, StructField, StructFieldTyped};
@@ -9,17 +12,15 @@ use crate::ast::operator::BinaryOperator;
 use crate::ast::reassignment::{Reassignment, ReassignmentTarget};
 use crate::ast::statement::{TypedStatement, UntypedStatement};
 use crate::ast::{argument, definition, module};
+use crate::parse::error;
+use crate::parse::error::{ConvertingError, ConvertingErrorType, ParsingError};
 use crate::type_::{Type, UntypedType};
 use ecow::EcoString;
 use vec1::Vec1;
 
-use super::argument::CallArgument;
-use super::expression::CallArgumentTyped;
-use super::statement;
-
 fn convert_ast_to_tast(
     untyped_ast: &Module<DefinitionUntyped>,
-) -> Result<Module<DefinitionTyped>, String> {
+) -> Result<Module<DefinitionTyped>, ConvertingError> {
     let mut typed_definitions = None;
 
     if let Some(definitions) = &untyped_ast.definitions {
@@ -48,7 +49,7 @@ fn convert_ast_to_tast(
 
                     let return_type = return_type_annotation
                         .as_ref()
-                        .map(|t| convert_untyped_to_typed(t))
+                        .map(|t| convert_untyped_to_typed(t, location.start, location.end))
                         .transpose()?;
 
                     DefinitionTyped::Function {
@@ -94,19 +95,21 @@ fn convert_ast_to_tast(
     })
 }
 
-fn convert_arguments(p0: &ArgumentUntyped) -> Result<ArgumentTyped, String> {
+fn convert_arguments(p0: &ArgumentUntyped) -> Result<ArgumentTyped, ConvertingError> {
     todo!()
 }
 
-pub fn convert_struct_field(field: &StructField) -> Result<StructFieldTyped, String> {
-    let resolved_type = convert_untyped_to_typed(&field.type_annotation)?;
+pub fn convert_struct_field(field: &StructField) -> Result<StructFieldTyped, ConvertingError> {
+    let resolved_type = convert_untyped_to_typed(&field.type_annotation, 0, 0)?;
     Ok(StructFieldTyped {
         name: field.name.clone(),
         type_annotation: resolved_type,
     })
 }
 
-pub fn convert_statement_to_typed(stmt: &UntypedStatement) -> Result<TypedStatement, String> {
+pub fn convert_statement_to_typed(
+    stmt: &UntypedStatement,
+) -> Result<TypedStatement, ConvertingError> {
     match stmt {
         UntypedStatement::Expression(expression) => {
             let typed_expression = convert_expression_to_typed(expression)?;
@@ -227,18 +230,32 @@ pub fn convert_statement_to_typed(stmt: &UntypedStatement) -> Result<TypedStatem
     }
 }
 
-fn convert_expression_to_typed(expr: &UntypedExpression) -> Result<TypedExpression, String> {
+fn convert_expression_to_typed(
+    expr: &UntypedExpression,
+) -> Result<TypedExpression, ConvertingError> {
+    let start_expression_location = expr.get_location().start;
+    let end_expression_location = expr.get_location().end;
     match expr {
         UntypedExpression::IntLiteral { location, value } => Ok(TypedExpression::IntLiteral {
             location: location.clone(),
-            value: value
-                .parse::<i64>()
-                .map_err(|_| "Invalid integer literal")?,
+            value: value.parse::<i64>().map_err(|_| ConvertingError {
+                error: ConvertingErrorType::InvalidIntLiteral,
+                location: crate::lex::location::Location {
+                    start: start_expression_location,
+                    end: end_expression_location,
+                },
+            })?,
             type_: Type::Int,
         }),
         UntypedExpression::FloatLiteral { location, value } => Ok(TypedExpression::FloatLiteral {
             location: location.clone(),
-            value: value.parse::<f64>().map_err(|_| "Invalid float literal")?,
+            value: value.parse::<f64>().map_err(|_| ConvertingError {
+                error: ConvertingErrorType::InvalidFloatLiteral,
+                location: crate::lex::location::Location {
+                    start: start_expression_location,
+                    end: end_expression_location,
+                },
+            })?,
             type_: Type::Float,
         }),
         UntypedExpression::StringLiteral { location, value } => {
@@ -249,7 +266,13 @@ fn convert_expression_to_typed(expr: &UntypedExpression) -> Result<TypedExpressi
             })
         }
         UntypedExpression::CharLiteral { location, value } => {
-            let char_value = value.chars().next().ok_or("Invalid char literal")?;
+            let char_value = value.chars().next().ok_or(ConvertingError {
+                error: ConvertingErrorType::InvalidCharLiteral,
+                location: crate::lex::location::Location {
+                    start: start_expression_location,
+                    end: end_expression_location,
+                },
+            })?;
             Ok(TypedExpression::CharLiteral {
                 location: location.clone(),
                 value: char_value,
@@ -277,6 +300,8 @@ fn convert_expression_to_typed(expr: &UntypedExpression) -> Result<TypedExpressi
                 &typed_left.get_type(),
                 &typed_right.get_type(),
                 operator,
+                start_expression_location,
+                end_expression_location,
             )?;
             Ok(TypedExpression::BinaryOperation {
                 location: location.clone(),
@@ -348,7 +373,11 @@ fn convert_expression_to_typed(expr: &UntypedExpression) -> Result<TypedExpressi
                 })
                 .transpose()?;
 
-            let resolved_type = convert_untyped_to_typed(type_annotation)?;
+            let resolved_type = convert_untyped_to_typed(
+                type_annotation,
+                start_expression_location,
+                end_expression_location,
+            )?;
             Ok(TypedExpression::ArrayInitialization {
                 location: location.clone(),
                 type_annotation: resolved_type.clone(),
@@ -370,7 +399,11 @@ fn convert_expression_to_typed(expr: &UntypedExpression) -> Result<TypedExpressi
                 })
                 .transpose()?;
 
-            let resolved_type = convert_untyped_to_typed(type_annotation)?;
+            let resolved_type = convert_untyped_to_typed(
+                type_annotation,
+                start_expression_location,
+                end_expression_location,
+            )?;
             Ok(TypedExpression::StructInitialization {
                 location: location.clone(),
                 type_annotation: resolved_type.clone(),
@@ -383,23 +416,23 @@ fn convert_expression_to_typed(expr: &UntypedExpression) -> Result<TypedExpressi
 
 fn convert_struct_field_value(
     struct_field_value: &StructFieldValue,
-) -> Result<StructFieldValueTyped, String> {
+) -> Result<StructFieldValueTyped, ConvertingError> {
     todo!()
 }
 
-fn resolve_array_element_type(str: &EcoString) -> Result<Type, String> {
+fn resolve_array_element_type(str: &EcoString) -> Result<Type, ConvertingError> {
     todo!()
 }
 
-fn resolve_struct_field_type(str: &EcoString, str1: &EcoString) -> Result<Type, String> {
+fn resolve_struct_field_type(str: &EcoString, str1: &EcoString) -> Result<Type, ConvertingError> {
     todo!()
 }
 
-fn resolve_function_type(function_name: &EcoString) -> Result<Type, String> {
+fn resolve_function_type(function_name: &EcoString) -> Result<Type, ConvertingError> {
     todo!()
 }
 
-fn resolve_variable_type(variable_name: &EcoString) -> Result<Type, String> {
+fn resolve_variable_type(variable_name: &EcoString) -> Result<Type, ConvertingError> {
     todo!()
 }
 
@@ -407,7 +440,9 @@ fn check_type_of_binary_operation(
     left_type: &Type,
     right_type: &Type,
     operator: &BinaryOperator,
-) -> Result<Type, String> {
+    start_location: u32,
+    end_location: u32,
+) -> Result<Type, ConvertingError> {
     match operator {
         /* logical operations in case we will add them
         BinaryOperator::And | BinaryOperator::Or => {
@@ -429,7 +464,13 @@ fn check_type_of_binary_operation(
         | BinaryOperator::DivisionInt
         | BinaryOperator::Modulo => match (left_type, right_type) {
             (Type::Int, Type::Int) => Ok(Type::Int),
-            _ => Err("Integer operations require integer expressions in both sides".into()),
+            _ => Err(ConvertingError {
+                error: ConvertingErrorType::IntOperationInvalidType,
+                location: crate::lex::location::Location {
+                    start: start_location,
+                    end: end_location,
+                },
+            }),
         },
 
         BinaryOperator::Equal
@@ -443,25 +484,47 @@ fn check_type_of_binary_operation(
         | BinaryOperator::MultipicationFloat
         | BinaryOperator::DivisionFloat => match (left_type, right_type) {
             (Type::Float, Type::Float) => Ok(Type::Float),
-            _ => Err("Float operations require float expressions in both sides".into()),
+            _ => Err(ConvertingError {
+                error: ConvertingErrorType::FloatOperationInvalidType,
+                location: crate::lex::location::Location {
+                    start: start_location,
+                    end: end_location,
+                },
+            }),
         },
 
         BinaryOperator::Concatenation => match (left_type, right_type) {
             (Type::String, Type::String) => Ok(Type::String),
-            _ => Err("String operations requires string expressions in both sides".into()),
+            _ => Err(ConvertingError {
+                error: ConvertingErrorType::StringOperationInvalidType,
+                location: crate::lex::location::Location {
+                    start: start_location,
+                    end: end_location,
+                },
+            }),
         },
 
-        _ => Err("Unsupported binary operation".into()),
+        _ => Err(ConvertingError {
+            error: ConvertingErrorType::UnsupportedBinaryOperation,
+            location: crate::lex::location::Location {
+                start: start_location,
+                end: end_location,
+            },
+        }),
     }
 }
 
 fn convert_call_argument_to_typed(
     arg: &argument::CallArgument<UntypedExpression>,
-) -> Result<CallArgumentTyped<TypedExpression>, String> {
+) -> Result<CallArgumentTyped<TypedExpression>, ConvertingError> {
     todo!()
 }
 
-fn convert_untyped_to_typed(untyped_type: &UntypedType) -> Result<Type, String> {
+fn convert_untyped_to_typed(
+    untyped_type: &UntypedType,
+    start_location: u32,
+    end_location: u32,
+) -> Result<Type, ConvertingError> {
     match untyped_type {
         UntypedType::Int => Ok(Type::Int),
         UntypedType::Float => Ok(Type::Float),
@@ -469,12 +532,18 @@ fn convert_untyped_to_typed(untyped_type: &UntypedType) -> Result<Type, String> 
         UntypedType::Char => Ok(Type::Char),
         UntypedType::Custom { name } => Ok(Type::Custom { name: name.clone() }),
         UntypedType::Array { type_ } => {
-            let element_type = convert_untyped_to_typed(type_)?;
+            let element_type = convert_untyped_to_typed(type_, start_location, end_location)?;
             Ok(Type::Array {
                 type_: Box::new(element_type),
             })
         }
         UntypedType::Boolean => Ok(Type::Boolean),
-        _ => Err("Unsupported type".into()),
+        _ => Err(ConvertingError {
+            error: ConvertingErrorType::UnsupportedBinaryOperation,
+            location: crate::lex::location::Location {
+                start: start_location,
+                end: end_location,
+            },
+        }),
     }
 }
