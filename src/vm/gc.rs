@@ -62,16 +62,16 @@ impl GC {
             *mark = false;
         }
 
-        for v in stack {
-            self.mark_value(v);
+        for value in stack {
+            self.mark_value(value);
         }
         for env in environments_stack {
             for val in env.values() {
                 self.mark_value(val);
             }
         }
-        for val in global_vars.values() {
-            self.mark_value(val);
+        for value in global_vars.values() {
+            self.mark_value(value);
         }
 
         self.compact();
@@ -81,11 +81,11 @@ impl GC {
 
     fn mark_value(&mut self, value: &Value) {
         match value {
-            Value::Ref(h) => {
-                self.mark_object(*h);
+            Value::Ref(hadle) => {
+                self.mark_object(*hadle);
             }
-            Value::Slice(vs) => {
-                for inner in vs {
+            Value::Slice(slice) => {
+                for inner in slice {
                     self.mark_value(inner);
                 }
             }
@@ -101,8 +101,8 @@ impl GC {
     fn mark_object(&mut self, handle: Handle) {
         let mut stack = vec![handle];
 
-        while let Some(h) = stack.pop() {
-            let idx = h.0;
+        while let Some(handle) = stack.pop() {
+            let idx = handle.0;
             if idx >= self.marked.len() {
                 continue;
             }
@@ -113,33 +113,33 @@ impl GC {
 
             match &self.heap[idx] {
                 Object::String(_) => {}
-                Object::Slice(vs) => {
-                    for v in vs {
-                        self.collect_children(v, &mut stack);
+                Object::Slice(slice) => {
+                    for value in slice {
+                        Self::collect_children(value, &mut stack);
                     }
                 }
                 Object::Struct { fields, .. } => {
-                    for v in fields.values() {
-                        self.collect_children(v, &mut stack);
+                    for value in fields.values() {
+                        Self::collect_children(value, &mut stack);
                     }
                 }
             }
         }
     }
 
-    fn collect_children(&self, val: &Value, stack: &mut Vec<Handle>) {
+    fn collect_children(val: &Value, stack: &mut Vec<Handle>) {
         match val {
-            Value::Ref(h) => {
-                stack.push(*h);
+            Value::Ref(handle) => {
+                stack.push(*handle);
             }
-            Value::Slice(inner) => {
-                for v in inner {
-                    self.collect_children(v, stack);
+            Value::Slice(slice) => {
+                for value in slice {
+                    Self::collect_children(value, stack);
                 }
             }
             Value::Struct { fields, .. } => {
-                for v in fields.values() {
-                    self.collect_children(v, stack);
+                for value in fields.values() {
+                    Self::collect_children(value, stack);
                 }
             }
             _ => {}
@@ -162,25 +162,28 @@ impl GC {
 
         // 1) перенесём «живые» объекты в new_heap
         let mut new_index = 0;
-        for i in 0..old_size {
+        for (i, item) in remap.iter_mut().enumerate().take(old_size) {
             if self.marked[i] {
                 // «живой» объект
-                remap[i] = Some(new_index);
+                *item = Some(new_index);
+
                 // Переносим объект во вновь созданный вектор
                 let obj = std::mem::replace(&mut self.heap[i], Object::String("".into()));
                 new_heap.push(obj);
+
                 // Можно поставить пометку в false (или сразу true, но обычно сбрасываем)
                 new_marked.push(false);
+
                 new_index += 1;
             } else {
                 // «мёртвый» объект
-                remap[i] = None;
+                *item = None;
             }
         }
 
         // 2) Пройдёмся по всем «выжившим» объектам и починим их внутренние ссылки
         for obj in &mut new_heap {
-            self.update_object_handles(obj, &remap);
+            Self::update_object_handles(obj, &remap);
         }
 
         // 3) Заменим старые heap/marked
@@ -188,48 +191,46 @@ impl GC {
         self.marked = new_marked;
     }
     /// Обход полей объекта и обновление Handle на новые индексы
-    fn update_object_handles(&self, obj: &mut Object, remap: &[Option<usize>]) {
+    fn update_object_handles(obj: &mut Object, remap: &[Option<usize>]) {
         match obj {
             Object::String(_) => {}
-            Object::Slice(vs) => {
-                for v in vs {
-                    self.update_value_handles(v, remap);
+            Object::Slice(slice) => {
+                for value in slice {
+                    Self::update_value_handles(value, remap);
                 }
             }
             Object::Struct { fields, .. } => {
-                for v in fields.values_mut() {
-                    self.update_value_handles(v, remap);
+                for value in fields.values_mut() {
+                    Self::update_value_handles(value, remap);
                 }
             }
         }
     }
 
-    fn update_value_handles(&self, val: &mut Value, remap: &[Option<usize>]) {
+    fn update_value_handles(val: &mut Value, remap: &[Option<usize>]) {
         match val {
-            Value::Ref(h) => {
+            Value::Ref(handle) => {
                 // Найдём, на какой индекс переехал старый h.0
-                let old = h.0;
+                let old = handle.0;
                 if let Some(new_idx) = remap[old] {
-                    h.0 = new_idx;
+                    handle.0 = new_idx;
                 } else {
                     // Это означает, что объект считался «живым»,
                     // но внутри него ссылка на «мёртвый» объект —
                     // обычно такое не должно случиться, т.к. «живой» объект
                     // не может содержать Ref на «мёртвый».
                     // Но если такое случилось — либо паника, либо игнорируем.
-                    panic!(
-                        "Live object had reference to dead object, old index = {old}"
-                    );
+                    panic!("Live object had reference to dead object, old index = {old}");
                 }
             }
             Value::Slice(vs) => {
                 for inner in vs {
-                    self.update_value_handles(inner, remap);
+                    Self::update_value_handles(inner, remap);
                 }
             }
             Value::Struct { fields, .. } => {
                 for inner in fields.values_mut() {
-                    self.update_value_handles(inner, remap);
+                    Self::update_value_handles(inner, remap);
                 }
             }
             _ => {}

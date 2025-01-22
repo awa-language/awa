@@ -481,7 +481,7 @@ fn test_hotswap() {
         Instruction::EndFunc,
     ];
 
-    vm.hotswap_function(new_code);
+    vm.hotswap_function(&new_code);
 
     for i in 1..=100 {
         vm.run();
