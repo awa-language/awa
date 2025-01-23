@@ -1,55 +1,55 @@
-func isPrime(n int) int {
-  
-}
-
 func main() {
-  var isPrime []int = []int{}
+    var isPrime []int = []int{}
 
-  var i int = 0
-  loop {
-    append(isPrime, 1)
+    var i int = 0
 
-    i = i + 1
-    if i == 10000 {
-      break
-    }
-  }
-  
-  isPrime[0] = 0
-  isPrime[1] = 0
-  
-  i = 2
-  loop {
-    if isPrime[i] {
-      var multiple int = i * i 
-      loop {
-        isPrime[multiple] = 0
-        multiple += i
-        if multiple >= 10000 {
-          break
+    loop {
+        append(isPrime, 1)
+
+        i = i + 1
+        if (i == 10000) {
+            break
         }
-      }
+    }
+  
+    isPrime[0] = 0
+    isPrime[1] = 0
+  
+    i = 2
+
+    loop {
+        if (isPrime[i] == 1) {
+            var multiple int = i * i 
+
+            loop {
+                isPrime[multiple] = 0
+                multiple = multiple + i
+
+                if (multiple >= 10000) {
+                    break
+                }
+            }
+        }
+
+        i = i + 1
+        if (i == 10000) {
+            break
+        }
     }
 
-    i = i + 1
-    if i == 10000 {
-      break
-    }
-  }
+    var primes []int = []int{}
+    i = 0
 
-  var primes []int = []int{}
-  i = 0
-  loop {
-    if isPrime[i] {
-      append(primes, i)
-    }
+    loop {
+        if (isPrime[i] == 1) {
+            append(primes, i)
+        }
     
-    i = i+1
-    if i == 10000 {
-      break
+        i = i + 1
+        if (i == 10000) {
+            break
+        }
     }
-  }
 
-  println(primes)
-
+    print(primes)
 }
