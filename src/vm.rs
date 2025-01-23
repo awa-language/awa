@@ -66,9 +66,9 @@ impl VM {
         vm
     }
 
-    pub fn run(&mut self) {
+    pub fn run(&mut self) -> Option<EcoString> {
         if self.program_counter >= self.input.len() {
-            return;
+            return None;
         }
 
         let instruction = self.input[self.program_counter].clone();
@@ -101,7 +101,7 @@ impl VM {
                 if let Some(environment) = self.environments_stack.last_mut() {
                     environment.insert(name, value);
                 } else {
-                    panic!("No environment available to store the variable.");
+                    panic!("no environment available to store the variable");
                 }
             }
             Instruction::LoadToStack(name) => {
@@ -134,7 +134,10 @@ impl VM {
                 let lhs = self.stack.pop().expect("stack underflow");
                 let (lhs, rhs) = (VM::get_int(&lhs), VM::get_int(&rhs));
 
-                assert!(rhs != 0, "division by zero");
+                if rhs == 0 {
+                    return Some(self.perform_backoff("integer division by zero"));
+                }
+
                 self.stack.push(Value::Int(lhs / rhs));
             }
             Instruction::Mod => {
@@ -142,7 +145,10 @@ impl VM {
                 let lhs = self.stack.pop().expect("stack underflow");
                 let (lhs, rhs) = (VM::get_int(&lhs), VM::get_int(&rhs));
 
-                assert!(rhs != 0, "mod by zero");
+                if rhs == 0 {
+                    return Some(self.perform_backoff("modulo by zero"));
+                }
+
                 self.stack.push(Value::Int(lhs % rhs));
             }
             Instruction::AddFloat => {
@@ -171,7 +177,10 @@ impl VM {
                 let lhs = self.stack.pop().expect("stack underflow");
                 let (lhs, rhs) = (VM::get_float(&lhs), VM::get_float(&rhs));
 
-                assert!(!(rhs == 0.0), "division by zero");
+                if rhs == 0.0 {
+                    return Some(self.perform_backoff("floating point division by zero"));
+                }
+
                 self.stack.push(Value::Float(lhs / rhs));
             }
             Instruction::Append(val) => {
@@ -181,29 +190,33 @@ impl VM {
                     if let Object::Slice(ref mut slice) = self.gc.get_mut(handle) {
                         slice.push(val);
                     } else {
-                        panic!("append to non-slice");
+                        panic!("Append to non-slice");
                     }
                     self.stack.push(Value::Ref(handle));
                 } else {
-                    panic!("append expects Ref");
+                    panic!("Append expects Ref");
                 }
             }
             Instruction::GetByIndex(index) => {
                 let array = self.stack.pop().expect("stack underflow");
 
                 if let Value::Ref(handle) = array {
-                    if let Object::Slice(slice) = self.gc.get(handle) {
-                        assert!(
-                            !(index < 0 || (usize::try_from(index).unwrap()) >= slice.len()),
-                            "index out of range"
+                    let slice = if let Object::Slice(slice) = self.gc.get(handle) {
+                        slice
+                    } else {
+                        panic!("GetByIndex on non-slice");
+                    };
+
+                    if index < 0 || (usize::try_from(index).unwrap()) >= slice.len() {
+                        return Some(
+                            self.perform_backoff("getting from array by index out of range"),
                         );
+                    } else {
                         self.stack
                             .push(slice[usize::try_from(index).unwrap()].clone());
-                    } else {
-                        panic!("getByIndex on non-slice");
                     }
                 } else {
-                    panic!("getByIndex expects Ref");
+                    panic!("GetByIndex expects Ref");
                 }
             }
             Instruction::SetByIndex(index) => {
@@ -211,19 +224,23 @@ impl VM {
                 let value = self.stack.pop().expect("stack underflow");
 
                 if let Value::Ref(handle) = array {
-                    if let Object::Slice(slice) = self.gc.get_mut(handle) {
-                        assert!(
-                            !(index < 0 || (usize::try_from(index).unwrap()) >= slice.len()),
-                            "index out of range"
-                        );
-                        slice[usize::try_from(index).unwrap()] = value;
+                    let slice = if let Object::Slice(slice) = self.gc.get_mut(handle) {
+                        slice
                     } else {
-                        panic!("setByIndex on non-slice");
+                        panic!("SetByIndex on non-slice");
+                    };
+
+                    if index < 0 || (usize::try_from(index).unwrap()) >= slice.len() {
+                        return Some(
+                            self.perform_backoff("setting array value by index out of range"),
+                        );
+                    } else {
+                        slice[usize::try_from(index).unwrap()] = value;
                     }
 
                     self.stack.push(Value::Ref(handle));
                 } else {
-                    panic!("setByIndex expects Ref");
+                    panic!("SetByIndex expects Ref");
                 }
             }
             Instruction::Equal => {
@@ -313,7 +330,7 @@ impl VM {
                 assert!(address < self.input.len(), "jump out of range");
                 self.program_counter = address;
 
-                return;
+                return None;
             }
             Instruction::JumpIfTrue(address) => {
                 let condition = self.stack.pop().expect("stack underflow");
@@ -321,7 +338,8 @@ impl VM {
                 if VM::is_true(condition) {
                     assert!(address < self.input.len(), "jump out of range");
                     self.program_counter = address;
-                    return;
+
+                    return None;
                 }
             }
             Instruction::JumpIfFalse(address) => {
@@ -329,7 +347,8 @@ impl VM {
                 if !VM::is_true(condition) {
                     assert!(address < self.input.len(), "jump out of range");
                     self.program_counter = address;
-                    return;
+
+                    return None;
                 }
             }
             Instruction::Call(name) => {
@@ -343,9 +362,10 @@ impl VM {
                     self.call_stack.push(self.program_counter + 1);
                     self.program_counter = address;
 
-                    return;
+                    return None;
                 }
-                panic!("call to undefined function {name}");
+
+                panic!("Call to undefined function `{name}`");
             }
             Instruction::Return => {
                 self.environments_stack.pop();
@@ -354,12 +374,12 @@ impl VM {
                     self.program_counter = address;
                     self.backup_state = None;
 
-                    return;
+                    return None;
                 }
-                return;
+                return None;
             }
             Instruction::Struct(_) | Instruction::EndStruct => {
-                panic!("struct definition in main block");
+                panic!("Struct definition in `main()` body");
             }
             Instruction::NewStruct(struct_name) => {
                 if let Some(fields) = self.structures.get(&struct_name) {
@@ -377,11 +397,11 @@ impl VM {
                     self.stack.push(Value::Ref(handle));
                     self.maybe_run_gc();
                 } else {
-                    panic!("unknown struct {struct_name}");
+                    panic!("unknown struct `{struct_name}`");
                 }
             }
             Instruction::Field(_, _) => {
-                panic!("Field encountered in main block");
+                panic!("Field encountered in `main()` body");
             }
             Instruction::SetField(field_name) => {
                 let struct_value = self.stack.pop().expect("stack underflow");
@@ -392,14 +412,14 @@ impl VM {
                         if fields.contains_key(&field_name) {
                             fields.insert(field_name.clone(), value);
                         } else {
-                            panic!("no such field {field_name}");
+                            panic!("no such field: `{field_name}`");
                         }
                     } else {
-                        panic!("setField on non-struct");
+                        panic!("SetField on non-struct");
                     }
                     self.stack.push(Value::Ref(handle));
                 } else {
-                    panic!("setField expects struct ref");
+                    panic!("SetField expects struct ref");
                 }
             }
             Instruction::GetField(field_name) => {
@@ -410,13 +430,13 @@ impl VM {
                         if let Some(value) = fields.get(&field_name) {
                             self.stack.push(value.clone());
                         } else {
-                            panic!("no such field {field_name}");
+                            panic!("no such field: `{field_name}`");
                         }
                     } else {
-                        panic!("getField on non-struct");
+                        panic!("GetField on non-struct");
                     }
                 } else {
-                    panic!("getField expects struct ref");
+                    panic!("GetField expects struct ref");
                 }
             }
             Instruction::Print => {
@@ -433,11 +453,16 @@ impl VM {
                 panic!("function definition in main block");
             }
             Instruction::Halt => {
-                return;
+                return None;
+            }
+            Instruction::Backoff(reason) => {
+                return Some(self.perform_backoff(&reason));
             }
         }
 
         self.program_counter += 1;
+
+        None
     }
 
     fn preprocess_bytecode(&mut self) {
@@ -495,6 +520,31 @@ impl VM {
         }
     }
 
+    fn perform_backoff(&mut self, reason: &str) -> EcoString {
+        match &self.backup_state {
+            Some(backup_state) => {
+                let call_instruction = match self.call_stack.pop() {
+                    Some(address) => self.input[address - 1].clone(),
+                    None => unreachable!(),
+                };
+                let name = if let Instruction::Call(name) = call_instruction {
+                    name
+                } else {
+                    unreachable!();
+                };
+
+                self.program_counter = backup_state.program_counter;
+                self.stack = backup_state.stack.clone();
+                let _ = self.environments_stack.pop();
+
+                self.backup_state = None;
+
+                return name;
+            }
+            None => panic!("cannot recover from: {reason}"),
+        }
+    }
+
     fn lookup_variable(&self, name: &EcoString) -> &Value {
         for environment in self.environments_stack.iter().rev() {
             if let Some(value) = environment.get(name) {
@@ -514,16 +564,16 @@ impl VM {
     fn get_int(value: &Value) -> i64 {
         match value {
             Value::Int(int) => *int,
-            Value::Ref(_) => panic!("expected int, found Ref"),
-            _ => panic!("expected int"),
+            Value::Ref(_) => panic!("expected Int, found Ref"),
+            _ => panic!("expected Int"),
         }
     }
 
     fn get_float(value: &Value) -> f64 {
         match value {
             Value::Float(float) => *float,
-            Value::Ref(_) => panic!("expected float, found Ref"),
-            _ => panic!("expected float"),
+            Value::Ref(_) => panic!("expected Float, found Ref"),
+            _ => panic!("expected Float"),
         }
     }
 
@@ -532,9 +582,9 @@ impl VM {
             Value::String(string) => string,
             Value::Ref(handle) => match self.gc.get(handle) {
                 Object::String(string) => string.clone(),
-                _ => panic!("expected string object"),
+                _ => panic!("expected String object"),
             },
-            _ => panic!("expected string"),
+            _ => panic!("expected String"),
         }
     }
 
@@ -561,7 +611,7 @@ impl VM {
                             fields: fields2,
                         },
                     ) => name1 == name2 && fields1 == fields2,
-                    _ => panic!("Non comparable"),
+                    _ => panic!("Non comparable: {lhs:?}, {rhs:?}"),
                 }
             }
             _ => false,
@@ -673,14 +723,14 @@ impl VM {
     }
 
     fn extract_func_block(code: &[Instruction]) -> (EcoString, Vec<Instruction>) {
-        let mut name = EcoString::new();
+        let mut func_name = EcoString::new();
         let mut start = None;
         let mut end = None;
 
         for (i, instruction) in code.iter().enumerate() {
             match instruction {
-                Instruction::Func(n) => {
-                    name = n.clone();
+                Instruction::Func(name) => {
+                    func_name = name.clone();
                     start = Some(i);
                 }
                 Instruction::EndFunc => {
@@ -695,9 +745,10 @@ impl VM {
 
         let start = start.expect("No Func(...) in new_code");
         let end = end.expect("No EndFunc after Func(...)");
+
         let body = code[start + 1..end].to_vec();
 
-        (name, body)
+        (func_name, body)
     }
 
     fn adjust_jumps(body: Vec<Instruction>, offset: usize) -> Vec<Instruction> {
