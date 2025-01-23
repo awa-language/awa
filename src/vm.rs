@@ -134,7 +134,7 @@ impl VM {
 
                 self.stack.push(Value::Int(lhs - rhs));
             }
-            Instruction::MulInt => {
+            Instruction::MulInt | Instruction::And => {
                 let rhs = self.stack.pop().expect("stack underflow");
                 let lhs = self.stack.pop().expect("stack underflow");
                 let (lhs, rhs) = (VM::get_int(&lhs), VM::get_int(&rhs));
@@ -269,13 +269,6 @@ impl VM {
                 let equal = self.is_equal_values(lhs, rhs);
 
                 self.stack.push(Value::Int(i64::from(!equal)));
-            }
-            Instruction::And => {
-                let rhs = self.stack.pop().expect("stack underflow");
-                let lhs = self.stack.pop().expect("stack underflow");
-                let (lhs, rhs) = (VM::get_int(&lhs), VM::get_int(&rhs));
-
-                self.stack.push(Value::Int(lhs * rhs));
             }
             Instruction::Or => {
                 let rhs = self.stack.pop().expect("stack underflow");
