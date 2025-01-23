@@ -196,12 +196,12 @@ impl VM {
                 self.stack.push(Value::Float(lhs / rhs));
             }
             Instruction::Append => {
-                let val = self.stack.pop().expect("stack underflow");
+                let value = self.stack.pop().expect("stack underflow");
                 let array = self.stack.pop().expect("stack underflow");
 
                 if let Value::Ref(handle) = array {
                     if let Object::Slice(ref mut slice) = self.gc.get_mut(handle) {
-                        slice.push(val);
+                        slice.push(value);
                     } else {
                         panic!("Append to non-slice");
                     }
@@ -273,16 +273,16 @@ impl VM {
             Instruction::And => {
                 let rhs = self.stack.pop().expect("stack underflow");
                 let lhs = self.stack.pop().expect("stack underflow");
-                let (x, y) = (VM::get_int(&lhs), VM::get_int(&rhs));
+                let (lhs, rhs) = (VM::get_int(&lhs), VM::get_int(&rhs));
 
-                self.stack.push(Value::Int(x * y));
+                self.stack.push(Value::Int(lhs * rhs));
             }
             Instruction::Or => {
                 let rhs = self.stack.pop().expect("stack underflow");
                 let lhs = self.stack.pop().expect("stack underflow");
-                let (x, y) = (VM::get_int(&lhs), VM::get_int(&rhs));
+                let (lhs, rhs) = (VM::get_int(&lhs), VM::get_int(&rhs));
 
-                self.stack.push(Value::Int(x | y));
+                self.stack.push(Value::Int(lhs | rhs));
             }
             Instruction::LessInt => {
                 let rhs = self.stack.pop().expect("stack underflow");

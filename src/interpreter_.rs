@@ -39,8 +39,8 @@ impl Interpreter {
     pub fn interpret_module(mut self, module: &Module<DefinitionTyped>) -> Bytecode {
         if let Some(definitions) = &module.definitions {
             // First pass - declare all structs
-            for def in definitions {
-                if let DefinitionTyped::Struct { name, fields, .. } = def {
+            for definition in definitions {
+                if let DefinitionTyped::Struct { name, fields, .. } = definition {
                     self.bytecode.push(Instruction::Struct(name.clone()));
                     if let Some(fields) = fields {
                         for field in fields {
@@ -55,29 +55,29 @@ impl Interpreter {
             }
 
             // Second pass - process functions
-            for def in definitions {
+            for definition in definitions {
                 if let DefinitionTyped::Function {
                     name,
                     arguments,
                     body,
                     return_type,
                     ..
-                } = def
+                } = definition
                 {
                     self.current_func = Some(name.clone());
                     self.bytecode.push(Instruction::Func(name.clone()));
 
                     // Store arguments in reverse order
-                    if let Some(args) = arguments {
-                        for arg in args.iter().rev() {
+                    if let Some(arguments) = arguments {
+                        for argument in arguments.iter().rev() {
                             self.bytecode
-                                .push(Instruction::StoreInMap(arg.name.clone()));
+                                .push(Instruction::StoreInMap(argument.name.clone()));
                         }
                     }
 
                     if let Some(statements) = body {
-                        for stmt in statements {
-                            self.interpret_statement(stmt);
+                        for statement in statements {
+                            self.interpret_statement(statement);
                         }
                     }
 
@@ -94,10 +94,10 @@ impl Interpreter {
         self.bytecode
     }
 
-    fn interpret_statement(&mut self, stmt: &TypedStatement) {
-        match stmt {
-            TypedStatement::Expression(expr) => {
-                self.interpret_expression(expr);
+    fn interpret_statement(&mut self, statement: &TypedStatement) {
+        match statement {
+            TypedStatement::Expression(expression) => {
+                self.interpret_expression(expression);
             }
             TypedStatement::Assignment(assign) => {
                 self.interpret_expression(&assign.value);
@@ -156,8 +156,8 @@ impl Interpreter {
                 }
             }
             TypedStatement::Return { value, .. } => {
-                if let Some(expr) = value {
-                    self.interpret_expression(expr);
+                if let Some(expression) = value {
+                    self.interpret_expression(expression);
                 }
                 self.bytecode.push(Instruction::Return);
             }
@@ -173,8 +173,8 @@ impl Interpreter {
                 self.bytecode.push(Instruction::JumpIfFalse(0)); // Placeholder
 
                 if let Some(statements) = if_body {
-                    for stmt in statements {
-                        self.interpret_statement(stmt);
+                    for statement in statements {
+                        self.interpret_statement(statement);
                     }
                 }
 
@@ -191,11 +191,11 @@ impl Interpreter {
                 let end = self.bytecode.len();
 
                 // Fix up jumps
-                if let Instruction::JumpIfFalse(addr) = &mut self.bytecode[jump_if_false] {
-                    *addr = else_start;
+                if let Instruction::JumpIfFalse(address) = &mut self.bytecode[jump_if_false] {
+                    *address = else_start;
                 }
-                if let Instruction::Jump(addr) = &mut self.bytecode[jump_to_end] {
-                    *addr = end;
+                if let Instruction::Jump(address) = &mut self.bytecode[jump_to_end] {
+                    *address = end;
                 }
             }
             TypedStatement::Todo { .. }
