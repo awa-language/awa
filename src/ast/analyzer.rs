@@ -21,6 +21,15 @@ use crate::type_::{Type, UntypedType};
 use ecow::EcoString;
 use vec1::Vec1;
 
+/// Analyzes input code for type correctness.
+///
+/// # Panics
+///
+/// - When parser fails to parse input string (unwrap on `parse_module`)
+///
+/// # Errors
+///
+/// Returns `ConvertingError` if type analysis fails
 pub fn analyze_input(input: &str) -> Result<module::Typed, ConvertingError> {
     let module = parse_module(input).unwrap();
 
@@ -85,6 +94,25 @@ impl TypeAnalyzer {
                             }
                         }
 
+                        let return_type = return_type_annotation
+                            .as_ref()
+                            .map(|type_| {
+                                self.convert_untyped_to_typed(type_, location.start, location.end)
+                            })
+                            .transpose()?
+                            .unwrap_or(Type::Void);
+
+                        let typed_function_without_body = DefinitionTyped::Function {
+                            name: name.clone(),
+                            location: *location,
+                            arguments: typed_args.clone(),
+                            body: None,
+                            return_type: return_type.clone(),
+                        };
+
+                        self.program_state
+                            .add_function(name.clone(), typed_function_without_body.clone());
+
                         let typed_body = body
                             .as_ref()
                             .map(|statements| {
@@ -94,26 +122,13 @@ impl TypeAnalyzer {
                             })
                             .transpose()?;
 
-                        let return_type = return_type_annotation
-                            .as_ref()
-                            .map(|type_| {
-                                self.convert_untyped_to_typed(type_, location.start, location.end)
-                            })
-                            .transpose()?
-                            .unwrap_or(Type::Void);
-
-                        let typed_function = DefinitionTyped::Function {
+                        DefinitionTyped::Function {
                             name: name.clone(),
                             location: *location,
                             arguments: typed_args,
                             body: typed_body,
                             return_type,
-                        };
-
-                        self.program_state
-                            .add_function(name.clone(), typed_function.clone());
-
-                        typed_function
+                        }
                     }
                     DefinitionUntyped::Struct {
                         location,
@@ -215,6 +230,7 @@ impl TypeAnalyzer {
 
     /// Converts untyped statement to typed statement
     ///
+    /// # Panics
     /// # Errors
     /// Returns `ConvertingError` if:
     /// - Type mismatch between variable declaration and value
@@ -288,7 +304,19 @@ impl TypeAnalyzer {
                         struct_name,
                         field_name,
                     } => {
-                        let field_type = self.resolve_struct_field_type(struct_name, field_name)?;
+                        let struct_def_name =
+                            match self.program_state.get_variable_type(struct_name) {
+                                Some(Type::Custom { name }) => Ok(name),
+                                _ => Err(ConvertingError {
+                                    error: ConvertingErrorType::UnsupportedType,
+                                    location: crate::lex::location::Location {
+                                        start: location.start,
+                                        end: location.end,
+                                    },
+                                }),
+                            };
+                        let field_type =
+                            self.resolve_struct_field_type(struct_def_name.unwrap(), field_name)?;
                         TypedReassignmentTarget::FieldAccess {
                             location: *location,
                             struct_name: struct_name.clone(),
@@ -374,6 +402,19 @@ impl TypeAnalyzer {
                 location,
             } => {
                 let typed_condition = self.convert_expression_to_typed(condition)?;
+
+                if *typed_condition.get_type() != Type::Boolean {
+                    return Err(ConvertingError {
+                        error: ConvertingErrorType::TypeMismatch {
+                            expected: Type::Boolean,
+                            found: typed_condition.get_type().clone(),
+                        },
+                        location: Location {
+                            start: location.start,
+                            end: location.end,
+                        },
+                    });
+                }
 
                 let saved_scope = self.program_state.create_scope();
                 let typed_if_body = if_body
@@ -616,12 +657,23 @@ impl TypeAnalyzer {
                     end_expression_location,
                 )?;
 
+                let inner_type = match resolved_type {
+                    Type::Array { ref type_ } => Ok(type_.clone()),
+                    _ => Err(ConvertingError {
+                        error: ConvertingErrorType::UnsupportedType,
+                        location: crate::lex::location::Location {
+                            start: start_expression_location,
+                            end: end_expression_location,
+                        },
+                    }),
+                }?;
+
                 let typed_elements = elements
                     .as_ref()
                     .map(|expressions| {
                         expressions.clone().try_mapped(|expression| {
                             let typed_expr = self.convert_expression_to_typed(&expression)?;
-                            if !Self::compare_types(&resolved_type, typed_expr.get_type()) {
+                            if !Self::compare_types(&inner_type, typed_expr.get_type()) {
                                 return Err(ConvertingError {
                                     error: ConvertingErrorType::TypeMismatch {
                                         expected: resolved_type.clone(),
