@@ -73,10 +73,17 @@ impl ConvertingError {
                 format!("type mismatch: expected {expected:?}, found {found:?}")
             }
             ConvertingErrorType::EmptyStruct => "empty struct".to_owned(),
-            ConvertingErrorType::UndefinedFunction => "before function call, it should be defined ".to_owned(),
+            ConvertingErrorType::UndefinedFunction => {
+                "before function call, it should be defined ".to_owned()
+            }
             ConvertingErrorType::NotTheRightAmountOfArguments { expected, found } => {
                 format!("amount arguments mismatch: expected {expected:?}, found {found:?}")
             }
+            ConvertingErrorType::BuildInFunctionMismatchType { found } => {
+                format!("type mismatch: expected Int/Float/String/Char/Custom/Array/Boolean, found {found:?}")
+            }
+            ConvertingErrorType::ArrayMismatchType => "the second argument must be of the same type as the array".to_owned(),
+
         }
     }
 }
@@ -100,8 +107,12 @@ pub enum ConvertingErrorType {
     },
     EmptyStruct,
     UndefinedFunction,
-    NotTheRightAmountOfArguments{
+    NotTheRightAmountOfArguments {
         expected: usize,
         found: usize,
     },
+    BuildInFunctionMismatchType {
+        found: crate::type_::Type,
+    },
+    ArrayMismatchType,
 }
