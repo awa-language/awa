@@ -16,7 +16,7 @@ fn test_push_load_store() {
 
     let mut vm = VM::new(bytecode.clone());
     for _i in bytecode {
-        vm.run();
+        let _ = vm.run();
     }
 }
 
@@ -46,7 +46,7 @@ fn test_arithmetic_int() {
 
     let mut vm = VM::new(bytecode.clone());
     for _i in bytecode {
-        vm.run();
+        let _ = vm.run();
     }
 }
 
@@ -73,7 +73,7 @@ fn test_arithmetic_float() {
 
     let mut vm = VM::new(bytecode.clone());
     for _i in bytecode {
-        vm.run();
+        let _ = vm.run();
     }
 }
 
@@ -115,7 +115,7 @@ fn test_comparisons() {
 
     let mut vm = VM::new(bytecode.clone());
     for _i in 1..1000 {
-        vm.run();
+        let _ = vm.run();
     }
 }
 
@@ -138,7 +138,7 @@ fn test_jumps() {
 
     let mut vm = VM::new(bytecode.clone());
     for _i in bytecode {
-        vm.run();
+        let _ = vm.run();
     }
 }
 
@@ -169,7 +169,7 @@ fn test_if_else() {
 
     let mut vm = VM::new(bytecode.clone());
     for _i in bytecode {
-        vm.run();
+        let _ = vm.run();
     }
 }
 
@@ -197,7 +197,7 @@ fn test_functions() {
 
     let mut vm = VM::new(bytecode.clone());
     for _i in bytecode {
-        vm.run();
+        let _ = vm.run();
     }
 }
 
@@ -227,7 +227,7 @@ fn test_structs() {
 
     let mut vm = VM::new(bytecode.clone());
     for _i in bytecode {
-        vm.run();
+        let _ = vm.run();
     }
 }
 
@@ -244,7 +244,7 @@ fn test_concat() {
     ];
     let mut vm = VM::new(bytecode.clone());
     for _i in bytecode {
-        vm.run();
+        let _ = vm.run();
     }
 }
 
@@ -272,7 +272,7 @@ fn test_slice_1d() {
 
     let mut vm = VM::new(bytecode.clone());
     for _i in bytecode {
-        vm.run();
+        let _ = vm.run();
     }
 }
 
@@ -317,7 +317,7 @@ fn test_complex() {
 
     let mut vm = VM::new(bytecode.clone());
     for _i in bytecode {
-        vm.run();
+        let _ = vm.run();
     }
 }
 
@@ -349,7 +349,7 @@ fn test_recursion() {
     ];
     let mut vm = VM::new(bytecode.clone());
     for _i in 1..1000 {
-        vm.run();
+        let _ = vm.run();
     }
 }
 
@@ -400,7 +400,7 @@ fn test_gc_local_alloc_print() {
 
     let mut vm = VM::new(bytecode.clone());
     for _i in bytecode {
-        vm.run();
+        let _ = vm.run();
     }
 
     println!("Heap before manual GC:");
@@ -436,7 +436,7 @@ fn test_gc_auto_trigger() {
     vm.gc.threshold = 2;
 
     for _i in bytecode {
-        vm.run();
+        let _ = vm.run();
     }
 
     println!("Heap after auto-run with threshold=2:");
@@ -515,7 +515,7 @@ fn test_hotswap() {
     let mut vm = VM::new(code);
 
     for _i in 1..=100 {
-        vm.run();
+        let _ = vm.run();
     }
 
     let new_code = vec![
@@ -529,7 +529,7 @@ fn test_hotswap() {
     vm.hotswap_function(&new_code);
 
     for _i in 1..=100 {
-        vm.run();
+        let _ = vm.run();
     }
 }
 
@@ -560,6 +560,6 @@ fn test_slice_2d() {
     ];
     let mut vm = VM::new(bytecode.clone());
     for _i in bytecode {
-        vm.run();
+        let _ = vm.run();
     }
 }

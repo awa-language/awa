@@ -3,7 +3,7 @@ use std::fmt;
 use ecow::EcoString;
 use vec1::Vec1;
 
-use super::{definition, print::print_parse_tree};
+use super::{definition, print::print_parse_tree, typed_print::print_typed};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Module<Definitions> {
@@ -20,5 +20,13 @@ impl fmt::Display for Module<definition::DefinitionUntyped> {
         writeln!(formatter, "-------------")?;
 
         print_parse_tree(self, formatter)
+    }
+}
+
+impl fmt::Display for Module<definition::DefinitionTyped> {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        writeln!(formatter, "\nTyped AST structure:")?;
+        writeln!(formatter, "-------------------")?;
+        print_typed(self, formatter)
     }
 }

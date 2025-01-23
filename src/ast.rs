@@ -9,3 +9,4 @@ pub mod operator;
 pub mod print;
 pub mod reassignment;
 pub mod statement;
+pub mod typed_print;
