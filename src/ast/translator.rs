@@ -917,7 +917,18 @@ impl ProgramState {
             UntypedType::Float => Ok(Type::Float),
             UntypedType::String => Ok(Type::String),
             UntypedType::Char => Ok(Type::Char),
-            UntypedType::Custom { name } => Ok(Type::Custom { name: name.clone() }),
+            UntypedType::Custom { name } => {
+                if self.get_struct(name).is_none() {
+                    return Err(ConvertingError {
+                        error: ConvertingErrorType::StructNotFound,
+                        location: Location {
+                            start: start_location,
+                            end: end_location,
+                        },
+                    });
+                }
+                Ok(Type::Custom { name: name.clone() })
+            }
             UntypedType::Array { type_ } => {
                 let element_type =
                     self.convert_untyped_to_typed(type_, start_location, end_location)?;
