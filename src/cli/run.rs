@@ -41,6 +41,7 @@ pub fn handle(filename: Option<Utf8PathBuf>) {
                 BackwardsCommunication::RequireHotswap => {
                     require_hotswap = true;
                 }
+                BackwardsCommunication::Finished => return,
             }
         }
 
@@ -57,6 +58,7 @@ pub fn handle(filename: Option<Utf8PathBuf>) {
                 }
             }
             BackwardsCommunication::RequireHotswap => unreachable!(),
+            BackwardsCommunication::Finished => return,
         }
     }
 }

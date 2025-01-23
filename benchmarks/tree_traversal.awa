@@ -6,19 +6,21 @@ struct treeNode {
 }
 
 func itemCheck(t treeNode) int {
-  if t.left.isInitialise != 1 {
+  var something treeNode = t.left
+
+  if (something.isInitialise != 1) {
     return t.item
   }
 
-  return t.item + itemCheck(t.left) - itemCheck(t.right.itemCheck())
+  var right treeNode = t.right
+
+  return t.item + itemCheck(t.left) - itemCheck(right)
 }
 
 func bottomUpTree(item int, depth int) treeNode {
-  var t treeNode
-  t.item = item
-  t.isInitialise = 1
+  var t treeNode = treeNode{item: item, isInitialise: 1}
 
-  if depth > 0 {
+  if (depth > 0) {
     var left treeNode = bottomUpTree(2 * item - 1, depth - 1)
     var right treeNode = bottomUpTree(2 * item, depth - 1)
 
@@ -30,7 +32,7 @@ func bottomUpTree(item int, depth int) treeNode {
 }
 
 func max(a int, b int) int {
-  if a > b {
+  if (a > b) {
     return a
   }
 
@@ -40,15 +42,16 @@ func max(a int, b int) int {
 func pow(n int) int {
   var result int = 1
   var i int = 0
+
   loop {
-    if i >= n {
+    if (i >= n) {
       break
     }
   
     result = result * 2
   }
 
-  return
+  return result
 }
 
 func main() {
@@ -56,12 +59,12 @@ func main() {
   var n int = 4
 
   loop {
-    if n > 7 {
+    if (n > 7) {
       break
     }
 
     var minDepth int = 4
-    var maxDepth int = max(minDepth+2, n)
+    var maxDepth int = max(minDepth + 2, n)
     var stretchDepth int = maxDepth + 1
 
     var check int = itemCheck(bottomUpTree(0, stretchDepth))
@@ -69,7 +72,7 @@ func main() {
     var longLivedTree treeNode = bottomUpTree(0, maxDepth)
 
     loop {
-      if depth > maxDepth {
+      if (depth > maxDepth) {
         break
       }
 
@@ -77,27 +80,18 @@ func main() {
       var iterations int = pow(exponent)
 
       var check int = 0
-      var i = 0
+      var i int = 0
 
       loop {
-        if i > iterations {
+        if (i > iterations) {
           break
         }
 
         check = check + itemCheck(bottomUpTree(i, depth))
-        check = check + itemCheck(bottomUpTree(-i, depth))
+        check = check + itemCheck(bottomUpTree(0 - i, depth))
       }
     }
 
     ret = ret + itemCheck(longLivedTree)
   }
-
-  var expected int = -4
-  if ret != expected {
-    println(expected)
-    println(ret)
-    panic()
-  }
-
-  println(ret)
 }

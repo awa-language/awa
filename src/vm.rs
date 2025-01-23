@@ -92,6 +92,7 @@ impl VM {
         }
 
         let instruction = self.input[self.program_counter].clone();
+        dbg!(instruction.clone());
 
         match instruction {
             Instruction::PushInt(int) => {

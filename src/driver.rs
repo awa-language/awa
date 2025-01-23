@@ -16,6 +16,7 @@ pub enum Command {
 pub enum BackwardsCommunication {
     Hotswapped,
     RequireHotswap,
+    Finished,
 }
 
 // TODO: will take typed ast module as an argument
@@ -74,7 +75,10 @@ pub fn run(
                             .unwrap();
                     }
                     vm::RunCommunication::Finished => {
-                        return;
+                        let () = backwards_sender
+                            .send(BackwardsCommunication::Finished)
+                            .unwrap();
+                        std::process::exit(0); // TODO: FIXME
                     }
                 }
             }
@@ -91,7 +95,7 @@ pub fn build_ast(input: &str) -> Module<DefinitionTyped> {
         Err(err) => {
             let description = err.get_description();
             println!("{description}");
-            std::process::exit(1);
+            std::process::exit(1); // TODO: FIXME
         }
     }
 }
