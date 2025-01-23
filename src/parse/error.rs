@@ -79,7 +79,7 @@ impl ConvertingError {
             ConvertingErrorType::NotTheRightAmountOfArguments { expected, found } => {
                 format!("amount arguments mismatch: expected {expected:?}, found {found:?}")
             }
-            ConvertingErrorType::BuildInFunctionMismatchType { found } => {
+            ConvertingErrorType::BuiltInFunctionMismatchType { found } => {
                 format!("type mismatch: expected Int/Float/String/Char/Custom/Array/Boolean, found {found:?}")
             }
             ConvertingErrorType::ArrayMismatchType => "the second argument must be of the same type as the array".to_owned(),
@@ -111,7 +111,7 @@ pub enum ConvertingErrorType {
         expected: usize,
         found: usize,
     },
-    BuildInFunctionMismatchType {
+    BuiltInFunctionMismatchType {
         found: crate::type_::Type,
     },
     ArrayMismatchType,

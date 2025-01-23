@@ -1,8 +1,8 @@
 use std::collections::HashMap;
 
 use super::argument::{CallArgumentTyped, CallArgumentUntyped};
-use super::module;
 use super::reassignment::{TypedReassignment, TypedReassignmentTarget};
+use super::{argument, module, statement};
 use crate::ast;
 use crate::ast::argument::{ArgumentTyped, ArgumentUntyped};
 use crate::ast::assignment::TypedAssignment;
@@ -838,6 +838,15 @@ impl TypeAnalyzer {
         start_location: u32,
         end_location: u32,
     ) -> Result<Type, ConvertingError> {
+        let function_name_str = function_name.as_str();
+
+        if function_name_str == "print"
+            || function_name_str == "println"
+            || function_name_str == "append"
+        {
+            return Ok(Type::Void);
+        }
+
         let function_def =
             self.program_state
                 .get_function(function_name)
@@ -983,7 +992,7 @@ impl TypeAnalyzer {
 
             if matches!(typed_argument.get_type(), Type::Void) {
                 return Err(ConvertingError {
-                    error: ConvertingErrorType::BuildInFunctionMismatchType { found: Type::Void },
+                    error: ConvertingErrorType::BuiltInFunctionMismatchType { found: Type::Void },
                     location: Location {
                         start: location.start,
                         end: location.end,
@@ -1183,8 +1192,24 @@ impl ProgramState {
         }
     }
 
-    fn get_function(&self, name: &EcoString) -> Option<&DefinitionTyped> {
-        self.functions.get(name)
+    fn get_function(&self, name: &EcoString) -> Option<DefinitionTyped> {
+        if name == "print" || name == "println" || name == "append" {
+            let function = DefinitionTyped::Function {
+                name: name.clone(),
+                location: ast::location::Location { start: 0, end: 0 },
+                arguments: Some(Vec1::try_from(vec![
+                    ArgumentTyped {
+                        name: Default::default(),
+                        location: ast::location::Location { start: 0, end: 0 },
+                        type_: Type::Int,
+                    }
+                ]).unwrap()),
+                body: None,
+                return_type: Type::Void,
+            };
+            return Some(function);
+        }
+        self.functions.get(name).cloned()
     }
 
     fn add_struct(&mut self, name: EcoString, definition: DefinitionTyped) {
