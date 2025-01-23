@@ -82,6 +82,8 @@ impl TypeAnalyzer {
                         body,
                         return_type_annotation,
                     } => {
+                        self.program_state.set_current_function_name(name);
+
                         let typed_args = arguments
                             .as_ref()
                             .map(|args| args.clone().try_mapped(|arg| self.convert_argument(&arg)))
@@ -453,6 +455,27 @@ impl TypeAnalyzer {
                     .as_ref()
                     .map(|value| self.convert_expression_to_typed(value))
                     .transpose()?;
+
+                let function_name = self.program_state.get_current_function_name();
+
+                if let Some(function_def) = self.program_state.get_function(&function_name) {
+                    let return_type = function_def.get_return_type()?;
+                    if let Some(typed_value) = &typed_value {
+                        if !Self::compare_types(&return_type, &typed_value.get_type()) {
+                            return Err(ConvertingError {
+                                error: ConvertingErrorType::TypeMismatch {
+                                    expected: return_type.clone(),
+                                    found: typed_value.get_type().clone(),
+                                },
+                                location: crate::lex::location::Location {
+                                    start: location.start,
+                                    end: location.end,
+                                },
+                            });
+                        }
+                    }
+                }
+
                 Ok(TypedStatement::Return {
                     location: *location,
                     value: typed_value.map(Box::new),
@@ -1027,6 +1050,7 @@ pub struct ProgramState {
     variables: HashMap<EcoString, Type>,
     functions: HashMap<EcoString, DefinitionTyped>,
     structs: HashMap<EcoString, DefinitionTyped>,
+    current_function_name: EcoString,
 }
 
 impl Default for ProgramState {
@@ -1042,6 +1066,7 @@ impl ProgramState {
             variables: HashMap::new(),
             functions: HashMap::new(),
             structs: HashMap::new(),
+            current_function_name: "".into(),
         }
     }
 
@@ -1083,5 +1108,13 @@ impl ProgramState {
 
     fn restore_scope(&mut self, saved_variables: HashMap<EcoString, Type>) {
         self.variables = saved_variables;
+    }
+
+    fn set_current_function_name(&mut self, name: &EcoString) {
+        self.current_function_name = name.clone();
+    }
+
+    fn get_current_function_name(&mut self) -> EcoString {
+        self.current_function_name.clone()
     }
 }
