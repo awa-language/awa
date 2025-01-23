@@ -288,7 +288,28 @@ impl TypeAnalyzer {
                         struct_name,
                         field_name,
                     } => {
-                        let field_type = self.resolve_struct_field_type(struct_name, field_name)?;
+                        let struct_def_name =
+                            match self.program_state.get_variable_type(struct_name) {
+                                Some(ty) => match ty {
+                                    Type::Custom { name } => Ok(name),
+                                    _ => Err(ConvertingError {
+                                        error: ConvertingErrorType::UnsupportedType,
+                                        location: crate::lex::location::Location {
+                                            start: location.start,
+                                            end: location.end,
+                                        },
+                                    }),
+                                },
+                                None => Err(ConvertingError {
+                                    error: ConvertingErrorType::UnsupportedType,
+                                    location: crate::lex::location::Location {
+                                        start: location.start,
+                                        end: location.end,
+                                    },
+                                }),
+                            };
+                        let field_type =
+                            self.resolve_struct_field_type(struct_def_name.unwrap(), field_name)?;
                         TypedReassignmentTarget::FieldAccess {
                             location: *location,
                             struct_name: struct_name.clone(),
