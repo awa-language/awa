@@ -1,17 +1,18 @@
 use std::collections::HashMap;
 
 use super::argument::{CallArgumentTyped, CallArgumentUntyped};
+use super::reassignment::{TypedReassignment, TypedReassignmentTarget};
 use super::statement;
 use crate::ast;
 use crate::ast::argument::{ArgumentTyped, ArgumentUntyped};
-use crate::ast::assignment::{Assignment, TypedAssignment};
+use crate::ast::assignment::{TypedAssignment, UntypedAssignment};
 use crate::ast::definition::{DefinitionTyped, DefinitionUntyped, StructField, StructFieldTyped};
 use crate::ast::expression::{
     StructFieldValue, StructFieldValueTyped, TypedExpression, UntypedExpression,
 };
 use crate::ast::module::{Module, Typed};
 use crate::ast::operator::BinaryOperator;
-use crate::ast::reassignment::{Reassignment, ReassignmentTarget};
+use crate::ast::reassignment::{UntypedReassignment, UntypedReassignmentTarget};
 use crate::ast::statement::{TypedStatement, UntypedStatement};
 use crate::ast::{argument, definition, module};
 use crate::lex::location::Location;
@@ -262,15 +263,15 @@ impl ProgramState {
                     location: assignment.location,
                     variable_name: assignment.variable_name.clone(),
                     value: Box::new(typed_value),
-                    type_annotation: assignment.type_annotation.clone(),
+                    type_: resolved_type.clone(),
                 }))
             }
             // TODO: add type to reasignment target
             UntypedStatement::Reassignment(reassignment) => {
                 let typed_new_value = self.convert_expression_to_typed(&reassignment.new_value)?;
 
-                let (target_type, typed_target) = match &reassignment.target {
-                    ReassignmentTarget::Variable { location, name } => {
+                let typed_target = match &reassignment.target {
+                    UntypedReassignmentTarget::Variable { location, name } => {
                         let var_type = self.get_variable_type(name).ok_or(ConvertingError {
                             error: ConvertingErrorType::UnsupportedType,
                             location: crate::lex::location::Location {
@@ -278,30 +279,26 @@ impl ProgramState {
                                 end: location.end,
                             },
                         })?;
-                        (
-                            var_type.clone(),
-                            ReassignmentTarget::Variable {
-                                location: location.clone(),
-                                name: name.clone(),
-                            },
-                        )
+                        TypedReassignmentTarget::Variable {
+                            location: location.clone(),
+                            name: name.clone(),
+                            type_: var_type.clone(),
+                        }
                     }
-                    ReassignmentTarget::FieldAccess {
+                    UntypedReassignmentTarget::FieldAccess {
                         location,
                         struct_name,
                         field_name,
                     } => {
                         let field_type = self.resolve_struct_field_type(struct_name, field_name)?;
-                        (
-                            field_type.clone(),
-                            ReassignmentTarget::FieldAccess {
-                                location: location.clone(),
-                                struct_name: struct_name.clone(),
-                                field_name: field_name.clone(),
-                            },
-                        )
+                        TypedReassignmentTarget::FieldAccess {
+                            location: location.clone(),
+                            struct_name: struct_name.clone(),
+                            field_name: field_name.clone(),
+                            type_: field_type.clone(),
+                        }
                     }
-                    ReassignmentTarget::ArrayAccess {
+                    UntypedReassignmentTarget::ArrayAccess {
                         location,
                         array_name,
                         index_expression,
@@ -326,21 +323,19 @@ impl ProgramState {
                             });
                         }
 
-                        (
-                            element_type.clone(),
-                            ReassignmentTarget::ArrayAccess {
-                                location: location.clone(),
-                                array_name: array_name.clone(),
-                                index_expression: Box::new(typed_index),
-                            },
-                        )
+                        TypedReassignmentTarget::ArrayAccess {
+                            location: location.clone(),
+                            array_name: array_name.clone(),
+                            index_expression: Box::new(typed_index),
+                            type_: element_type.clone(),
+                        }
                     }
                 };
 
-                if !Self::compare_types(&target_type, &typed_new_value.get_type()) {
+                if !Self::compare_types(&typed_target.get_type(), &typed_new_value.get_type()) {
                     return Err(ConvertingError {
                         error: ConvertingErrorType::TypeMismatch {
-                            expected: target_type,
+                            expected: typed_target.get_type(),
                             found: typed_new_value.get_type().clone(),
                         },
                         location: crate::lex::location::Location {
@@ -350,10 +345,11 @@ impl ProgramState {
                     });
                 }
 
-                Ok(TypedStatement::Reassignment(Reassignment {
+                Ok(TypedStatement::Reassignment(TypedReassignment {
                     location: reassignment.location.clone(),
-                    target: typed_target,
+                    target: typed_target.clone(),
                     new_value: Box::new(typed_new_value),
+                    type_: typed_target.get_type(),
                 }))
             }
             UntypedStatement::Loop { body, location } => {

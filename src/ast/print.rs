@@ -1,10 +1,10 @@
 use crate::ast::expression::UntypedExpression;
 use crate::ast::module::Module;
-use crate::ast::statement::Statement;
+use crate::ast::statement::UntypedStatement;
 use crate::ast::{argument, definition, statement};
 use std::fmt;
 
-use super::reassignment::ReassignmentTarget;
+use super::reassignment::UntypedReassignmentTarget;
 
 /// Prints structure of untyped AST module
 ///
@@ -197,7 +197,7 @@ fn print_statement(
     formatter: &mut fmt::Formatter<'_>,
 ) -> fmt::Result {
     match statement {
-        Statement::Expression(expression) => {
+        UntypedStatement::Expression(expression) => {
             writeln!(formatter, "{}Expression:", make_prefix(indentation_levels))?;
 
             let mut new_indentation_levels = indentation_levels.to_vec();
@@ -205,7 +205,7 @@ fn print_statement(
 
             print_expression(expression, &new_indentation_levels, formatter)?;
         }
-        Statement::Assignment(assignment) => {
+        UntypedStatement::Assignment(assignment) => {
             writeln!(
                 formatter,
                 "{}Assignment ({}..{}):",
@@ -239,7 +239,7 @@ fn print_statement(
 
             print_expression(&assignment.value, &value_levels, formatter)?;
         }
-        Statement::Reassignment(reassignment) => {
+        UntypedStatement::Reassignment(reassignment) => {
             writeln!(
                 formatter,
                 "{}Reassignment ({}..{})",
@@ -249,7 +249,7 @@ fn print_statement(
             )?;
 
             match &reassignment.target {
-                ReassignmentTarget::Variable { location, name } => {
+                UntypedReassignmentTarget::Variable { location, name } => {
                     writeln!(
                         formatter,
                         "{}Target: Variable {} ({}..{})",
@@ -259,7 +259,7 @@ fn print_statement(
                         location.end
                     )?;
                 }
-                ReassignmentTarget::FieldAccess {
+                UntypedReassignmentTarget::FieldAccess {
                     location,
                     struct_name,
                     field_name,
@@ -274,7 +274,7 @@ fn print_statement(
                         location.end
                     )?;
                 }
-                ReassignmentTarget::ArrayAccess {
+                UntypedReassignmentTarget::ArrayAccess {
                     location,
                     array_name,
                     index_expression,
@@ -312,7 +312,7 @@ fn print_statement(
                 formatter,
             )?;
         }
-        Statement::Loop { body, location } => {
+        UntypedStatement::Loop { body, location } => {
             writeln!(
                 formatter,
                 "{}Loop ({}..{})",
@@ -332,7 +332,7 @@ fn print_statement(
                 }
             }
         }
-        Statement::If {
+        UntypedStatement::If {
             condition,
             if_body,
             else_body,
@@ -398,7 +398,7 @@ fn print_statement(
                 }
             }
         }
-        Statement::Break { location } => {
+        UntypedStatement::Break { location } => {
             writeln!(
                 formatter,
                 "{}Break ({}..{})",
@@ -407,7 +407,7 @@ fn print_statement(
                 location.end
             )?;
         }
-        Statement::Return { location, value } => {
+        UntypedStatement::Return { location, value } => {
             writeln!(
                 formatter,
                 "{}Return ({}..{})",
@@ -422,7 +422,7 @@ fn print_statement(
                 print_expression(expression, &new_indentation_levels, formatter)?;
             }
         }
-        Statement::Todo { location } => {
+        UntypedStatement::Todo { location } => {
             writeln!(
                 formatter,
                 "{}Todo ({}..{})",
@@ -431,7 +431,7 @@ fn print_statement(
                 location.end
             )?;
         }
-        Statement::Panic { location } => {
+        UntypedStatement::Panic { location } => {
             writeln!(
                 formatter,
                 "{}Panic ({}..{})",
@@ -440,7 +440,7 @@ fn print_statement(
                 location.end
             )?;
         }
-        Statement::Exit { location } => {
+        UntypedStatement::Exit { location } => {
             writeln!(
                 formatter,
                 "{}Exit ({}..{})",

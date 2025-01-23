@@ -11,16 +11,16 @@ use vec1::Vec1;
 use crate::ast::definition::StructField;
 use crate::ast::expression::StructFieldValue;
 use crate::ast::location::Location;
-use crate::ast::reassignment::{Reassignment, ReassignmentTarget};
+use crate::ast::reassignment::{UntypedReassignment, UntypedReassignmentTarget};
 use crate::{
     ast::{
         argument,
-        assignment::Assignment,
+        assignment::UntypedAssignment,
         definition, expression,
         location::Location as AstLocation,
         module,
         operator::BinaryOperator,
-        statement::{self, Statement},
+        statement::{self, UntypedStatement},
     },
     lex::{
         error::LexicalError,
@@ -788,7 +788,7 @@ impl<T: Iterator<Item = LexResult>> Parser<T> {
                     let right_brace_token_span = self.expect_token(&Token::RightBrace)?;
                     let end = right_brace_token_span.end;
 
-                    Ok(Some(Statement::Loop {
+                    Ok(Some(UntypedStatement::Loop {
                         body,
                         location: Location {
                             start: token_span.start,
@@ -828,7 +828,7 @@ impl<T: Iterator<Item = LexResult>> Parser<T> {
                         None
                     };
 
-                    Ok(Some(Statement::If {
+                    Ok(Some(UntypedStatement::If {
                         condition: Box::new(condition.unwrap()),
                         if_body,
                         else_body,
@@ -848,7 +848,7 @@ impl<T: Iterator<Item = LexResult>> Parser<T> {
                         value = Some(Box::new(expression));
                     }
 
-                    Ok(Some(Statement::Return {
+                    Ok(Some(UntypedStatement::Return {
                         value,
                         location: Location {
                             start: token_span.start,
@@ -858,7 +858,7 @@ impl<T: Iterator<Item = LexResult>> Parser<T> {
                 }
                 Token::Todo => {
                     let _ = self.advance_token();
-                    Ok(Some(Statement::Todo {
+                    Ok(Some(UntypedStatement::Todo {
                         location: Location {
                             start: token_span.start,
                             end: token_span.end,
@@ -867,7 +867,7 @@ impl<T: Iterator<Item = LexResult>> Parser<T> {
                 }
                 Token::Break => {
                     let _ = self.advance_token();
-                    Ok(Some(Statement::Break {
+                    Ok(Some(UntypedStatement::Break {
                         location: Location {
                             start: token_span.start,
                             end: token_span.end,
@@ -876,7 +876,7 @@ impl<T: Iterator<Item = LexResult>> Parser<T> {
                 }
                 Token::Panic => {
                     let _ = self.advance_token();
-                    Ok(Some(Statement::Panic {
+                    Ok(Some(UntypedStatement::Panic {
                         location: Location {
                             start: token_span.start,
                             end: token_span.end,
@@ -885,7 +885,7 @@ impl<T: Iterator<Item = LexResult>> Parser<T> {
                 }
                 Token::Exit => {
                     let _ = self.advance_token();
-                    Ok(Some(Statement::Exit {
+                    Ok(Some(UntypedStatement::Exit {
                         location: Location {
                             start: token_span.start,
                             end: token_span.end,
@@ -894,7 +894,7 @@ impl<T: Iterator<Item = LexResult>> Parser<T> {
                 }
                 _ => {
                     self.current_token = Some(token_span);
-                    let expression = self.parse_expression()?.map(Statement::Expression);
+                    let expression = self.parse_expression()?.map(UntypedStatement::Expression);
                     Ok(expression)
                 }
             },
@@ -965,7 +965,7 @@ impl<T: Iterator<Item = LexResult>> Parser<T> {
         };
         let end = value.get_location().end;
 
-        Ok(Statement::Assignment(Assignment {
+        Ok(UntypedStatement::Assignment(UntypedAssignment {
             location: AstLocation { start, end },
             variable_name: name.clone(),
             value: Box::new(value),
@@ -1001,12 +1001,12 @@ impl<T: Iterator<Item = LexResult>> Parser<T> {
                         error: error::Type::UnexpectedEof,
                         location: LexLocation { start: 0, end: 0 },
                     })?;
-                    Ok(Statement::Reassignment(Reassignment {
+                    Ok(UntypedStatement::Reassignment(UntypedReassignment {
                         location: Location {
                             start: name_token.start,
                             end: new_value.get_location().end,
                         },
-                        target: ReassignmentTarget::Variable {
+                        target: UntypedReassignmentTarget::Variable {
                             location: Location {
                                 start: name_token.start,
                                 end: name_token.end,
@@ -1041,12 +1041,12 @@ impl<T: Iterator<Item = LexResult>> Parser<T> {
                         error: error::Type::UnexpectedEof,
                         location: LexLocation { start: 0, end: 0 },
                     })?;
-                    Ok(Statement::Reassignment(Reassignment {
+                    Ok(UntypedStatement::Reassignment(UntypedReassignment {
                         location: Location {
                             start: name_token.start,
                             end: new_value.get_location().end,
                         },
-                        target: ReassignmentTarget::FieldAccess {
+                        target: UntypedReassignmentTarget::FieldAccess {
                             location: Location {
                                 start: name_token.start,
                                 end: field_name_token_span.end,
@@ -1070,12 +1070,12 @@ impl<T: Iterator<Item = LexResult>> Parser<T> {
                         error: error::Type::UnexpectedEof,
                         location: LexLocation { start: 0, end: 0 },
                     })?;
-                    Ok(Statement::Reassignment(Reassignment {
+                    Ok(UntypedStatement::Reassignment(UntypedReassignment {
                         location: Location {
                             start: name_token.start,
                             end: new_value.get_location().end,
                         },
-                        target: ReassignmentTarget::ArrayAccess {
+                        target: UntypedReassignmentTarget::ArrayAccess {
                             location: Location {
                                 start: name_token.start,
                                 end: right_bracket.end,
@@ -1088,7 +1088,7 @@ impl<T: Iterator<Item = LexResult>> Parser<T> {
                 }
                 _ => {
                     self.current_token = Some(name_token);
-                    let expression = self.parse_expression()?.map(Statement::Expression);
+                    let expression = self.parse_expression()?.map(UntypedStatement::Expression);
                     Ok(expression.ok_or_else(|| ParsingError {
                         error: error::Type::UnexpectedEof,
                         location: LexLocation { start: 0, end: 0 },
@@ -1097,7 +1097,7 @@ impl<T: Iterator<Item = LexResult>> Parser<T> {
             }
         } else {
             self.current_token = Some(name_token);
-            let expression = self.parse_expression()?.map(Statement::Expression);
+            let expression = self.parse_expression()?.map(UntypedStatement::Expression);
             Ok(expression.ok_or_else(|| ParsingError {
                 error: error::Type::UnexpectedEof,
                 location: LexLocation { start: 0, end: 0 },
