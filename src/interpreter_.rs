@@ -326,14 +326,4 @@ impl Interpreter {
             },
         }
     }
-
-    fn expr_to_value(expr: &TypedExpression) -> Value {
-        match expr {
-            TypedExpression::IntLiteral { value, .. } => Value::Int(*value),
-            TypedExpression::FloatLiteral { value, .. } => Value::Float(*value),
-            TypedExpression::StringLiteral { value, .. } => Value::String(value.clone()),
-            TypedExpression::CharLiteral { value, .. } => Value::Char(*value),
-            _ => Value::Nil,
-        }
-    }
 }
