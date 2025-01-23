@@ -82,6 +82,8 @@ impl TypeAnalyzer {
                         body,
                         return_type_annotation,
                     } => {
+                        self.program_state.set_current_function_name(name);
+
                         let typed_args = arguments
                             .as_ref()
                             .map(|args| args.clone().try_mapped(|arg| self.convert_argument(&arg)))
@@ -135,6 +137,15 @@ impl TypeAnalyzer {
                         name,
                         fields,
                     } => {
+                        let typed_struct_without_fields = DefinitionTyped::Struct {
+                            location: *location,
+                            name: name.clone(),
+                            fields: None,
+                        };
+
+                        self.program_state
+                            .add_struct(name.clone(), typed_struct_without_fields.clone());
+
                         let typed_fields = fields
                             .as_ref()
                             .map(|fields| {
@@ -453,6 +464,27 @@ impl TypeAnalyzer {
                     .as_ref()
                     .map(|value| self.convert_expression_to_typed(value))
                     .transpose()?;
+
+                let function_name = self.program_state.get_current_function_name();
+
+                if let Some(function_def) = self.program_state.get_function(&function_name) {
+                    let return_type = function_def.get_return_type()?;
+                    if let Some(typed_value) = &typed_value {
+                        if !Self::compare_types(&return_type, typed_value.get_type()) {
+                            return Err(ConvertingError {
+                                error: ConvertingErrorType::TypeMismatch {
+                                    expected: return_type.clone(),
+                                    found: typed_value.get_type().clone(),
+                                },
+                                location: crate::lex::location::Location {
+                                    start: location.start,
+                                    end: location.end,
+                                },
+                            });
+                        }
+                    }
+                }
+
                 Ok(TypedStatement::Return {
                     location: *location,
                     value: typed_value.map(Box::new),
@@ -586,6 +618,7 @@ impl TypeAnalyzer {
                                 self.convert_call_argument_to_typed(
                                     function_name,
                                     arg,
+                                    arguments,
                                     *location,
                                     i,
                                 )
@@ -926,28 +959,20 @@ impl TypeAnalyzer {
         &mut self,
         function_name: &EcoString,
         argument: &CallArgumentUntyped,
+        arguments: &Option<Vec1<CallArgumentUntyped>>,
         location: ast::location::Location,
         i: usize,
     ) -> Result<CallArgumentTyped, ConvertingError> {
         let typed_argument = self.convert_expression_to_typed(&argument.value)?;
-        let function_def =
-            self.program_state
-                .functions
-                .get(function_name)
-                .ok_or(ConvertingError {
-                    error: ConvertingErrorType::UndefinedFunction,
-                    location: Location {
-                        start: location.start,
-                        end: location.end,
-                    },
-                })?;
 
-        if let Some(expected_args) = function_def.get_arguments() {
-            if expected_args.len() <= i {
+        let function_name_str = function_name.as_str();
+
+        if function_name_str == "print" || function_name_str == "println" {
+            if arguments.as_ref().map_or(true, |args| args.len() != 1) {
                 return Err(ConvertingError {
                     error: ConvertingErrorType::NotTheRightAmountOfArguments {
-                        expected: expected_args.len(),
-                        found: i + 1,
+                        expected: 1,
+                        found: arguments.as_ref().map_or(0, |args| args.len()),
                     },
                     location: Location {
                         start: location.start,
@@ -956,17 +981,114 @@ impl TypeAnalyzer {
                 });
             }
 
-            if expected_args[i].type_ != *typed_argument.clone().get_type() {
+            if matches!(typed_argument.get_type(), Type::Void) {
                 return Err(ConvertingError {
-                    error: ConvertingErrorType::TypeMismatch {
-                        expected: expected_args[i].type_.clone(),
-                        found: typed_argument.get_type().clone(),
+                    error: ConvertingErrorType::BuildInFunctionMismatchType { found: Type::Void },
+                    location: Location {
+                        start: location.start,
+                        end: location.end,
+                    },
+                });
+            }
+        } else if function_name_str == "append" {
+            if arguments.as_ref().map_or(true, |args| args.len() != 2) {
+                return Err(ConvertingError {
+                    error: ConvertingErrorType::NotTheRightAmountOfArguments {
+                        expected: 2,
+                        found: arguments.as_ref().map_or(0, |args| args.len()),
                     },
                     location: Location {
                         start: location.start,
                         end: location.end,
                     },
                 });
+            }
+
+            if i == 0 {
+                if let Type::Array { .. } = typed_argument.get_type() {
+                } else {
+                    return Err(ConvertingError {
+                        error: ConvertingErrorType::ArrayMismatchType,
+                        location: Location {
+                            start: location.start,
+                            end: location.end,
+                        },
+                    });
+                }
+            }
+
+            if i == 1 {
+                if let Some(args) = arguments.as_ref() {
+                    if let first_arg = args.first() {
+                        if let Type::Array {
+                            type_: element_type,
+                        } = self
+                            .convert_expression_to_typed(&first_arg.value)?
+                            .get_type()
+                        {
+                            if **element_type != *typed_argument.get_type() {
+                                return Err(ConvertingError {
+                                    error: ConvertingErrorType::TypeMismatch {
+                                        expected: *element_type.clone(),
+                                        found: typed_argument.get_type().clone(),
+                                    },
+                                    location: Location {
+                                        start: location.start,
+                                        end: location.end,
+                                    },
+                                });
+                            }
+                        } else {
+                            return Err(ConvertingError {
+                                error: ConvertingErrorType::UnsupportedType,
+                                location: Location {
+                                    start: location.start,
+                                    end: location.end,
+                                },
+                            });
+                        }
+                    }
+                }
+            }
+        } else {
+            let function_def =
+                self.program_state
+                    .functions
+                    .get(function_name)
+                    .ok_or(ConvertingError {
+                        error: ConvertingErrorType::UndefinedFunction,
+                        location: Location {
+                            start: location.start,
+                            end: location.end,
+                        },
+                    })?;
+
+            if let Some(expected_args) = function_def.get_arguments() {
+                if expected_args.len() <= i {
+                    return Err(ConvertingError {
+                        error: ConvertingErrorType::NotTheRightAmountOfArguments {
+                            expected: expected_args.len(),
+                            found: i + 1,
+                        },
+                        location: Location {
+                            start: location.start,
+                            end: location.end,
+                        },
+                    });
+                }
+
+                if expected_args[i].type_ != *typed_argument.get_type() {
+                    return Err(ConvertingError {
+                        error: ConvertingErrorType::TypeMismatch {
+                            expected: expected_args[i].type_.clone(),
+                            found: typed_argument.get_type().clone(),
+                        },
+                        location: Location {
+                            start: location.start,
+                            end: location.end,
+                        },
+                    });
+                }
             }
         }
 
@@ -1027,6 +1149,7 @@ pub struct ProgramState {
     variables: HashMap<EcoString, Type>,
     functions: HashMap<EcoString, DefinitionTyped>,
     structs: HashMap<EcoString, DefinitionTyped>,
+    current_function_name: EcoString,
 }
 
 impl Default for ProgramState {
@@ -1042,6 +1165,7 @@ impl ProgramState {
             variables: HashMap::new(),
             functions: HashMap::new(),
             structs: HashMap::new(),
+            current_function_name: "".into(),
         }
     }
 
@@ -1083,5 +1207,13 @@ impl ProgramState {
 
     fn restore_scope(&mut self, saved_variables: HashMap<EcoString, Type>) {
         self.variables = saved_variables;
+    }
+
+    fn set_current_function_name(&mut self, name: &EcoString) {
+        self.current_function_name = name.clone();
+    }
+
+    fn get_current_function_name(&mut self) -> EcoString {
+        self.current_function_name.clone()
     }
 }
