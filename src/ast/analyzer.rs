@@ -470,7 +470,7 @@ impl TypeAnalyzer {
                 if let Some(function_def) = self.program_state.get_function(&function_name) {
                     let return_type = function_def.get_return_type()?;
                     if let Some(typed_value) = &typed_value {
-                        if !Self::compare_types(&return_type, &typed_value.get_type()) {
+                        if !Self::compare_types(&return_type, typed_value.get_type()) {
                             return Err(ConvertingError {
                                 error: ConvertingErrorType::TypeMismatch {
                                     expected: return_type.clone(),
