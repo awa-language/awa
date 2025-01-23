@@ -1193,12 +1193,32 @@ impl ProgramState {
     }
 
     fn get_function(&self, name: &EcoString) -> Option<DefinitionTyped> {
-        if name == "print" || name == "println" || name == "append" {
+        if name == "print" || name == "println" {
             let function = DefinitionTyped::Function {
                 name: name.clone(),
                 location: ast::location::Location { start: 0, end: 0 },
                 arguments: Some(Vec1::try_from(vec![
                     ArgumentTyped {
+                        name: Default::default(),
+                        location: ast::location::Location { start: 0, end: 0 },
+                        type_: Type::Int,
+                    }
+                ]).unwrap()),
+                body: None,
+                return_type: Type::Void,
+            };
+            return Some(function);
+        }
+        if name == "append" {
+            let function = DefinitionTyped::Function {
+                name: name.clone(),
+                location: ast::location::Location { start: 0, end: 0 },
+                arguments: Some(Vec1::try_from(vec![
+                    ArgumentTyped {
+                        name: Default::default(),
+                        location: ast::location::Location { start: 0, end: 0 },
+                        type_: Type::Int,
+                    },  ArgumentTyped {
                         name: Default::default(),
                         location: ast::location::Location { start: 0, end: 0 },
                         type_: Type::Int,
