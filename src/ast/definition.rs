@@ -39,7 +39,7 @@ pub enum DefinitionTyped {
         name: EcoString,
         arguments: Option<Vec1<argument::ArgumentTyped>>,
         body: Option<Vec1<statement::TypedStatement>>,
-        return_type_annotation: Option<Type>,
+        return_type: Option<Type>,
     },
 }
 
@@ -49,7 +49,6 @@ pub struct StructFieldTyped {
     pub type_annotation: Type,
 }
 
-
 impl DefinitionTyped {
     pub fn get_arguments(&self) -> Option<Vec1<argument::ArgumentTyped>> {
         match self {
@@ -58,3 +57,4 @@ impl DefinitionTyped {
         }
     }
 }
+

@@ -123,7 +123,7 @@ impl ProgramState {
                             location: location.clone(),
                             arguments: typed_args,
                             body: typed_body,
-                            return_type_annotation: return_type,
+                            return_type,
                         };
 
                         program_state.add_function(name.clone(), typed_function.clone());
