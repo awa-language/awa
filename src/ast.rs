@@ -10,4 +10,4 @@ pub mod print;
 pub mod reassignment;
 pub mod statement;
 pub mod typed_print;
-mod build_in_functions;
+mod built_in_functions;
