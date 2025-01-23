@@ -29,8 +29,8 @@ pub fn print_typed(
 }
 
 impl fmt::Display for Type {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{:?}", self) // Customize this to fit your needs
+    fn fmt(&self, formater: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(formater, "{self:?}") // Customize this to fit your needs
     }
 }
 
@@ -746,4 +746,3 @@ fn print_definition(
 
     Ok(())
 }
-
