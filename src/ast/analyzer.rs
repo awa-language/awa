@@ -972,7 +972,7 @@ impl TypeAnalyzer {
                 return Err(ConvertingError {
                     error: ConvertingErrorType::NotTheRightAmountOfArguments {
                         expected: 1,
-                        found: arguments.as_ref().map_or(0, |args| args.len()),
+                        found: arguments.as_ref().map_or(0, vec1::Vec1::len),
                     },
                     location: Location {
                         start: location.start,
@@ -995,7 +995,7 @@ impl TypeAnalyzer {
                 return Err(ConvertingError {
                     error: ConvertingErrorType::NotTheRightAmountOfArguments {
                         expected: 2,
-                        found: arguments.as_ref().map_or(0, |args| args.len()),
+                        found: arguments.as_ref().map_or(0, vec1::Vec1::len),
                     },
                     location: Location {
                         start: location.start,

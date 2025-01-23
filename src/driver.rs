@@ -73,9 +73,9 @@ pub fn run(
     }
 }
 
-#[must_use] pub fn build_ast(input: &str) -> Module<DefinitionTyped> {
+#[must_use]
+pub fn build_ast(input: &str) -> Module<DefinitionTyped> {
     let typed_module = analyze_input(input);
-    
 
     match typed_module {
         Ok(module) => module,
@@ -83,7 +83,8 @@ pub fn run(
     }
 }
 
-#[must_use] pub fn make_bytecode(module: &Module<DefinitionTyped>) -> Vec<vm::instruction::Instruction> {
+#[must_use]
+pub fn make_bytecode(module: &Module<DefinitionTyped>) -> Vec<vm::instruction::Instruction> {
     let interpreter = interpreter::Interpreter::new();
 
     interpreter.interpret_module(module)
