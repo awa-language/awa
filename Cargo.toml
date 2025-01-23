@@ -15,6 +15,8 @@ too_many_lines = "allow"
 
 [dependencies]
 camino = "1.1.9"
+clap = { version = "4.5.26", features = ["derive"] }
+clap_derive = "4.5.24"
 codespan-reporting = "0.11.1"
 ecow = "0.2.2"
 itertools = { version = "0.13.0", features = ["use_alloc"] }

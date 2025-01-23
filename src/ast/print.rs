@@ -7,6 +7,28 @@ use std::fmt;
 
 use super::reassignment::ReassignmentTarget;
 
+/// Prints structure of untyped AST module
+///
+/// # Errors
+///
+/// This function will return `fmt::Error` if it cannot perform writes.
+pub fn print_parse_tree(
+    module: &Module<definition::Untyped>,
+    formatter: &mut fmt::Formatter<'_>,
+) -> fmt::Result {
+    writeln!(formatter, "{}Module:", make_prefix(&[]))?;
+
+    if let Some(definitions) = &module.definitions {
+        let total_len = definitions.len();
+        for (i, definition) in definitions.iter().enumerate() {
+            let has_next = i < total_len - 1;
+            print_definition(definition, &[has_next], formatter)?;
+        }
+    }
+
+    Ok(())
+}
+
 fn make_prefix(indentation_levels: &[bool]) -> String {
     if indentation_levels.is_empty() {
         return "→ ".to_string();
@@ -27,26 +49,14 @@ fn make_prefix(indentation_levels: &[bool]) -> String {
     } else {
         "└→ "
     });
+
     prefix
-}
-
-pub fn print_parse_tree(
-    module: &Module<definition::Untyped>,
-    f: &mut fmt::Formatter<'_>,
-) -> fmt::Result {
-    writeln!(f, "{}Module:", make_prefix(&[]))?;
-
-    for (i, definition) in module.definitions.iter().enumerate() {
-        let has_next = i < module.definitions.len() - 1;
-        print_definition(definition, &[has_next], f)?;
-    }
-    Ok(())
 }
 
 fn print_definition(
     definition: &definition::Untyped,
     indentation_levels: &[bool],
-    f: &mut fmt::Formatter<'_>,
+    formatter: &mut fmt::Formatter<'_>,
 ) -> fmt::Result {
     match definition {
         definition::Untyped::Struct {
@@ -55,7 +65,7 @@ fn print_definition(
             fields,
         } => {
             writeln!(
-                f,
+                formatter,
                 "{}Struct {} ({}..{})",
                 make_prefix(indentation_levels),
                 name,
@@ -66,11 +76,12 @@ fn print_definition(
             if let Some(fields) = fields {
                 let mut new_indentation_levels = indentation_levels.to_vec();
                 new_indentation_levels.push(false);
+
                 for (i, field) in fields.iter().enumerate() {
                     let mut field_levels = new_indentation_levels.clone();
                     field_levels.push(i < fields.len() - 1);
                     writeln!(
-                        f,
+                        formatter,
                         "{}Field: {} - {:?}",
                         make_prefix(&field_levels),
                         field.name,
@@ -87,7 +98,7 @@ fn print_definition(
             return_type_annotation,
         } => {
             writeln!(
-                f,
+                formatter,
                 "{}Function {} ({}..{})",
                 make_prefix(indentation_levels),
                 name,
@@ -112,13 +123,18 @@ fn print_definition(
                 items.remove(0);
                 let has_more = !items.is_empty();
                 new_indentation_levels.push(has_more);
-                writeln!(f, "{}Arguments:", make_prefix(&new_indentation_levels))?;
+                writeln!(
+                    formatter,
+                    "{}Arguments:",
+                    make_prefix(&new_indentation_levels)
+                )?;
 
                 for (i, arg) in args.iter().enumerate() {
                     let mut arg_levels = new_indentation_levels.clone();
                     arg_levels.push(i < args.len() - 1);
-                    print_argument(arg, &arg_levels, f)?;
+                    print_argument(arg, &arg_levels, formatter)?;
                 }
+
                 new_indentation_levels.pop();
             }
 
@@ -126,7 +142,7 @@ fn print_definition(
                 let has_more = body.is_some();
                 new_indentation_levels.push(has_more);
                 writeln!(
-                    f,
+                    formatter,
                     "{}Return type: {:?}",
                     make_prefix(&new_indentation_levels),
                     return_type
@@ -136,28 +152,29 @@ fn print_definition(
 
             if let Some(statements) = body {
                 new_indentation_levels.push(false);
-                writeln!(f, "{}Body:", make_prefix(&new_indentation_levels))?;
+                writeln!(formatter, "{}Body:", make_prefix(&new_indentation_levels))?;
 
-                for (i, stmt) in statements.iter().enumerate() {
-                    let mut stmt_levels = new_indentation_levels.clone();
-                    stmt_levels.push(i < statements.len() - 1);
-                    print_statement(stmt, &stmt_levels, f)?;
+                for (i, statement) in statements.iter().enumerate() {
+                    let mut statement_levels = new_indentation_levels.clone();
+                    statement_levels.push(i < statements.len() - 1);
+                    print_statement(statement, &statement_levels, formatter)?;
                 }
             }
         }
     }
+
     Ok(())
 }
 
 fn print_argument(
     arg: &argument::Untyped,
     indentation_levels: &[bool],
-    f: &mut fmt::Formatter<'_>,
+    formatter: &mut fmt::Formatter<'_>,
 ) -> fmt::Result {
     match &arg.name {
         Name::Named { name, location } => {
             writeln!(
-                f,
+                formatter,
                 "{}Argument {} ({}..{})",
                 make_prefix(indentation_levels),
                 name,
@@ -169,7 +186,7 @@ fn print_argument(
                 let mut new_indentation_levels = indentation_levels.to_vec();
                 new_indentation_levels.push(false);
                 writeln!(
-                    f,
+                    formatter,
                     "{}Type: {:?}",
                     make_prefix(&new_indentation_levels),
                     annotation
@@ -177,24 +194,27 @@ fn print_argument(
             }
         }
     }
+
     Ok(())
 }
 
 fn print_statement(
-    stmt: &statement::Untyped,
+    statement: &statement::Untyped,
     indentation_levels: &[bool],
-    f: &mut fmt::Formatter<'_>,
+    formatter: &mut fmt::Formatter<'_>,
 ) -> fmt::Result {
-    match stmt {
-        Statement::Expression(expr) => {
-            writeln!(f, "{}Expression:", make_prefix(indentation_levels))?;
+    match statement {
+        Statement::Expression(expression) => {
+            writeln!(formatter, "{}Expression:", make_prefix(indentation_levels))?;
+
             let mut new_indentation_levels = indentation_levels.to_vec();
             new_indentation_levels.push(false);
-            print_expression(expr, &new_indentation_levels, f)?;
+
+            print_expression(expression, &new_indentation_levels, formatter)?;
         }
         Statement::Assignment(assignment) => {
             writeln!(
-                f,
+                formatter,
                 "{}Assignment ({}..{}):",
                 make_prefix(indentation_levels),
                 assignment.location.start,
@@ -203,38 +223,42 @@ fn print_statement(
 
             let mut new_indentation_levels = indentation_levels.to_vec();
             new_indentation_levels.push(true);
+
             writeln!(
-                f,
+                formatter,
                 "{}Type: {:?}",
                 make_prefix(&new_indentation_levels),
                 assignment.type_annotation
             )?;
             writeln!(
-                f,
+                formatter,
                 "{}Variable name: {}",
                 make_prefix(&new_indentation_levels),
                 assignment.variable_name
             )?;
+
             new_indentation_levels.pop();
             new_indentation_levels.push(false);
-            writeln!(f, "{}Value:", make_prefix(&new_indentation_levels))?;
+            writeln!(formatter, "{}Value:", make_prefix(&new_indentation_levels))?;
 
             let mut value_levels = new_indentation_levels.clone();
             value_levels.push(false);
-            print_expression(&assignment.value, &value_levels, f)?;
+
+            print_expression(&assignment.value, &value_levels, formatter)?;
         }
         Statement::Reassignment(reassignment) => {
             writeln!(
-                f,
+                formatter,
                 "{}Reassignment ({}..{})",
                 make_prefix(indentation_levels),
                 reassignment.location.start,
                 reassignment.location.end
             )?;
+
             match &reassignment.target {
                 ReassignmentTarget::Variable { location, name } => {
                     writeln!(
-                        f,
+                        formatter,
                         "{}Target: Variable {} ({}..{})",
                         make_prefix(&[indentation_levels, &[true]].concat()),
                         name,
@@ -248,7 +272,7 @@ fn print_statement(
                     field_name,
                 } => {
                     writeln!(
-                        f,
+                        formatter,
                         "{}Target: Field access {}.{} ({}..{})",
                         make_prefix(&[indentation_levels, &[true]].concat()),
                         struct_name,
@@ -263,7 +287,7 @@ fn print_statement(
                     index_expression,
                 } => {
                     writeln!(
-                        f,
+                        formatter,
                         "{}Target: Array access {} ({}..{})",
                         make_prefix(&[indentation_levels, &[true]].concat()),
                         array_name,
@@ -271,43 +295,47 @@ fn print_statement(
                         location.end
                     )?;
                     writeln!(
-                        f,
+                        formatter,
                         "{}Index:",
                         make_prefix(&[indentation_levels, &[true]].concat())
                     )?;
                     print_expression(
                         index_expression,
                         &[indentation_levels, &[true, false]].concat(),
-                        f,
+                        formatter,
                     )?;
                 }
             }
+
             writeln!(
-                f,
+                formatter,
                 "{}Value:",
                 make_prefix(&[indentation_levels, &[false]].concat())
             )?;
+
             print_expression(
                 &reassignment.new_value,
                 &[indentation_levels, &[false, false]].concat(),
-                f,
+                formatter,
             )?;
         }
         Statement::Loop { body, location } => {
             writeln!(
-                f,
+                formatter,
                 "{}Loop ({}..{})",
                 make_prefix(indentation_levels),
                 location.start,
                 location.end
             )?;
+
             if let Some(statements) = body {
                 let mut new_indentation_levels = indentation_levels.to_vec();
                 new_indentation_levels.push(false);
-                for (i, stmt) in statements.iter().enumerate() {
-                    let mut stmt_levels = new_indentation_levels.clone();
-                    stmt_levels.push(i < statements.len() - 1);
-                    print_statement(stmt, &stmt_levels, f)?;
+
+                for (i, statement) in statements.iter().enumerate() {
+                    let mut statement_levels = new_indentation_levels.clone();
+                    statement_levels.push(i < statements.len() - 1);
+                    print_statement(statement, &statement_levels, formatter)?;
                 }
             }
         }
@@ -318,7 +346,7 @@ fn print_statement(
             location,
         } => {
             writeln!(
-                f,
+                formatter,
                 "{}If ({}..{})",
                 make_prefix(indentation_levels),
                 location.start,
@@ -328,40 +356,58 @@ fn print_statement(
             let mut new_indentation_levels = indentation_levels.to_vec();
             let has_more = if_body.is_some() || else_body.is_some();
             new_indentation_levels.push(has_more);
-            writeln!(f, "{}Condition:", make_prefix(&new_indentation_levels))?;
+
+            writeln!(
+                formatter,
+                "{}Condition:",
+                make_prefix(&new_indentation_levels)
+            )?;
 
             let mut condition_levels = new_indentation_levels.clone();
             condition_levels.push(false);
-            print_expression(condition, &condition_levels, f)?;
+
+            print_expression(condition, &condition_levels, formatter)?;
             new_indentation_levels.pop();
 
             if let Some(if_statements) = if_body {
                 let has_more = else_body.is_some();
                 new_indentation_levels.push(has_more);
-                writeln!(f, "{}If body:", make_prefix(&new_indentation_levels))?;
 
-                for (i, stmt) in if_statements.iter().enumerate() {
-                    let mut stmt_levels = new_indentation_levels.clone();
-                    stmt_levels.push(i < if_statements.len() - 1);
-                    print_statement(stmt, &stmt_levels, f)?;
+                writeln!(
+                    formatter,
+                    "{}If body:",
+                    make_prefix(&new_indentation_levels)
+                )?;
+
+                for (i, statement) in if_statements.iter().enumerate() {
+                    let mut statement_levels = new_indentation_levels.clone();
+                    statement_levels.push(i < if_statements.len() - 1);
+
+                    print_statement(statement, &statement_levels, formatter)?;
                 }
+
                 new_indentation_levels.pop();
             }
 
             if let Some(else_statements) = else_body {
                 new_indentation_levels.push(false);
-                writeln!(f, "{}Else body:", make_prefix(&new_indentation_levels))?;
+                writeln!(
+                    formatter,
+                    "{}Else body:",
+                    make_prefix(&new_indentation_levels)
+                )?;
 
-                for (i, stmt) in else_statements.iter().enumerate() {
-                    let mut stmt_levels = new_indentation_levels.clone();
-                    stmt_levels.push(i < else_statements.len() - 1);
-                    print_statement(stmt, &stmt_levels, f)?;
+                for (i, statement) in else_statements.iter().enumerate() {
+                    let mut statement_levels = new_indentation_levels.clone();
+                    statement_levels.push(i < else_statements.len() - 1);
+
+                    print_statement(statement, &statement_levels, formatter)?;
                 }
             }
         }
         Statement::Break { location } => {
             writeln!(
-                f,
+                formatter,
                 "{}Break ({}..{})",
                 make_prefix(indentation_levels),
                 location.start,
@@ -370,21 +416,22 @@ fn print_statement(
         }
         Statement::Return { location, value } => {
             writeln!(
-                f,
+                formatter,
                 "{}Return ({}..{})",
                 make_prefix(indentation_levels),
                 location.start,
                 location.end
             )?;
-            if let Some(expr) = value {
+
+            if let Some(expression) = value {
                 let mut new_indentation_levels = indentation_levels.to_vec();
                 new_indentation_levels.push(false);
-                print_expression(expr, &new_indentation_levels, f)?;
+                print_expression(expression, &new_indentation_levels, formatter)?;
             }
         }
         Statement::Todo { location } => {
             writeln!(
-                f,
+                formatter,
                 "{}Todo ({}..{})",
                 make_prefix(indentation_levels),
                 location.start,
@@ -393,7 +440,7 @@ fn print_statement(
         }
         Statement::Panic { location } => {
             writeln!(
-                f,
+                formatter,
                 "{}Panic ({}..{})",
                 make_prefix(indentation_levels),
                 location.start,
@@ -402,7 +449,7 @@ fn print_statement(
         }
         Statement::Exit { location } => {
             writeln!(
-                f,
+                formatter,
                 "{}Exit ({}..{})",
                 make_prefix(indentation_levels),
                 location.start,
@@ -410,18 +457,19 @@ fn print_statement(
             )?;
         }
     }
+
     Ok(())
 }
 
 fn print_expression(
     expr: &Expression,
     indentation_levels: &[bool],
-    f: &mut fmt::Formatter<'_>,
+    formatter: &mut fmt::Formatter<'_>,
 ) -> fmt::Result {
     match expr {
         Expression::IntLiteral { location, value } => {
             writeln!(
-                f,
+                formatter,
                 "{}Integer: {} ({}..{})",
                 make_prefix(indentation_levels),
                 value,
@@ -431,7 +479,7 @@ fn print_expression(
         }
         Expression::FloatLiteral { location, value } => {
             writeln!(
-                f,
+                formatter,
                 "{}Float: {} ({}..{})",
                 make_prefix(indentation_levels),
                 value,
@@ -441,7 +489,7 @@ fn print_expression(
         }
         Expression::StringLiteral { location, value } => {
             writeln!(
-                f,
+                formatter,
                 "{}String: {} ({}..{})",
                 make_prefix(indentation_levels),
                 value,
@@ -451,7 +499,7 @@ fn print_expression(
         }
         Expression::CharLiteral { location, value } => {
             writeln!(
-                f,
+                formatter,
                 "{}Char: {} ({}..{})",
                 make_prefix(indentation_levels),
                 value,
@@ -461,7 +509,7 @@ fn print_expression(
         }
         Expression::VariableValue { location, name } => {
             writeln!(
-                f,
+                formatter,
                 "{}Variable: {} ({}..{})",
                 make_prefix(indentation_levels),
                 name,
@@ -476,7 +524,7 @@ fn print_expression(
             right,
         } => {
             writeln!(
-                f,
+                formatter,
                 "{}Binary operation: {:?} ({}..{})",
                 make_prefix(indentation_levels),
                 operator,
@@ -487,17 +535,29 @@ fn print_expression(
             let mut new_indentation_levels = indentation_levels.to_vec();
 
             new_indentation_levels.push(true);
-            writeln!(f, "{}Left operand:", make_prefix(&new_indentation_levels))?;
+            writeln!(
+                formatter,
+                "{}Left operand:",
+                make_prefix(&new_indentation_levels)
+            )?;
+
             let mut left_levels = new_indentation_levels.clone();
             left_levels.push(false);
-            print_expression(left, &left_levels, f)?;
+
+            print_expression(left, &left_levels, formatter)?;
             new_indentation_levels.pop();
 
             new_indentation_levels.push(false);
-            writeln!(f, "{}Right operand:", make_prefix(&new_indentation_levels))?;
+            writeln!(
+                formatter,
+                "{}Right operand:",
+                make_prefix(&new_indentation_levels)
+            )?;
+
             let mut right_levels = new_indentation_levels.clone();
             right_levels.push(false);
-            print_expression(right, &right_levels, f)?;
+
+            print_expression(right, &right_levels, formatter)?;
         }
         Expression::FunctionCall {
             location,
@@ -505,7 +565,7 @@ fn print_expression(
             arguments,
         } => {
             writeln!(
-                f,
+                formatter,
                 "{}Function call: {} ({}..{})",
                 make_prefix(indentation_levels),
                 function_name,
@@ -514,10 +574,11 @@ fn print_expression(
             )?;
             if let Some(arguments) = arguments {
                 let mut new_indentation_levels = indentation_levels.to_vec();
+
                 for (i, argument) in arguments.iter().enumerate() {
                     new_indentation_levels.push(i < arguments.len() - 1);
                     writeln!(
-                        f,
+                        formatter,
                         "{}Argument ({}..{}):",
                         make_prefix(&new_indentation_levels),
                         argument.location.start,
@@ -526,7 +587,8 @@ fn print_expression(
 
                     let mut argument_levels = new_indentation_levels.clone();
                     argument_levels.push(false);
-                    print_expression(&argument.value, &argument_levels, f)?;
+
+                    print_expression(&argument.value, &argument_levels, formatter)?;
                     new_indentation_levels.pop();
                 }
             }
@@ -537,7 +599,7 @@ fn print_expression(
             field_name,
         } => {
             writeln!(
-                f,
+                formatter,
                 "{}Struct field access: {}.{} ({}..{})",
                 make_prefix(indentation_levels),
                 struct_name,
@@ -552,7 +614,7 @@ fn print_expression(
             index_expression,
         } => {
             writeln!(
-                f,
+                formatter,
                 "{}Array element access: {} ({}..{})",
                 make_prefix(indentation_levels),
                 array_name,
@@ -562,11 +624,11 @@ fn print_expression(
 
             let mut new_indentation_levels = indentation_levels.to_vec();
             new_indentation_levels.push(false);
-            writeln!(f, "{}Index:", make_prefix(&new_indentation_levels))?;
+            writeln!(formatter, "{}Index:", make_prefix(&new_indentation_levels))?;
 
             let mut index_levels = new_indentation_levels.clone();
             index_levels.push(false);
-            print_expression(index_expression, &index_levels, f)?;
+            print_expression(index_expression, &index_levels, formatter)?;
         }
         Expression::ArrayInitialization {
             location,
@@ -574,7 +636,7 @@ fn print_expression(
             elements,
         } => {
             writeln!(
-                f,
+                formatter,
                 "{}Array initialization of type {:?} ({}..{})",
                 make_prefix(indentation_levels),
                 type_annotation,
@@ -585,12 +647,18 @@ fn print_expression(
             if let Some(elements) = elements {
                 let mut new_indentation_levels = indentation_levels.to_vec();
                 new_indentation_levels.push(false);
-                writeln!(f, "{}Elements:", make_prefix(&new_indentation_levels))?;
+
+                writeln!(
+                    formatter,
+                    "{}Elements:",
+                    make_prefix(&new_indentation_levels)
+                )?;
 
                 for (i, element) in elements.iter().enumerate() {
                     let mut element_levels = new_indentation_levels.clone();
                     element_levels.push(i < elements.len() - 1);
-                    print_expression(element, &element_levels, f)?;
+
+                    print_expression(element, &element_levels, formatter)?;
                 }
             }
         }
@@ -600,7 +668,7 @@ fn print_expression(
             fields,
         } => {
             writeln!(
-                f,
+                formatter,
                 "{}Struct initialization of type {:?} ({}..{})",
                 make_prefix(indentation_levels),
                 type_annotation,
@@ -611,19 +679,27 @@ fn print_expression(
             if let Some(field_values) = fields {
                 let mut new_indentation_levels = indentation_levels.to_vec();
                 new_indentation_levels.push(false);
-                writeln!(f, "{}Fields:", make_prefix(&new_indentation_levels))?;
+                writeln!(formatter, "{}Fields:", make_prefix(&new_indentation_levels))?;
 
                 for (i, field) in field_values.iter().enumerate() {
                     let mut field_levels = new_indentation_levels.clone();
                     field_levels.push(i < field_values.len() - 1);
-                    writeln!(f, "{}Field {}: ", make_prefix(&field_levels), field.name)?;
+
+                    writeln!(
+                        formatter,
+                        "{}Field {}: ",
+                        make_prefix(&field_levels),
+                        field.name
+                    )?;
 
                     let mut value_levels = field_levels.clone();
                     value_levels.push(false);
-                    print_expression(&field.value, &value_levels, f)?;
+
+                    print_expression(&field.value, &value_levels, formatter)?;
                 }
             }
         }
     }
+
     Ok(())
 }
