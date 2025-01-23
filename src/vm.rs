@@ -12,23 +12,30 @@ use gc::{Object, GC};
 use instruction::{Bytecode, Instruction, Value};
 
 pub struct VM {
-    pub input: Bytecode,
-    pub program_counter: usize,
-    pub stack: Vec<Value>,
+    pub(crate) input: Bytecode,
+    pub(crate) program_counter: usize,
+    pub(crate) stack: Vec<Value>,
 
     /// Environment stack for local variables (each Func call -> push, Return -> pop).
-    pub environments_stack: Vec<HashMap<EcoString, Value>>,
+    pub(crate) environments_stack: Vec<HashMap<EcoString, Value>>,
 
-    pub structures: HashMap<EcoString, HashMap<EcoString, Value>>,
-    pub functions: HashMap<EcoString, usize>,
-    pub call_stack: Vec<usize>,
+    pub(crate) structures: HashMap<EcoString, HashMap<EcoString, Value>>,
+    pub(crate) functions: HashMap<EcoString, usize>,
+    pub(crate) call_stack: Vec<usize>,
 
-    pub gc: GC,
+    pub(crate) gc: GC,
+
+    backup_state: Option<State>,
+}
+
+#[derive(Debug)]
+struct State {
+    stack: Vec<Value>,
+    program_counter: usize,
 }
 
 impl VM {
     #[must_use]
-    /// # Panics
     pub fn new(input: Vec<Instruction>) -> Self {
         let mut vm = Self {
             input,
@@ -39,6 +46,7 @@ impl VM {
             functions: HashMap::new(),
             call_stack: Vec::new(),
             gc: GC::new(),
+            backup_state: None,
         };
 
         vm.environments_stack.push(HashMap::new());
@@ -46,19 +54,25 @@ impl VM {
 
         if let Some(&main_address) = vm.functions.get("main") {
             vm.program_counter = main_address;
+
+            vm.backup_state = Some(State {
+                stack: vm.stack.clone(),
+                program_counter: vm.program_counter,
+            });
         } else {
-            panic!("cannot find function `main()`");
+            panic!("cannot find function `main()` in provided code");
         }
+
         vm
     }
 
-    /// # Panics
     pub fn run(&mut self) {
         if self.program_counter >= self.input.len() {
             return;
         }
 
         let instruction = self.input[self.program_counter].clone();
+
         match instruction {
             Instruction::PushInt(int) => {
                 self.stack.push(Value::Int(int));
@@ -82,11 +96,12 @@ impl VM {
                 self.maybe_run_gc();
             }
             Instruction::StoreInMap(name) => {
-                let val = self.stack.pop().expect("stack underflow");
-                if let Some(env) = self.environments_stack.last_mut() {
-                    env.insert(name, val);
+                let value = self.stack.pop().expect("stack underflow");
+
+                if let Some(environment) = self.environments_stack.last_mut() {
+                    environment.insert(name, value);
                 } else {
-                    println!("No environment available to store the variable.");
+                    panic!("No environment available to store the variable.");
                 }
             }
             Instruction::LoadToStack(name) => {
@@ -160,9 +175,9 @@ impl VM {
                 self.stack.push(Value::Float(lhs / rhs));
             }
             Instruction::Append(val) => {
-                let arr = self.stack.pop().expect("stack underflow");
+                let array = self.stack.pop().expect("stack underflow");
 
-                if let Value::Ref(handle) = arr {
+                if let Value::Ref(handle) = array {
                     if let Object::Slice(ref mut slice) = self.gc.get_mut(handle) {
                         slice.push(val);
                     } else {
@@ -174,9 +189,9 @@ impl VM {
                 }
             }
             Instruction::GetByIndex(index) => {
-                let arr = self.stack.pop().expect("stack underflow");
+                let array = self.stack.pop().expect("stack underflow");
 
-                if let Value::Ref(handle) = arr {
+                if let Value::Ref(handle) = array {
                     if let Object::Slice(slice) = self.gc.get(handle) {
                         assert!(
                             !(index < 0 || (usize::try_from(index).unwrap()) >= slice.len()),
@@ -214,30 +229,30 @@ impl VM {
             Instruction::Equal => {
                 let rhs = self.stack.pop().expect("stack underflow");
                 let lhs = self.stack.pop().expect("stack underflow");
-                let eq = self.is_equal_values(lhs, rhs);
+                let equal = self.is_equal_values(lhs, rhs);
 
-                self.stack.push(Value::Int(i64::from(eq)));
+                self.stack.push(Value::Int(i64::from(equal)));
             }
             Instruction::NotEqual => {
                 let rhs = self.stack.pop().expect("stack underflow");
                 let lhs = self.stack.pop().expect("stack underflow");
-                let eq = self.is_equal_values(lhs, rhs);
+                let equal = self.is_equal_values(lhs, rhs);
 
-                self.stack.push(Value::Int(i64::from(!eq)));
+                self.stack.push(Value::Int(i64::from(!equal)));
             }
             Instruction::LessInt => {
                 let rhs = self.stack.pop().expect("stack underflow");
                 let lhs = self.stack.pop().expect("stack underflow");
-                let (x, y) = (VM::get_int(&lhs), VM::get_int(&rhs));
+                let (lhs, rhs) = (VM::get_int(&lhs), VM::get_int(&rhs));
 
-                self.stack.push(Value::Int(i64::from(x < y)));
+                self.stack.push(Value::Int(i64::from(lhs < rhs)));
             }
             Instruction::LessEqualInt => {
                 let rhs = self.stack.pop().expect("stack underflow");
                 let lhs = self.stack.pop().expect("stack underflow");
-                let (x, y) = (VM::get_int(&lhs), VM::get_int(&rhs));
+                let (lhs, rhs) = (VM::get_int(&lhs), VM::get_int(&rhs));
 
-                self.stack.push(Value::Int(i64::from(x <= y)));
+                self.stack.push(Value::Int(i64::from(lhs <= rhs)));
             }
             Instruction::GreaterInt => {
                 let rhs = self.stack.pop().expect("stack underflow");
@@ -249,37 +264,37 @@ impl VM {
             Instruction::GreaterEqualInt => {
                 let rhs = self.stack.pop().expect("stack underflow");
                 let lhs = self.stack.pop().expect("stack underflow");
-                let (x, y) = (VM::get_int(&lhs), VM::get_int(&rhs));
+                let (lhs, rhs) = (VM::get_int(&lhs), VM::get_int(&rhs));
 
-                self.stack.push(Value::Int(i64::from(x >= y)));
+                self.stack.push(Value::Int(i64::from(lhs >= rhs)));
             }
             Instruction::LessFloat => {
                 let rhs = self.stack.pop().expect("stack underflow");
                 let lhs = self.stack.pop().expect("stack underflow");
-                let (x, y) = (VM::get_float(&lhs), VM::get_float(&rhs));
+                let (lhs, rhs) = (VM::get_float(&lhs), VM::get_float(&rhs));
 
-                self.stack.push(Value::Int(i64::from(x < y)));
+                self.stack.push(Value::Int(i64::from(lhs < rhs)));
             }
             Instruction::LessEqualFloat => {
                 let rhs = self.stack.pop().expect("stack underflow");
                 let lhs = self.stack.pop().expect("stack underflow");
-                let (x, y) = (VM::get_float(&lhs), VM::get_float(&rhs));
+                let (lhs, rhs) = (VM::get_float(&lhs), VM::get_float(&rhs));
 
-                self.stack.push(Value::Int(i64::from(x <= y)));
+                self.stack.push(Value::Int(i64::from(lhs <= rhs)));
             }
             Instruction::GreaterFloat => {
                 let rhs = self.stack.pop().expect("stack underflow");
                 let lhs = self.stack.pop().expect("stack underflow");
-                let (x, y) = (VM::get_float(&lhs), VM::get_float(&rhs));
+                let (lhs, rhs) = (VM::get_float(&lhs), VM::get_float(&rhs));
 
-                self.stack.push(Value::Int(i64::from(x > y)));
+                self.stack.push(Value::Int(i64::from(lhs > rhs)));
             }
             Instruction::GreaterEqualFloat => {
                 let rhs = self.stack.pop().expect("stack underflow");
                 let lhs = self.stack.pop().expect("stack underflow");
-                let (x, y) = (VM::get_float(&lhs), VM::get_float(&rhs));
+                let (lhs, rhs) = (VM::get_float(&lhs), VM::get_float(&rhs));
 
-                self.stack.push(Value::Int(i64::from(x >= y)));
+                self.stack.push(Value::Int(i64::from(lhs >= rhs)));
             }
             Instruction::Concat => {
                 let rhs = self.stack.pop().expect("stack underflow");
@@ -300,36 +315,45 @@ impl VM {
 
                 return;
             }
-            Instruction::JumpIfTrue(addr) => {
+            Instruction::JumpIfTrue(address) => {
                 let condition = self.stack.pop().expect("stack underflow");
 
                 if VM::is_true(condition) {
-                    assert!(addr < self.input.len(), "jump out of range");
-                    self.program_counter = addr;
+                    assert!(address < self.input.len(), "jump out of range");
+                    self.program_counter = address;
                     return;
                 }
             }
-            Instruction::JumpIfFalse(addr) => {
+            Instruction::JumpIfFalse(address) => {
                 let condition = self.stack.pop().expect("stack underflow");
                 if !VM::is_true(condition) {
-                    assert!(addr < self.input.len(), "jump out of range");
-                    self.program_counter = addr;
+                    assert!(address < self.input.len(), "jump out of range");
+                    self.program_counter = address;
                     return;
                 }
             }
             Instruction::Call(name) => {
-                if let Some(&addr) = self.functions.get(&name) {
+                if let Some(&address) = self.functions.get(&name) {
+                    self.backup_state = Some(State {
+                        stack: self.stack.clone(),
+                        program_counter: self.program_counter,
+                    });
+
                     self.environments_stack.push(HashMap::new());
                     self.call_stack.push(self.program_counter + 1);
-                    self.program_counter = addr;
+                    self.program_counter = address;
+
                     return;
                 }
                 panic!("call to undefined function {name}");
             }
             Instruction::Return => {
                 self.environments_stack.pop();
-                if let Some(addr) = self.call_stack.pop() {
-                    self.program_counter = addr;
+
+                if let Some(address) = self.call_stack.pop() {
+                    self.program_counter = address;
+                    self.backup_state = None;
+
                     return;
                 }
                 return;
@@ -337,34 +361,38 @@ impl VM {
             Instruction::Struct(_) | Instruction::EndStruct => {
                 panic!("struct definition in main block");
             }
-            Instruction::NewStruct(sname) => {
-                if let Some(fields) = self.structures.get(&sname) {
+            Instruction::NewStruct(struct_name) => {
+                if let Some(fields) = self.structures.get(&struct_name) {
                     let mut map = HashMap::new();
+
                     for (key, value) in fields {
                         map.insert(key.clone(), value.clone());
                     }
+
                     let handle = self.gc.allocate(Object::Struct {
-                        name: sname.clone(),
+                        name: struct_name.clone(),
                         fields: map,
                     });
+
                     self.stack.push(Value::Ref(handle));
                     self.maybe_run_gc();
                 } else {
-                    panic!("unknown struct {sname}");
+                    panic!("unknown struct {struct_name}");
                 }
             }
             Instruction::Field(_, _) => {
                 panic!("Field encountered in main block");
             }
-            Instruction::SetField(fname) => {
-                let r#struct = self.stack.pop().expect("stack underflow");
+            Instruction::SetField(field_name) => {
+                let struct_value = self.stack.pop().expect("stack underflow");
                 let value = self.stack.pop().expect("stack underflow");
-                if let Value::Ref(handle) = r#struct {
+
+                if let Value::Ref(handle) = struct_value {
                     if let Object::Struct { fields, .. } = self.gc.get_mut(handle) {
-                        if fields.contains_key(&fname) {
-                            fields.insert(fname.clone(), value);
+                        if fields.contains_key(&field_name) {
+                            fields.insert(field_name.clone(), value);
                         } else {
-                            panic!("no such field {fname}");
+                            panic!("no such field {field_name}");
                         }
                     } else {
                         panic!("setField on non-struct");
@@ -374,14 +402,15 @@ impl VM {
                     panic!("setField expects struct ref");
                 }
             }
-            Instruction::GetField(fname) => {
-                let r#struct = self.stack.pop().expect("stack underflow");
-                if let Value::Ref(handle) = r#struct {
+            Instruction::GetField(field_name) => {
+                let struct_value = self.stack.pop().expect("stack underflow");
+
+                if let Value::Ref(handle) = struct_value {
                     if let Object::Struct { fields, .. } = self.gc.get(handle) {
-                        if let Some(val) = fields.get(&fname) {
-                            self.stack.push(val.clone());
+                        if let Some(value) = fields.get(&field_name) {
+                            self.stack.push(value.clone());
                         } else {
-                            panic!("no such field {fname}");
+                            panic!("no such field {field_name}");
                         }
                     } else {
                         panic!("getField on non-struct");
@@ -396,6 +425,7 @@ impl VM {
             }
             Instruction::Println => {
                 let top = self.stack.last().expect("stack underflow");
+
                 self.print_value(top);
                 println!();
             }
@@ -410,8 +440,7 @@ impl VM {
         self.program_counter += 1;
     }
 
-    /// # Panics
-    pub fn preprocess_bytecode(&mut self) {
+    fn preprocess_bytecode(&mut self) {
         let mut i = 0;
 
         while i < self.input.len() {
@@ -426,6 +455,7 @@ impl VM {
                             end = Some(j);
                             break;
                         }
+
                         j += 1;
                     }
 
@@ -572,6 +602,7 @@ impl VM {
             Value::Struct { name, fields } => {
                 print!("Struct {name} {{");
                 let mut first = true;
+
                 for (name, val) in fields {
                     if !first {
                         print!(", ");
@@ -580,6 +611,7 @@ impl VM {
                     self.print_value(val);
                     first = false;
                 }
+
                 print!("}}");
             }
             Value::Ref(handle) => {
@@ -602,6 +634,7 @@ impl VM {
                     Object::Struct { name, fields } => {
                         print!("Struct {name} {{");
                         let mut first = true;
+
                         for (name, val) in fields {
                             if !first {
                                 print!(", ");
@@ -618,13 +651,10 @@ impl VM {
         }
     }
 
-    // ========================
-    //     HOTSWAP - METHOD
-    // ========================
-    /// (1) Finds `Func(name)` ... `EndFunc` in the new fragment.
-    /// (2) Adjusts `Jump`/`JumpIfTrue`/`JumpIfFalse` by an offset equal to the current length of `self.input`.
-    /// (3) Adds to `self.input`: `Func(name)`, [body], `EndFunc`.
-    /// (4) Updates `functions[name]` to point to the start of the inserted body.
+    /// 1. Finds `Func(name)` ... `EndFunc` in the new fragment.
+    /// 2. Adjusts `Jump`/`JumpIfTrue`/`JumpIfFalse` by an offset equal to the current length of `self.input`.
+    /// 3. Adds to `self.input`: `Func(name)`, [body], `EndFunc`.
+    /// 4. Updates `functions[name]` to point to the start of the inserted body.
     pub fn hotswap_function(&mut self, new_code: &[Instruction]) {
         let (function_name, body) = VM::extract_func_block(new_code);
         let offset = self.input.len();
@@ -632,14 +662,14 @@ impl VM {
         let body_fixed = VM::adjust_jumps(body, offset);
 
         self.input.push(Instruction::Func(function_name.clone()));
-        let start_addr = self.input.len();
+        let start_address = self.input.len();
 
         for instr in body_fixed {
             self.input.push(instr);
         }
 
         self.input.push(Instruction::EndFunc);
-        self.functions.insert(function_name, start_addr);
+        self.functions.insert(function_name, start_address);
     }
 
     fn extract_func_block(code: &[Instruction]) -> (EcoString, Vec<Instruction>) {
@@ -674,14 +704,14 @@ impl VM {
         let mut result = Vec::with_capacity(body.len());
 
         for instruction in body {
-            let x = match instruction {
+            let instruction = match instruction {
                 Instruction::Jump(index) => Instruction::Jump(index + offset),
                 Instruction::JumpIfTrue(index) => Instruction::JumpIfTrue(index + offset),
                 Instruction::JumpIfFalse(index) => Instruction::JumpIfFalse(index + offset),
                 other => other,
             };
 
-            result.push(x);
+            result.push(instruction);
         }
 
         result
