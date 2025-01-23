@@ -2,19 +2,17 @@ use std::collections::HashMap;
 
 use super::argument::{CallArgumentTyped, CallArgumentUntyped};
 use super::reassignment::{TypedReassignment, TypedReassignmentTarget};
-use super::statement;
 use crate::ast;
 use crate::ast::argument::{ArgumentTyped, ArgumentUntyped};
-use crate::ast::assignment::{TypedAssignment, UntypedAssignment};
+use crate::ast::assignment::TypedAssignment;
 use crate::ast::definition::{DefinitionTyped, DefinitionUntyped, StructField, StructFieldTyped};
 use crate::ast::expression::{
     StructFieldValue, StructFieldValueTyped, TypedExpression, UntypedExpression,
 };
-use crate::ast::module::{Module, Typed};
+use crate::ast::module::Module;
 use crate::ast::operator::BinaryOperator;
-use crate::ast::reassignment::{UntypedReassignment, UntypedReassignmentTarget};
+use crate::ast::reassignment::UntypedReassignmentTarget;
 use crate::ast::statement::{TypedStatement, UntypedStatement};
-use crate::ast::{argument, definition, module};
 use crate::lex::location::Location;
 use crate::parse::error::{ConvertingError, ConvertingErrorType};
 use crate::type_::{Type, UntypedType};
@@ -88,10 +86,10 @@ impl ProgramState {
         untyped_ast: &Module<DefinitionUntyped>,
     ) -> Result<Module<DefinitionTyped>, ConvertingError> {
         let mut typed_definitions = None;
-        let mut program_state = ProgramState::new();
 
         if let Some(definitions) = &untyped_ast.definitions {
             for definition in definitions {
+                self.clear_variables();
                 let typed_definition = match definition {
                     DefinitionUntyped::Function {
                         location,
@@ -104,6 +102,12 @@ impl ProgramState {
                             .as_ref()
                             .map(|args| args.clone().try_mapped(|arg| self.convert_argument(&arg)))
                             .transpose()?;
+
+                        if let Some(args) = typed_args.as_ref() {
+                            for arg in args {
+                                self.add_variable(arg.name.clone(), arg.type_.clone());
+                            }
+                        }
 
                         let typed_body = body
                             .as_ref()
@@ -128,7 +132,7 @@ impl ProgramState {
                             return_type,
                         };
 
-                        program_state.add_function(name.clone(), typed_function.clone());
+                        self.add_function(name.clone(), typed_function.clone());
 
                         typed_function
                     }
@@ -152,7 +156,7 @@ impl ProgramState {
                             fields: typed_fields,
                         };
 
-                        program_state.add_struct(name.clone(), typed_struct.clone());
+                        self.add_struct(name.clone(), typed_struct.clone());
 
                         typed_struct
                     }
@@ -259,6 +263,8 @@ impl ProgramState {
                     });
                 }
 
+                self.add_variable(assignment.variable_name.clone(), resolved_type.clone());
+
                 Ok(TypedStatement::Assignment(TypedAssignment {
                     location: assignment.location,
                     variable_name: assignment.variable_name.clone(),
@@ -352,6 +358,7 @@ impl ProgramState {
                 }))
             }
             UntypedStatement::Loop { body, location } => {
+                let saved_scope = self.create_scope();
                 let typed_body = body
                     .as_ref()
                     .map(|statements| {
@@ -360,6 +367,7 @@ impl ProgramState {
                             .try_mapped(|statement| self.convert_statement_to_typed(&statement))
                     })
                     .transpose()?;
+                self.restore_scope(saved_scope);
 
                 Ok(TypedStatement::Loop {
                     body: typed_body,
@@ -374,6 +382,7 @@ impl ProgramState {
             } => {
                 let typed_condition = self.convert_expression_to_typed(condition)?;
 
+                let saved_scope = self.create_scope();
                 let typed_if_body = if_body
                     .as_ref()
                     .map(|statements| {
@@ -382,7 +391,9 @@ impl ProgramState {
                             .try_mapped(|statement| self.convert_statement_to_typed(&statement))
                     })
                     .transpose()?;
+                self.restore_scope(saved_scope);
 
+                let saved_scope = self.create_scope();
                 let typed_else_body = else_body
                     .as_ref()
                     .map(|statements| {
@@ -391,6 +402,7 @@ impl ProgramState {
                             .try_mapped(|statement| self.convert_statement_to_typed(&statement))
                     })
                     .transpose()?;
+                self.restore_scope(saved_scope);
 
                 Ok(TypedStatement::If {
                     condition: Box::new(typed_condition),
