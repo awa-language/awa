@@ -90,7 +90,7 @@ impl TypedExpression {
 }
 
 impl TypedExpression {
-    pub fn get_type(&self) -> &Type {
+    #[must_use] pub fn get_type(&self) -> &Type {
         match self {
             TypedExpression::IntLiteral { type_, .. }
             | TypedExpression::FloatLiteral { type_, .. }

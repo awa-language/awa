@@ -52,6 +52,7 @@ pub struct StructFieldTyped {
 }
 
 impl DefinitionTyped {
+    #[must_use]
     pub fn get_arguments(&self) -> Option<Vec1<argument::ArgumentTyped>> {
         match self {
             DefinitionTyped::Function { arguments, .. } => arguments.clone(),
@@ -59,6 +60,10 @@ impl DefinitionTyped {
         }
     }
 
+    /// Returns the return type of a definition
+    ///
+    /// # Errors
+    /// Returns `ConvertingError` if definition is a struct (only functions have return types)
     pub fn get_return_type(&self) -> Result<Type, ConvertingError> {
         match self {
             DefinitionTyped::Function { return_type, .. } => Ok(return_type.clone()),

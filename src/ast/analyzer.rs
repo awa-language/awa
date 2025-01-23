@@ -24,15 +24,27 @@ pub struct TypeAnalyzer {
     program_state: ProgramState,
 }
 
-impl TypeAnalyzer {
-    pub fn new() -> Self {
-        let type_analyzer = TypeAnalyzer {
-            program_state: ProgramState::new(),
-        };
+impl Default for TypeAnalyzer {
+    fn default() -> Self {
+        Self::new()
+    }
+}
 
-        type_analyzer
+impl TypeAnalyzer {
+    #[must_use]
+    pub fn new() -> Self {
+        TypeAnalyzer {
+            program_state: ProgramState::new(),
+        }
     }
 
+    /// Converts AST to typed AST
+    ///
+    /// # Errors
+    /// Returns `ConvertingError` if:
+    /// - Type checking fails
+    /// - Unknown variable/function reference
+    /// - Type mismatch
     pub fn convert_ast_to_tast(
         &mut self,
         untyped_ast: &Module<DefinitionUntyped>,
@@ -73,13 +85,15 @@ impl TypeAnalyzer {
 
                         let return_type = return_type_annotation
                             .as_ref()
-                            .map(|t| self.convert_untyped_to_typed(t, location.start, location.end))
+                            .map(|type_| {
+                                self.convert_untyped_to_typed(type_, location.start, location.end)
+                            })
                             .transpose()?
                             .unwrap_or(Type::Void);
 
                         let typed_function = DefinitionTyped::Function {
                             name: name.clone(),
-                            location: location.clone(),
+                            location: *location,
                             arguments: typed_args,
                             body: typed_body,
                             return_type,
@@ -105,7 +119,7 @@ impl TypeAnalyzer {
                             .transpose()?;
 
                         let typed_struct = DefinitionTyped::Struct {
-                            location: location.clone(),
+                            location: *location,
                             name: name.clone(),
                             fields: typed_fields,
                         };
@@ -142,7 +156,7 @@ impl TypeAnalyzer {
 
         Ok(ArgumentTyped {
             name: argument_untyped.name.clone(),
-            location: argument_untyped.location.clone(),
+            location: argument_untyped.location,
             type_: typed_type,
         })
     }
@@ -168,7 +182,7 @@ impl TypeAnalyzer {
 
         let field_type = self.resolve_struct_field_type(struct_name, &struct_field_value.name)?;
 
-        if !Self::compare_types(&field_type, &typed_value.get_type()) {
+        if !Self::compare_types(&field_type, typed_value.get_type()) {
             return Err(ConvertingError {
                 error: ConvertingErrorType::TypeMismatch {
                     expected: field_type.clone(),
@@ -188,6 +202,15 @@ impl TypeAnalyzer {
         })
     }
 
+    /// Converts untyped statement to typed statement
+    ///
+    /// # Errors
+    /// Returns `ConvertingError` if:
+    /// - Type mismatch between variable declaration and value
+    /// - Unknown variable reference in reassignment
+    /// - Array index not an integer type
+    /// - Struct field access on invalid type
+    /// - Variable used before declaration
     pub fn convert_statement_to_typed(
         &mut self,
         stmt: &UntypedStatement,
@@ -205,7 +228,7 @@ impl TypeAnalyzer {
                     assignment.location.end,
                 )?;
 
-                if !Self::compare_types(&resolved_type, &typed_value.get_type()) {
+                if !Self::compare_types(&resolved_type, typed_value.get_type()) {
                     return Err(ConvertingError {
                         error: ConvertingErrorType::TypeMismatch {
                             expected: resolved_type.clone(),
@@ -244,7 +267,7 @@ impl TypeAnalyzer {
                                     },
                                 })?;
                         TypedReassignmentTarget::Variable {
-                            location: location.clone(),
+                            location: *location,
                             name: name.clone(),
                             type_: var_type.clone(),
                         }
@@ -256,7 +279,7 @@ impl TypeAnalyzer {
                     } => {
                         let field_type = self.resolve_struct_field_type(struct_name, field_name)?;
                         TypedReassignmentTarget::FieldAccess {
-                            location: location.clone(),
+                            location: *location,
                             struct_name: struct_name.clone(),
                             field_name: field_name.clone(),
                             type_: field_type.clone(),
@@ -288,7 +311,7 @@ impl TypeAnalyzer {
                         }
 
                         TypedReassignmentTarget::ArrayAccess {
-                            location: location.clone(),
+                            location: *location,
                             array_name: array_name.clone(),
                             index_expression: Box::new(typed_index),
                             type_: element_type.clone(),
@@ -296,7 +319,7 @@ impl TypeAnalyzer {
                     }
                 };
 
-                if !Self::compare_types(&typed_target.get_type(), &typed_new_value.get_type()) {
+                if !Self::compare_types(&typed_target.get_type(), typed_new_value.get_type()) {
                     return Err(ConvertingError {
                         error: ConvertingErrorType::TypeMismatch {
                             expected: typed_target.get_type(),
@@ -310,7 +333,7 @@ impl TypeAnalyzer {
                 }
 
                 Ok(TypedStatement::Reassignment(TypedReassignment {
-                    location: reassignment.location.clone(),
+                    location: reassignment.location,
                     target: typed_target.clone(),
                     new_value: Box::new(typed_new_value),
                     type_: typed_target.get_type(),
@@ -376,7 +399,7 @@ impl TypeAnalyzer {
             UntypedStatement::Return { location, value } => {
                 let typed_value = value
                     .as_ref()
-                    .map(|v| self.convert_expression_to_typed(v))
+                    .map(|value| self.convert_expression_to_typed(value))
                     .transpose()?;
                 Ok(TypedStatement::Return {
                     location: *location,
@@ -403,7 +426,7 @@ impl TypeAnalyzer {
         let end_expression_location = expr.get_location().end;
         match expr {
             UntypedExpression::IntLiteral { location, value } => Ok(TypedExpression::IntLiteral {
-                location: location.clone(),
+                location: *location,
                 value: value.parse::<i64>().map_err(|_| ConvertingError {
                     error: ConvertingErrorType::InvalidIntLiteral,
                     location: crate::lex::location::Location {
@@ -415,7 +438,7 @@ impl TypeAnalyzer {
             }),
             UntypedExpression::FloatLiteral { location, value } => {
                 Ok(TypedExpression::FloatLiteral {
-                    location: location.clone(),
+                    location: *location,
                     value: value.parse::<f64>().map_err(|_| ConvertingError {
                         error: ConvertingErrorType::InvalidFloatLiteral,
                         location: crate::lex::location::Location {
@@ -428,7 +451,7 @@ impl TypeAnalyzer {
             }
             UntypedExpression::StringLiteral { location, value } => {
                 Ok(TypedExpression::StringLiteral {
-                    location: location.clone(),
+                    location: *location,
                     value: value.clone(),
                     type_: Type::String,
                 })
@@ -442,7 +465,7 @@ impl TypeAnalyzer {
                     },
                 })?;
                 Ok(TypedExpression::CharLiteral {
-                    location: location.clone(),
+                    location: *location,
                     value: char_value,
                     type_: Type::Char,
                 })
@@ -450,7 +473,7 @@ impl TypeAnalyzer {
             UntypedExpression::VariableValue { location, name } => {
                 let resolved_type = self.resolve_variable_type(name)?;
                 Ok(TypedExpression::VariableValue {
-                    location: location.clone(),
+                    location: *location,
                     name: name.clone(),
                     type_: resolved_type,
                 })
@@ -464,16 +487,16 @@ impl TypeAnalyzer {
                 let typed_left = self.convert_expression_to_typed(left)?;
                 let typed_right = self.convert_expression_to_typed(right)?;
 
-                let result_type = self.check_type_of_binary_operation(
-                    &typed_left.get_type(),
-                    &typed_right.get_type(),
-                    operator,
+                let result_type = TypeAnalyzer::check_type_of_binary_operation(
+                    typed_left.get_type(),
+                    typed_right.get_type(),
+                    *operator,
                     start_expression_location,
                     end_expression_location,
                 )?;
                 Ok(TypedExpression::BinaryOperation {
-                    location: location.clone(),
-                    operator: operator.clone(),
+                    location: *location,
+                    operator: *operator,
                     left: Box::new(typed_left),
                     right: Box::new(typed_right),
                     type_: result_type,
@@ -510,8 +533,8 @@ impl TypeAnalyzer {
                             .map(|(i, arg)| {
                                 self.convert_call_argument_to_typed(
                                     function_name,
-                                    &arg,
-                                    location,
+                                    arg,
+                                    *location,
                                     i,
                                 )
                             })
@@ -523,7 +546,7 @@ impl TypeAnalyzer {
                     self.resolve_function_return_type(function_name, location.start, location.end)?;
 
                 Ok(TypedExpression::FunctionCall {
-                    location: location.clone(),
+                    location: *location,
                     function_name: function_name.clone(),
                     arguments: typed_args,
                     type_: function_type,
@@ -536,7 +559,7 @@ impl TypeAnalyzer {
             } => {
                 let field_type = self.resolve_struct_field_type(struct_name, field_name)?;
                 Ok(TypedExpression::StructFieldAccess {
-                    location: location.clone(),
+                    location: *location,
                     struct_name: struct_name.clone(),
                     field_name: field_name.clone(),
                     type_: field_type,
@@ -565,7 +588,7 @@ impl TypeAnalyzer {
                 let element_type =
                     self.resolve_array_element_type(array_name, location.start, location.end)?;
                 Ok(TypedExpression::ArrayElementAccess {
-                    location: location.clone(),
+                    location: *location,
                     array_name: array_name.clone(),
                     index_expression: Box::new(typed_index),
                     type_: element_type,
@@ -587,7 +610,7 @@ impl TypeAnalyzer {
                     .map(|expressions| {
                         expressions.clone().try_mapped(|expression| {
                             let typed_expr = self.convert_expression_to_typed(&expression)?;
-                            if !Self::compare_types(&resolved_type, &typed_expr.get_type()) {
+                            if !Self::compare_types(&resolved_type, typed_expr.get_type()) {
                                 return Err(ConvertingError {
                                     error: ConvertingErrorType::TypeMismatch {
                                         expected: resolved_type.clone(),
@@ -605,7 +628,7 @@ impl TypeAnalyzer {
                     .transpose()?;
 
                 Ok(TypedExpression::ArrayInitialization {
-                    location: location.clone(),
+                    location: *location,
                     elements: typed_elements,
                     type_: resolved_type,
                 })
@@ -621,9 +644,7 @@ impl TypeAnalyzer {
                     end_expression_location,
                 )?;
 
-                let type_name = if let Type::Custom { name } = &resolved_type {
-                    name
-                } else {
+                let Type::Custom { name: type_name } = &resolved_type else {
                     return Err(ConvertingError {
                         error: ConvertingErrorType::UnsupportedType,
                         location: crate::lex::location::Location {
@@ -643,7 +664,7 @@ impl TypeAnalyzer {
                     .transpose()?;
 
                 Ok(TypedExpression::StructInitialization {
-                    location: location.clone(),
+                    location: *location,
                     type_: resolved_type.clone(),
                     fields: typed_fields.clone(),
                 })
@@ -700,7 +721,7 @@ impl TypeAnalyzer {
 
             let field = fields
                 .iter()
-                .find(|f| f.name == *field_name)
+                .find(|field| field.name == *field_name)
                 .ok_or(ConvertingError {
                     error: ConvertingErrorType::FieldNotFound,
                     location: crate::lex::location::Location { start: 0, end: 0 },
@@ -749,10 +770,9 @@ impl TypeAnalyzer {
     }
 
     fn check_type_of_binary_operation(
-        &mut self,
         left_type: &Type,
         right_type: &Type,
-        operator: &BinaryOperator,
+        operator: BinaryOperator,
         start_location: u32,
         end_location: u32,
     ) -> Result<Type, ConvertingError> {
@@ -843,7 +863,7 @@ impl TypeAnalyzer {
         &mut self,
         function_name: &EcoString,
         argument: &CallArgumentUntyped,
-        location: &ast::location::Location,
+        location: ast::location::Location,
         i: usize,
     ) -> Result<CallArgumentTyped, ConvertingError> {
         let typed_argument = self.convert_expression_to_typed(&argument.value)?;
@@ -889,7 +909,7 @@ impl TypeAnalyzer {
 
         Ok(CallArgumentTyped {
             value: typed_argument.clone(),
-            location: location.clone(),
+            location,
             type_: typed_argument.get_type().clone(),
         })
     }
@@ -930,9 +950,11 @@ impl TypeAnalyzer {
 
     fn compare_types(expected: &Type, found: &Type) -> bool {
         match (expected, found) {
-            (Type::Custom { name: n1 }, Type::Custom { name: n2 }) => n1 == n2,
-            (Type::Array { type_: t1 }, Type::Array { type_: t2 }) => Self::compare_types(t1, t2),
-            (a, b) => a == b,
+            (Type::Custom { name: name1 }, Type::Custom { name: name2 }) => name1 == name2,
+            (Type::Array { type_: type1 }, Type::Array { type_: type2 }) => {
+                Self::compare_types(type1, type2)
+            }
+            (expected_type, found_type) => expected_type == found_type,
         }
     }
 }
@@ -944,7 +966,14 @@ pub struct ProgramState {
     structs: HashMap<EcoString, DefinitionTyped>,
 }
 
+impl Default for ProgramState {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl ProgramState {
+    #[must_use]
     pub fn new() -> Self {
         ProgramState {
             variables: HashMap::new(),
@@ -962,11 +991,8 @@ impl ProgramState {
     }
 
     fn add_function(&mut self, name: EcoString, definition: DefinitionTyped) {
-        match definition {
-            DefinitionTyped::Function { .. } => {
-                self.functions.insert(name, definition);
-            }
-            _ => {}
+        if let DefinitionTyped::Function { .. } = definition {
+            self.functions.insert(name, definition);
         }
     }
 
@@ -975,11 +1001,8 @@ impl ProgramState {
     }
 
     fn add_struct(&mut self, name: EcoString, definition: DefinitionTyped) {
-        match definition {
-            DefinitionTyped::Struct { .. } => {
-                self.structs.insert(name, definition);
-            }
-            _ => {}
+        if let DefinitionTyped::Struct { .. } = definition {
+            self.structs.insert(name, definition);
         }
     }
 
