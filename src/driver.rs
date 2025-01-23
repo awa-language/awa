@@ -51,7 +51,7 @@ pub fn run(
                         MenuAction::ReturnToExecution => {}
                     }
 
-                    let _ = backwards_sender
+                    let () = backwards_sender
                         .send(BackwardsCommunication::Hotswapped)
                         .unwrap();
                 }
@@ -65,7 +65,7 @@ pub fn run(
                 println!("recieved bacoff message: `{backoff_message}`. consider hotswapping");
                 awaiting_hotswap = true;
 
-                let _ = backwards_sender
+                let () = backwards_sender
                     .send(BackwardsCommunication::RequireHotswap)
                     .unwrap();
             }
@@ -73,17 +73,17 @@ pub fn run(
     }
 }
 
-pub fn build_ast(input: &str) -> Module<DefinitionTyped> {
+#[must_use] pub fn build_ast(input: &str) -> Module<DefinitionTyped> {
     let typed_module = analyze_input(input);
-    let module = match typed_module {
+    
+
+    match typed_module {
         Ok(module) => module,
         Err(_) => todo!(),
-    };
-
-    module
+    }
 }
 
-pub fn make_bytecode(module: &Module<DefinitionTyped>) -> Vec<vm::instruction::Instruction> {
+#[must_use] pub fn make_bytecode(module: &Module<DefinitionTyped>) -> Vec<vm::instruction::Instruction> {
     let interpreter = interpreter::Interpreter::new();
 
     interpreter.interpret_module(module)
