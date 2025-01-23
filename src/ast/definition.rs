@@ -46,7 +46,7 @@ pub enum DefinitionTyped {
 #[derive(Debug, Clone)]
 pub struct StructFieldTyped {
     pub name: EcoString,
-    pub type_annotation: Type,
+    pub type_: Type,
 }
 
 impl DefinitionTyped {
@@ -57,4 +57,3 @@ impl DefinitionTyped {
         }
     }
 }
-

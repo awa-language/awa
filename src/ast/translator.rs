@@ -193,7 +193,7 @@ impl ProgramState {
         let resolved_type = self.convert_untyped_to_typed(&field.type_annotation, 0, 0)?;
         Ok(StructFieldTyped {
             name: field.name.clone(),
-            type_annotation: resolved_type,
+            type_: resolved_type,
         })
     }
 
@@ -734,7 +734,7 @@ impl ProgramState {
                     location: crate::lex::location::Location { start: 0, end: 0 },
                 })?;
 
-            Ok(field.type_annotation.clone())
+            Ok(field.type_.clone())
         } else {
             Err(ConvertingError {
                 error: ConvertingErrorType::StructNotFound,
