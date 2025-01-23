@@ -1,0 +1,103 @@
+struct treeNode {
+  left treeNode
+  right treeNode
+  isInitialise int
+  item int
+}
+
+func itemCheck(t treeNode) int {
+  if t.left.isInitialise != 1 {
+    return t.item
+  }
+
+  return t.item + itemCheck(t.left) - itemCheck(t.right.itemCheck())
+}
+
+func bottomUpTree(item int, depth int) treeNode {
+  var t treeNode
+  t.item = item
+  t.isInitialise = 1
+
+  if depth > 0 {
+    var left treeNode = bottomUpTree(2 * item - 1, depth - 1)
+    var right treeNode = bottomUpTree(2 * item, depth - 1)
+
+    t.left = left
+    t.right = right
+  }
+  
+  return t
+}
+
+func max(a int, b int) int {
+  if a > b {
+    return a
+  }
+
+  return b
+}
+
+func pow(n int) int {
+  var result int = 1
+  var i int = 0
+  loop {
+    if i >= n {
+      break
+    }
+  
+    result = result * 2
+  }
+
+  return
+}
+
+func main() {
+  var ret int = 0
+  var n int = 4
+
+  loop {
+    if n > 7 {
+      break
+    }
+
+    var minDepth int = 4
+    var maxDepth int = max(minDepth+2, n)
+    var stretchDepth int = maxDepth + 1
+
+    var check int = itemCheck(bottomUpTree(0, stretchDepth))
+
+    var longLivedTree treeNode = bottomUpTree(0, maxDepth)
+
+    loop {
+      if depth > maxDepth {
+        break
+      }
+
+      var exponent int = maxDepth - depth + minDepth
+      var iterations int = pow(exponent)
+
+      var check int = 0
+      var i = 0
+
+      loop {
+        if i > iterations {
+          break
+        }
+
+        check = check + itemCheck(bottomUpTree(i, depth))
+        check = check + itemCheck(bottomUpTree(-i, depth))
+      }
+    }
+
+    ret = ret + itemCheck(longLivedTree)
+  }
+
+  var expected int = -4
+  if ret != expected {
+    println(expected)
+    println(ret)
+    panic()
+  }
+
+  println(ret)
+}
