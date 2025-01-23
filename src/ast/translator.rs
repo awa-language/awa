@@ -555,7 +555,9 @@ impl ProgramState {
                     })
                     .transpose()?;
 
-                let function_type = self.resolve_function_type(function_name)?;
+                let function_type = todo!();
+                // self.resolve_function_type(function_name)?;
+
                 Ok(TypedExpression::FunctionCall {
                     location: location.clone(),
                     function_name: function_name.clone(),
@@ -745,9 +747,16 @@ impl ProgramState {
 
     fn resolve_function_type(
         &mut self,
-        function_name: &EcoString,
-    ) -> Result<Type, ConvertingError> {
-        todo!()
+        return_type_annotation: Option<UntypedType>,
+        start_location: u32,
+        end_location: u32,
+    ) -> Option<Type> {
+        match return_type_annotation {
+            Some(untyped_type) => self
+                .convert_untyped_to_typed(&untyped_type, start_location, end_location)
+                .ok(),
+            None => None,
+        }
     }
 
     fn resolve_variable_type(
