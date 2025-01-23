@@ -184,6 +184,7 @@ impl Compiler {
                 // Нужно знать, куда прыгать — конец цикла
                 // Для этого обычно нужен стек меток или что-то в этом духе.
                 // Упрощённо (заглушка):
+                // TODO
                 self.bytecode.push(Instruction::Halt);
             }
             TypedStatement::Return { value, .. } => {
@@ -238,6 +239,7 @@ impl Compiler {
                     .push(Instruction::LoadToStack(array_name.clone()));
                 self.compile_expression(index_expression);
                 self.compile_expression(&reassign.new_value);
+                // TODO
                 // У вас Instruction::SetByIndex(i64) — работает только для
                 // константного индекса. Для динамического индекса нужна своя инструкция,
                 // например, SetIndex из стека. Для примера оставим так:
@@ -298,6 +300,7 @@ impl Compiler {
                 self.compile_expression(index_expression);
                 // Аналогичная проблема с GetByIndex(i64): если индекс не константа,
                 // нужна другая инструкция (например, GetByIndexStack).
+                // TODO
                 self.bytecode.push(Instruction::GetByIndex(0));
             }
             TypedExpression::ArrayInitialization { elements, .. } => {
@@ -325,6 +328,7 @@ impl Compiler {
                             // В реальности может быть нужно что-то типа: Append из стека.
                             // Допустим, у нас есть Instruction::Append(Value), тогда
                             // нужны доработки. Здесь оставим заглушку:
+                            // TODO
                             self.bytecode.push(Instruction::Append(Value::Nil));
                         }
                     }
@@ -339,6 +343,7 @@ impl Compiler {
                     Type::Custom { name } => name.clone(),
                     _ => {
                         // Обработка ошибки или заглушка
+                        // TODO
                         self.bytecode.push(Instruction::PushInt(0));
                         return;
                     }
@@ -377,16 +382,6 @@ impl Compiler {
     /// Подбираем инструкции под каждый BinaryOperator
     fn compile_binop(&mut self, op: &BinaryOperator) {
         match op {
-            BinaryOperator::And => {
-                // Если нужна короткозамкнутость (short-circuit),
-                // то придётся делать логику через JumpIfFalse.
-                // Иначе, если есть прямая инструкция:
-                // self.bytecode.push(Instruction::And);
-            }
-            BinaryOperator::Or => {
-                // Аналогично And
-                // self.bytecode.push(Instruction::Or);
-            }
             BinaryOperator::Equal => {
                 self.bytecode.push(Instruction::Equal);
             }
@@ -447,9 +442,11 @@ impl Compiler {
             BinaryOperator::Concatenation => {
                 self.bytecode.push(Instruction::Concat);
             }
+            _ => {}
         }
     }
-
+    
+    // TODO ??
     /// Пример попытки вытащить константное значение из выражения
     /// (для ArrayInitialization).
     fn try_extract_const_value(&self, expr: &TypedExpression) -> Option<Value> {
