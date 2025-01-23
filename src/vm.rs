@@ -35,6 +35,11 @@ struct State {
 }
 
 impl VM {
+    /// Initializes new VM
+    ///
+    /// # Panics
+    ///
+    /// Will panic if the provided bytecode does not contain `main()` function.
     #[must_use]
     pub fn new(input: Vec<Instruction>) -> Self {
         let mut vm = Self {
@@ -66,6 +71,13 @@ impl VM {
         vm
     }
 
+    /// Runs one current instruction in the VM
+    ///
+    /// # Panics
+    ///
+    /// Will panic if cannot recover from user code error, or in case other
+    /// interpreter parts do not function as expected.
+    #[must_use]
     pub fn run(&mut self) -> Option<EcoString> {
         if self.program_counter >= self.input.len() {
             return None;
@@ -201,9 +213,7 @@ impl VM {
                 let array = self.stack.pop().expect("stack underflow");
 
                 if let Value::Ref(handle) = array {
-                    let slice = if let Object::Slice(slice) = self.gc.get(handle) {
-                        slice
-                    } else {
+                    let Object::Slice(slice) = self.gc.get(handle) else {
                         panic!("GetByIndex on non-slice");
                     };
 
@@ -211,10 +221,10 @@ impl VM {
                         return Some(
                             self.perform_backoff("getting from array by index out of range"),
                         );
-                    } else {
-                        self.stack
-                            .push(slice[usize::try_from(index).unwrap()].clone());
                     }
+
+                    self.stack
+                        .push(slice[usize::try_from(index).unwrap()].clone());
                 } else {
                     panic!("GetByIndex expects Ref");
                 }
@@ -224,9 +234,7 @@ impl VM {
                 let value = self.stack.pop().expect("stack underflow");
 
                 if let Value::Ref(handle) = array {
-                    let slice = if let Object::Slice(slice) = self.gc.get_mut(handle) {
-                        slice
-                    } else {
+                    let Object::Slice(slice) = self.gc.get_mut(handle) else {
                         panic!("SetByIndex on non-slice");
                     };
 
@@ -234,9 +242,9 @@ impl VM {
                         return Some(
                             self.perform_backoff("setting array value by index out of range"),
                         );
-                    } else {
-                        slice[usize::try_from(index).unwrap()] = value;
                     }
+
+                    slice[usize::try_from(index).unwrap()] = value;
 
                     self.stack.push(Value::Ref(handle));
                 } else {
@@ -527,19 +535,17 @@ impl VM {
                     Some(address) => self.input[address - 1].clone(),
                     None => unreachable!(),
                 };
-                let name = if let Instruction::Call(name) = call_instruction {
-                    name
-                } else {
+                let Instruction::Call(name) = call_instruction else {
                     unreachable!();
                 };
 
                 self.program_counter = backup_state.program_counter;
-                self.stack = backup_state.stack.clone();
+                self.stack.clone_from(&backup_state.stack);
                 let _ = self.environments_stack.pop();
 
                 self.backup_state = None;
 
-                return name;
+                name
             }
             None => panic!("cannot recover from: {reason}"),
         }
@@ -611,7 +617,7 @@ impl VM {
                             fields: fields2,
                         },
                     ) => name1 == name2 && fields1 == fields2,
-                    _ => panic!("Non comparable: {lhs:?}, {rhs:?}"),
+                    _ => panic!("non comparable: {lhs:?}, {rhs:?}"),
                 }
             }
             _ => false,
