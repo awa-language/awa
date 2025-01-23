@@ -62,12 +62,21 @@ pub fn run(
             let backoff_message = vm.run();
 
             if let Some(backoff_message) = backoff_message {
-                println!("recieved bacoff message: `{backoff_message}`. consider hotswapping");
-                awaiting_hotswap = true;
+                match backoff_message {
+                    vm::RunCommunication::RequireHotswap(backoff_message) => {
+                        println!(
+                            "recieved bacoff message: `{backoff_message}`. consider hotswapping"
+                        );
+                        awaiting_hotswap = true;
 
-                let () = backwards_sender
-                    .send(BackwardsCommunication::RequireHotswap)
-                    .unwrap();
+                        let () = backwards_sender
+                            .send(BackwardsCommunication::RequireHotswap)
+                            .unwrap();
+                    }
+                    vm::RunCommunication::Finished => {
+                        return;
+                    }
+                }
             }
         }
     }

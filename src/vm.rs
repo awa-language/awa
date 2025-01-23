@@ -34,6 +34,12 @@ struct State {
     program_counter: usize,
 }
 
+#[derive(Debug)]
+pub enum RunCommunication {
+    RequireHotswap(EcoString),
+    Finished,
+}
+
 impl VM {
     /// Initializes new VM
     ///
@@ -42,6 +48,8 @@ impl VM {
     /// Will panic if the provided bytecode does not contain `main()` function.
     #[must_use]
     pub fn new(input: Vec<Instruction>) -> Self {
+        dbg!(input.clone());
+
         let mut vm = Self {
             input,
             program_counter: 0,
@@ -78,9 +86,9 @@ impl VM {
     /// Will panic if cannot recover from user code error, or in case other
     /// interpreter parts do not function as expected.
     #[must_use]
-    pub fn run(&mut self) -> Option<EcoString> {
+    pub fn run(&mut self) -> Option<RunCommunication> {
         if self.program_counter >= self.input.len() {
-            return None;
+            return Some(RunCommunication::Finished);
         }
 
         let instruction = self.input[self.program_counter].clone();
@@ -147,7 +155,9 @@ impl VM {
                 let (lhs, rhs) = (VM::get_int(&lhs), VM::get_int(&rhs));
 
                 if rhs == 0 {
-                    return Some(self.perform_backoff("integer division by zero"));
+                    return Some(RunCommunication::RequireHotswap(
+                        self.perform_backoff("integer division by zero"),
+                    ));
                 }
 
                 self.stack.push(Value::Int(lhs / rhs));
@@ -158,7 +168,9 @@ impl VM {
                 let (lhs, rhs) = (VM::get_int(&lhs), VM::get_int(&rhs));
 
                 if rhs == 0 {
-                    return Some(self.perform_backoff("modulo by zero"));
+                    return Some(RunCommunication::RequireHotswap(
+                        self.perform_backoff("modulo by zero"),
+                    ));
                 }
 
                 self.stack.push(Value::Int(lhs % rhs));
@@ -190,7 +202,9 @@ impl VM {
                 let (lhs, rhs) = (VM::get_float(&lhs), VM::get_float(&rhs));
 
                 if rhs == 0.0 {
-                    return Some(self.perform_backoff("floating point division by zero"));
+                    return Some(RunCommunication::RequireHotswap(
+                        self.perform_backoff("floating point division by zero"),
+                    ));
                 }
 
                 self.stack.push(Value::Float(lhs / rhs));
@@ -221,9 +235,9 @@ impl VM {
                     };
 
                     if index < 0 || (usize::try_from(index).unwrap()) >= slice.len() {
-                        return Some(
+                        return Some(RunCommunication::RequireHotswap(
                             self.perform_backoff("getting from array by index out of range"),
-                        );
+                        ));
                     }
 
                     self.stack
@@ -244,9 +258,9 @@ impl VM {
                     };
 
                     if index < 0 || (usize::try_from(index).unwrap()) >= slice.len() {
-                        return Some(
+                        return Some(RunCommunication::RequireHotswap(
                             self.perform_backoff("setting array value by index out of range"),
-                        );
+                        ));
                     }
 
                     slice[usize::try_from(index).unwrap()] = value;
@@ -473,10 +487,12 @@ impl VM {
                 panic!("function definition in main block");
             }
             Instruction::Halt => {
-                return None;
+                return Some(RunCommunication::Finished);
             }
             Instruction::Backoff(reason) => {
-                return Some(self.perform_backoff(&reason));
+                return Some(RunCommunication::RequireHotswap(
+                    self.perform_backoff(&reason),
+                ));
             }
         }
 
