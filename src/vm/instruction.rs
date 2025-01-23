@@ -61,6 +61,8 @@ pub enum Instruction {
     Print,
     Println,
 
+    Backoff(EcoString),
+
     Halt,
 }
 
