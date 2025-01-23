@@ -23,12 +23,14 @@ pub enum Instruction {
     MulFloat,
     DivFloat,
 
-    Append(Value),
-    GetByIndex(i64),
-    SetByIndex(i64),
+    Append,
+    GetByIndex,
+    SetByIndex,
 
     Equal,
     NotEqual,
+    And,
+    Or,
 
     LessInt,
     LessEqualInt,
