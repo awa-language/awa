@@ -18,8 +18,11 @@ camino = "1.1.9"
 clap = { version = "4.5.26", features = ["derive"] }
 clap_derive = "4.5.24"
 codespan-reporting = "0.11.1"
+console = "0.15.10"
 ecow = "0.2.2"
+inquire = { version = "0.7.5", features = ["editor"] }
 itertools = { version = "0.13.0", features = ["use_alloc"] }
 pretty_assertions = "1.4.1"
+strum = { version = "0.26.3", features = ["derive"] }
 termcolor = "1.4.1"
 vec1 = "1.12.1"

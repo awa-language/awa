@@ -1,6 +1,6 @@
 use camino::Utf8PathBuf;
 
-use crate::interpreter;
+use crate::driver;
 
 pub fn handle(filename: Option<Utf8PathBuf>) {
     let filename = match filename {
@@ -14,6 +14,5 @@ pub fn handle(filename: Option<Utf8PathBuf>) {
         Err(_err) => todo!(),
     };
 
-    interpreter::build_ast(&input);
-    // TODO: add beautiful error wrapping everywhere
+    let _ = driver::build_ast(&input);
 }

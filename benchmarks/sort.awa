@@ -1,0 +1,96 @@
+func mergeSort(items []int, length int) []int {
+    if (length <= 1) {
+        return items
+    }
+
+    var mid int = length / 2
+
+    var first []int = slice(items, 0, mid)
+    var second []int = slice(items, mid, length)
+
+    first = mergeSort(first, mid)
+    second = mergeSort(second, length - mid)
+
+    return merge(first, mid, second, length - mid)
+}
+
+func slice(arr []int, start int, end int) []int {
+    var result []int = []int{}
+    var i int = start
+
+    loop {
+        if (i >= end) {
+            break
+        }
+
+        append(result, arr[i])
+        i = i + 1
+    }
+
+    return result
+}
+
+func merge(a []int, aLen int, b []int, bLen int) []int {
+    var final []int = []int{}
+
+    var i int = 0
+    var j int = 0
+
+    loop {
+        if (i >= aLen) {
+            loop {
+                if (j >= bLen) {
+                    break
+                }
+
+                append(final, b[j])
+                j = j + 1
+            }
+
+            break
+        }
+
+        if (j >= bLen) {
+            loop {
+                if (i >= aLen) {
+                    break
+                }
+
+                append(final, a[i])
+                i = i + 1
+            }
+
+            break
+        }
+
+        if (a[i] <= b[j]) {
+            append(final, a[i])
+            i = i + 1
+        } else {
+            append(final, b[j])
+            j = j + 1
+        }
+    }
+
+    return final
+}
+
+func main() {
+    var length int = 10000
+    var lengthCopy int = length
+
+    var array []int = []int{}
+
+    loop {
+        if (lengthCopy == 0) {
+            break
+        }
+
+        append(array, lengthCopy)
+        lengthCopy = lengthCopy - 1
+    }
+
+    var sortedArray []int = mergeSort(array, length)
+
+    print(sortedArray)
+}

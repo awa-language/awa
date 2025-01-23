@@ -16,7 +16,7 @@ fn test_push_load_store() {
 
     let mut vm = VM::new(bytecode.clone());
     for _i in bytecode {
-        vm.run();
+        let _ = vm.run();
     }
 }
 
@@ -46,7 +46,7 @@ fn test_arithmetic_int() {
 
     let mut vm = VM::new(bytecode.clone());
     for _i in bytecode {
-        vm.run();
+        let _ = vm.run();
     }
 }
 
@@ -73,7 +73,7 @@ fn test_arithmetic_float() {
 
     let mut vm = VM::new(bytecode.clone());
     for _i in bytecode {
-        vm.run();
+        let _ = vm.run();
     }
 }
 
@@ -115,7 +115,7 @@ fn test_comparisons() {
 
     let mut vm = VM::new(bytecode.clone());
     for _i in 1..1000 {
-        vm.run();
+        let _ = vm.run();
     }
 }
 
@@ -138,7 +138,7 @@ fn test_jumps() {
 
     let mut vm = VM::new(bytecode.clone());
     for _i in bytecode {
-        vm.run();
+        let _ = vm.run();
     }
 }
 
@@ -169,7 +169,7 @@ fn test_if_else() {
 
     let mut vm = VM::new(bytecode.clone());
     for _i in bytecode {
-        vm.run();
+        let _ = vm.run();
     }
 }
 
@@ -186,7 +186,7 @@ fn test_functions() {
         Instruction::EndFunc,
         Instruction::Func("main".into()),
         Instruction::PushInt(5),
-        Instruction::PushInt(7),
+        Instruction::PushInt(100),
         Instruction::Call("add".into()),
         Instruction::StoreInMap("c".into()),
         Instruction::LoadToStack("c".into()),
@@ -197,7 +197,7 @@ fn test_functions() {
 
     let mut vm = VM::new(bytecode.clone());
     for _i in bytecode {
-        vm.run();
+        let _ = vm.run();
     }
 }
 
@@ -227,7 +227,7 @@ fn test_structs() {
 
     let mut vm = VM::new(bytecode.clone());
     for _i in bytecode {
-        vm.run();
+        let _ = vm.run();
     }
 }
 
@@ -244,7 +244,7 @@ fn test_concat() {
     ];
     let mut vm = VM::new(bytecode.clone());
     for _i in bytecode {
-        vm.run();
+        let _ = vm.run();
     }
 }
 
@@ -254,14 +254,17 @@ fn test_slice_1d() {
         Instruction::Func("main".into()),
         Instruction::PushArray(vec![Value::Int(1), Value::Int(2), Value::Int(3)]),
         Instruction::Println,
-        Instruction::Append(Value::Int(4)),
+        Instruction::PushInt(4),
+        Instruction::Append,
         Instruction::Println,
         Instruction::StoreInMap("qwe".into()),
-        Instruction::PushInt(22),
         Instruction::LoadToStack("qwe".into()),
-        Instruction::SetByIndex(1),
+        Instruction::PushInt(22),
+        Instruction::PushInt(1),
+        Instruction::SetByIndex,
         Instruction::Println,
-        Instruction::GetByIndex(1),
+        Instruction::PushInt(1),
+        Instruction::GetByIndex,
         Instruction::Println,
         Instruction::Halt,
         Instruction::EndFunc,
@@ -269,7 +272,7 @@ fn test_slice_1d() {
 
     let mut vm = VM::new(bytecode.clone());
     for _i in bytecode {
-        vm.run();
+        let _ = vm.run();
     }
 }
 
@@ -314,7 +317,7 @@ fn test_complex() {
 
     let mut vm = VM::new(bytecode.clone());
     for _i in bytecode {
-        vm.run();
+        let _ = vm.run();
     }
 }
 
@@ -346,7 +349,7 @@ fn test_recursion() {
     ];
     let mut vm = VM::new(bytecode.clone());
     for _i in 1..1000 {
-        vm.run();
+        let _ = vm.run();
     }
 }
 
@@ -397,7 +400,7 @@ fn test_gc_local_alloc_print() {
 
     let mut vm = VM::new(bytecode.clone());
     for _i in bytecode {
-        vm.run();
+        let _ = vm.run();
     }
 
     println!("Heap before manual GC:");
@@ -433,7 +436,7 @@ fn test_gc_auto_trigger() {
     vm.gc.threshold = 2;
 
     for _i in bytecode {
-        vm.run();
+        let _ = vm.run();
     }
 
     println!("Heap after auto-run with threshold=2:");
@@ -512,7 +515,7 @@ fn test_hotswap() {
     let mut vm = VM::new(code);
 
     for _i in 1..=100 {
-        vm.run();
+        let _ = vm.run();
     }
 
     let new_code = vec![
@@ -526,7 +529,7 @@ fn test_hotswap() {
     vm.hotswap_function(&new_code);
 
     for _i in 1..=100 {
-        vm.run();
+        let _ = vm.run();
     }
 }
 
@@ -540,20 +543,23 @@ fn test_slice_2d() {
             Value::Int(3),
         ])]),
         Instruction::Println,
-        Instruction::Append(Value::Slice(vec![Value::Int(4)])),
+        Instruction::PushArray(vec![Value::Int(4)]),
+        Instruction::Append,
         Instruction::Println,
         Instruction::StoreInMap("ab".into()),
-        Instruction::PushArray(vec![Value::Int(5)]),
         Instruction::LoadToStack("ab".into()),
-        Instruction::SetByIndex(1),
+        Instruction::PushArray(vec![Value::Int(5)]),
+        Instruction::PushInt(1),
+        Instruction::SetByIndex,
         Instruction::Println,
-        Instruction::GetByIndex(0),
+        Instruction::PushInt(0),
+        Instruction::GetByIndex,
         Instruction::Println,
         Instruction::Halt,
         Instruction::EndFunc,
     ];
     let mut vm = VM::new(bytecode.clone());
     for _i in bytecode {
-        vm.run();
+        let _ = vm.run();
     }
 }

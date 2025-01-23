@@ -38,6 +38,7 @@ impl Interpreter {
     #[must_use]
     pub fn interpret_module(mut self, module: &Module<DefinitionTyped>) -> Bytecode {
         if let Some(definitions) = &module.definitions {
+            // First pass - declare all structs
             for definition in definitions {
                 if let DefinitionTyped::Struct { name, fields, .. } = definition {
                     self.bytecode.push(Instruction::Struct(name.clone()));
@@ -53,6 +54,7 @@ impl Interpreter {
                 }
             }
 
+            // Second pass - process functions
             for definition in definitions {
                 if let DefinitionTyped::Function {
                     name,
@@ -65,6 +67,7 @@ impl Interpreter {
                     self.current_func = Some(name.clone());
                     self.bytecode.push(Instruction::Func(name.clone()));
 
+                    // Store arguments in reverse order
                     if let Some(arguments) = arguments {
                         for argument in arguments.iter().rev() {
                             self.bytecode
@@ -78,9 +81,7 @@ impl Interpreter {
                         }
                     }
 
-                    if name == "main" {
-                        self.bytecode.push(Instruction::Halt)
-                    }
+                    // Add implicit return if needed
                     if matches!(return_type, Type::Void) {
                         self.bytecode.push(Instruction::Return);
                     }
@@ -232,13 +233,7 @@ impl Interpreter {
                         self.interpret_expression(&argument.value);
                     }
                 }
-
-                match function_name.as_str() {
-                    "print" => self.bytecode.push(Instruction::Print),
-                    "println" => self.bytecode.push(Instruction::Println),
-                    "append" => self.bytecode.push(Instruction::Append),
-                    _ => self.bytecode.push(Instruction::Call(function_name.clone())),
-                }
+                self.bytecode.push(Instruction::Call(function_name.clone()));
             }
             TypedExpression::StructFieldAccess {
                 struct_name,
@@ -325,12 +320,11 @@ impl Interpreter {
 
     fn default_value_for_type(type_: &Type) -> Value {
         match type_ {
-            Type::Int => Value::Int(0),
+            Type::Int | Type::Boolean => Value::Int(0),
             Type::Float => Value::Float(0.0),
             Type::String => Value::String("".into()),
             Type::Char => Value::Char('\0'),
             Type::Array { .. } => Value::Slice(Vec::new()),
-            Type::Boolean => Value::Int(0),
             Type::Void => Value::Nil,
             Type::Custom { name } => Value::Struct {
                 name: name.clone(),
