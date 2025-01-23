@@ -229,7 +229,13 @@ impl Interpreter {
                         self.interpret_expression(&argument.value);
                     }
                 }
-                self.bytecode.push(Instruction::Call(function_name.clone()));
+
+                match function_name.as_str() {
+                    "print" => self.bytecode.push(Instruction::Print),
+                    "println" => self.bytecode.push(Instruction::Println),
+                    "append" => self.bytecode.push(Instruction::Append),
+                    _ => self.bytecode.push(Instruction::Call(function_name.clone())),
+                }
             }
             TypedExpression::StructFieldAccess {
                 struct_name,
