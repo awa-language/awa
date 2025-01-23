@@ -85,6 +85,25 @@ impl TypeAnalyzer {
                             }
                         }
 
+                        let return_type = return_type_annotation
+                            .as_ref()
+                            .map(|type_| {
+                                self.convert_untyped_to_typed(type_, location.start, location.end)
+                            })
+                            .transpose()?
+                            .unwrap_or(Type::Void);
+
+                        let typed_function_without_body = DefinitionTyped::Function {
+                            name: name.clone(),
+                            location: *location,
+                            arguments: typed_args.clone(),
+                            body: None,
+                            return_type: return_type.clone(),
+                        };
+
+                        self.program_state
+                            .add_function(name.clone(), typed_function_without_body.clone());
+
                         let typed_body = body
                             .as_ref()
                             .map(|statements| {
@@ -94,14 +113,6 @@ impl TypeAnalyzer {
                             })
                             .transpose()?;
 
-                        let return_type = return_type_annotation
-                            .as_ref()
-                            .map(|type_| {
-                                self.convert_untyped_to_typed(type_, location.start, location.end)
-                            })
-                            .transpose()?
-                            .unwrap_or(Type::Void);
-
                         let typed_function = DefinitionTyped::Function {
                             name: name.clone(),
                             location: *location,
@@ -109,9 +120,6 @@ impl TypeAnalyzer {
                             body: typed_body,
                             return_type,
                         };
-
-                        self.program_state
-                            .add_function(name.clone(), typed_function.clone());
 
                         typed_function
                     }
