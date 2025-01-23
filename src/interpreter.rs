@@ -78,6 +78,9 @@ impl Interpreter {
                         }
                     }
 
+                    if name == "main" {
+                        self.bytecode.push(Instruction::Halt)
+                    }
                     if matches!(return_type, Type::Void) {
                         self.bytecode.push(Instruction::Return);
                     }
