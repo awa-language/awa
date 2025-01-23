@@ -404,6 +404,19 @@ impl TypeAnalyzer {
             } => {
                 let typed_condition = self.convert_expression_to_typed(condition)?;
 
+                if *typed_condition.get_type() != Type::Boolean {
+                    return Err(ConvertingError {
+                        error: ConvertingErrorType::TypeMismatch {
+                            expected: Type::Boolean,
+                            found: typed_condition.get_type().clone(),
+                        },
+                        location: Location {
+                            start: location.start,
+                            end: location.end,
+                        },
+                    });
+                }
+
                 let saved_scope = self.program_state.create_scope();
                 let typed_if_body = if_body
                     .as_ref()
