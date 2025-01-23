@@ -2,7 +2,7 @@ use std::sync::mpsc::{channel, Receiver, Sender};
 
 use camino::Utf8PathBuf;
 
-use crate::interpreter::{self, Command};
+use crate::driver::{self, Command};
 
 pub fn handle(filename: Option<Utf8PathBuf>) {
     let filename = match filename {
@@ -25,7 +25,7 @@ pub fn handle(filename: Option<Utf8PathBuf>) {
     let (confirmation_sender, confirmation_reciever): (Sender<()>, Receiver<()>) = channel();
 
     let _ = std::thread::spawn(move || {
-        interpreter::run(&input_reciever, &confirmation_sender);
+        driver::run(&input_reciever, &confirmation_sender);
     });
 
     let term = console::Term::stdout();
