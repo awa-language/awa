@@ -1,7 +1,7 @@
 #[derive(Debug, strum::EnumIter)]
 pub enum MenuAction {
     PerformHotswap,
-    ReturnToExecution,
+    ReturnToExecution, // Do nothing
 }
 
 impl std::fmt::Display for MenuAction {
@@ -13,7 +13,7 @@ impl std::fmt::Display for MenuAction {
     }
 }
 
-pub fn get_user_menu_decision() -> MenuAction {
+#[must_use] pub fn get_user_menu_decision() -> MenuAction {
     let decision = inquire::Select::new(
         "Select one of the following:",
         <MenuAction as strum::IntoEnumIterator>::iter().collect(),
@@ -25,7 +25,7 @@ pub fn get_user_menu_decision() -> MenuAction {
     decision
 }
 
-pub fn get_user_input() -> String {
+#[must_use] pub fn get_user_input() -> String {
     let input = inquire::Editor::new("Input:")
         .with_render_config(description_render_config())
         .prompt()
