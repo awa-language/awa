@@ -19,69 +19,21 @@ use crate::type_::{Type, UntypedType};
 use ecow::EcoString;
 use vec1::Vec1;
 
-#[derive(Debug, Clone)]
-pub struct ProgramState {
-    variables: HashMap<EcoString, Type>,
-    functions: HashMap<EcoString, DefinitionTyped>,
-    structs: HashMap<EcoString, DefinitionTyped>,
+#[derive(Debug)]
+pub struct TypeAnalyzer {
+    program_state: ProgramState,
 }
 
-impl ProgramState {
+impl TypeAnalyzer {
     pub fn new() -> Self {
-        ProgramState {
-            variables: HashMap::new(),
-            functions: HashMap::new(),
-            structs: HashMap::new(),
-        }
+        let type_analyzer = TypeAnalyzer {
+            program_state: ProgramState::new(),
+        };
+
+        type_analyzer
     }
 
-    fn add_variable(&mut self, name: EcoString, type_: Type) {
-        self.variables.insert(name, type_);
-    }
-
-    fn get_variable_type(&self, name: &EcoString) -> Option<&Type> {
-        self.variables.get(name)
-    }
-
-    fn add_function(&mut self, name: EcoString, definition: DefinitionTyped) {
-        match definition {
-            DefinitionTyped::Function { .. } => {
-                self.functions.insert(name, definition);
-            }
-            _ => {}
-        }
-    }
-
-    fn get_function(&self, name: &EcoString) -> Option<&DefinitionTyped> {
-        self.functions.get(name)
-    }
-
-    fn add_struct(&mut self, name: EcoString, definition: DefinitionTyped) {
-        match definition {
-            DefinitionTyped::Struct { .. } => {
-                self.structs.insert(name, definition);
-            }
-            _ => {}
-        }
-    }
-
-    fn get_struct(&self, name: &EcoString) -> Option<&DefinitionTyped> {
-        self.structs.get(name)
-    }
-
-    fn clear_variables(&mut self) {
-        self.variables.clear();
-    }
-
-    fn create_scope(&self) -> HashMap<EcoString, Type> {
-        self.variables.clone()
-    }
-
-    fn restore_scope(&mut self, saved_variables: HashMap<EcoString, Type>) {
-        self.variables = saved_variables;
-    }
-
-    fn convert_ast_to_tast(
+    pub fn convert_ast_to_tast(
         &mut self,
         untyped_ast: &Module<DefinitionUntyped>,
     ) -> Result<Module<DefinitionTyped>, ConvertingError> {
@@ -89,7 +41,7 @@ impl ProgramState {
 
         if let Some(definitions) = &untyped_ast.definitions {
             for definition in definitions {
-                self.clear_variables();
+                self.program_state.clear_variables();
                 let typed_definition = match definition {
                     DefinitionUntyped::Function {
                         location,
@@ -105,7 +57,8 @@ impl ProgramState {
 
                         if let Some(args) = typed_args.as_ref() {
                             for arg in args {
-                                self.add_variable(arg.name.clone(), arg.type_.clone());
+                                self.program_state
+                                    .add_variable(arg.name.clone(), arg.type_.clone());
                             }
                         }
 
@@ -132,7 +85,8 @@ impl ProgramState {
                             return_type,
                         };
 
-                        self.add_function(name.clone(), typed_function.clone());
+                        self.program_state
+                            .add_function(name.clone(), typed_function.clone());
 
                         typed_function
                     }
@@ -156,7 +110,8 @@ impl ProgramState {
                             fields: typed_fields,
                         };
 
-                        self.add_struct(name.clone(), typed_struct.clone());
+                        self.program_state
+                            .add_struct(name.clone(), typed_struct.clone());
 
                         typed_struct
                     }
@@ -263,7 +218,8 @@ impl ProgramState {
                     });
                 }
 
-                self.add_variable(assignment.variable_name.clone(), resolved_type.clone());
+                self.program_state
+                    .add_variable(assignment.variable_name.clone(), resolved_type.clone());
 
                 Ok(TypedStatement::Assignment(TypedAssignment {
                     location: assignment.location,
@@ -277,13 +233,16 @@ impl ProgramState {
 
                 let typed_target = match &reassignment.target {
                     UntypedReassignmentTarget::Variable { location, name } => {
-                        let var_type = self.get_variable_type(name).ok_or(ConvertingError {
-                            error: ConvertingErrorType::UnsupportedType,
-                            location: crate::lex::location::Location {
-                                start: location.start,
-                                end: location.end,
-                            },
-                        })?;
+                        let var_type =
+                            self.program_state
+                                .get_variable_type(name)
+                                .ok_or(ConvertingError {
+                                    error: ConvertingErrorType::UnsupportedType,
+                                    location: crate::lex::location::Location {
+                                        start: location.start,
+                                        end: location.end,
+                                    },
+                                })?;
                         TypedReassignmentTarget::Variable {
                             location: location.clone(),
                             name: name.clone(),
@@ -358,7 +317,7 @@ impl ProgramState {
                 }))
             }
             UntypedStatement::Loop { body, location } => {
-                let saved_scope = self.create_scope();
+                let saved_scope = self.program_state.create_scope();
                 let typed_body = body
                     .as_ref()
                     .map(|statements| {
@@ -367,7 +326,7 @@ impl ProgramState {
                             .try_mapped(|statement| self.convert_statement_to_typed(&statement))
                     })
                     .transpose()?;
-                self.restore_scope(saved_scope);
+                self.program_state.restore_scope(saved_scope);
 
                 Ok(TypedStatement::Loop {
                     body: typed_body,
@@ -382,7 +341,7 @@ impl ProgramState {
             } => {
                 let typed_condition = self.convert_expression_to_typed(condition)?;
 
-                let saved_scope = self.create_scope();
+                let saved_scope = self.program_state.create_scope();
                 let typed_if_body = if_body
                     .as_ref()
                     .map(|statements| {
@@ -391,9 +350,9 @@ impl ProgramState {
                             .try_mapped(|statement| self.convert_statement_to_typed(&statement))
                     })
                     .transpose()?;
-                self.restore_scope(saved_scope);
+                self.program_state.restore_scope(saved_scope);
 
-                let saved_scope = self.create_scope();
+                let saved_scope = self.program_state.create_scope();
                 let typed_else_body = else_body
                     .as_ref()
                     .map(|statements| {
@@ -402,7 +361,7 @@ impl ProgramState {
                             .try_mapped(|statement| self.convert_statement_to_typed(&statement))
                     })
                     .transpose()?;
-                self.restore_scope(saved_scope);
+                self.program_state.restore_scope(saved_scope);
 
                 Ok(TypedStatement::If {
                     condition: Box::new(typed_condition),
@@ -525,7 +484,7 @@ impl ProgramState {
                 function_name,
                 arguments,
             } => {
-                if let Some(function_def) = self.get_function(function_name) {
+                if let Some(function_def) = self.program_state.get_function(function_name) {
                     if let Some(expected_args) = function_def.get_arguments() {
                         if arguments.clone().unwrap().len() > expected_args.len() {
                             return Err(ConvertingError {
@@ -698,13 +657,16 @@ impl ProgramState {
         start_location: u32,
         end_location: u32,
     ) -> Result<Type, ConvertingError> {
-        let array_type = self.get_variable_type(array_name).ok_or(ConvertingError {
-            error: ConvertingErrorType::UnsupportedType,
-            location: crate::lex::location::Location {
-                start: start_location,
-                end: end_location,
-            },
-        })?;
+        let array_type =
+            self.program_state
+                .get_variable_type(array_name)
+                .ok_or(ConvertingError {
+                    error: ConvertingErrorType::UnsupportedType,
+                    location: crate::lex::location::Location {
+                        start: start_location,
+                        end: end_location,
+                    },
+                })?;
         match array_type {
             Type::Array { type_ } => Ok(*type_.clone()),
             _ => Err(ConvertingError {
@@ -722,10 +684,13 @@ impl ProgramState {
         struct_name: &EcoString,
         field_name: &EcoString,
     ) -> Result<Type, ConvertingError> {
-        let struct_def = self.get_struct(struct_name).ok_or(ConvertingError {
-            error: ConvertingErrorType::StructNotFound,
-            location: crate::lex::location::Location { start: 0, end: 0 },
-        })?;
+        let struct_def = self
+            .program_state
+            .get_struct(struct_name)
+            .ok_or(ConvertingError {
+                error: ConvertingErrorType::StructNotFound,
+                location: crate::lex::location::Location { start: 0, end: 0 },
+            })?;
 
         if let DefinitionTyped::Struct { fields, .. } = struct_def {
             let fields = fields.as_ref().ok_or(ConvertingError {
@@ -756,13 +721,16 @@ impl ProgramState {
         start_location: u32,
         end_location: u32,
     ) -> Result<Type, ConvertingError> {
-        let function_def = self.get_function(function_name).ok_or(ConvertingError {
-            error: ConvertingErrorType::UndefinedFunction,
-            location: crate::lex::location::Location {
-                start: start_location,
-                end: end_location,
-            },
-        })?;
+        let function_def =
+            self.program_state
+                .get_function(function_name)
+                .ok_or(ConvertingError {
+                    error: ConvertingErrorType::UndefinedFunction,
+                    location: crate::lex::location::Location {
+                        start: start_location,
+                        end: end_location,
+                    },
+                })?;
         function_def.get_return_type()
     }
 
@@ -770,12 +738,13 @@ impl ProgramState {
         &mut self,
         variable_name: &EcoString,
     ) -> Result<Type, ConvertingError> {
-        let variable_type = self
-            .get_variable_type(variable_name)
-            .ok_or(ConvertingError {
-                error: ConvertingErrorType::UnsupportedType,
-                location: crate::lex::location::Location { start: 0, end: 0 },
-            })?;
+        let variable_type =
+            self.program_state
+                .get_variable_type(variable_name)
+                .ok_or(ConvertingError {
+                    error: ConvertingErrorType::UnsupportedType,
+                    location: crate::lex::location::Location { start: 0, end: 0 },
+                })?;
         Ok(variable_type.clone())
     }
 
@@ -878,13 +847,17 @@ impl ProgramState {
         i: usize,
     ) -> Result<CallArgumentTyped, ConvertingError> {
         let typed_argument = self.convert_expression_to_typed(&argument.value)?;
-        let function_def = self.functions.get(function_name).ok_or(ConvertingError {
-            error: ConvertingErrorType::UndefinedFunction,
-            location: Location {
-                start: location.start,
-                end: location.end,
-            },
-        })?;
+        let function_def =
+            self.program_state
+                .functions
+                .get(function_name)
+                .ok_or(ConvertingError {
+                    error: ConvertingErrorType::UndefinedFunction,
+                    location: Location {
+                        start: location.start,
+                        end: location.end,
+                    },
+                })?;
 
         if let Some(expected_args) = function_def.get_arguments() {
             if expected_args.len() <= i {
@@ -933,7 +906,7 @@ impl ProgramState {
             UntypedType::String => Ok(Type::String),
             UntypedType::Char => Ok(Type::Char),
             UntypedType::Custom { name } => {
-                if self.get_struct(name).is_none() {
+                if self.program_state.get_struct(name).is_none() {
                     return Err(ConvertingError {
                         error: ConvertingErrorType::StructNotFound,
                         location: Location {
@@ -961,5 +934,68 @@ impl ProgramState {
             (Type::Array { type_: t1 }, Type::Array { type_: t2 }) => Self::compare_types(t1, t2),
             (a, b) => a == b,
         }
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct ProgramState {
+    variables: HashMap<EcoString, Type>,
+    functions: HashMap<EcoString, DefinitionTyped>,
+    structs: HashMap<EcoString, DefinitionTyped>,
+}
+
+impl ProgramState {
+    pub fn new() -> Self {
+        ProgramState {
+            variables: HashMap::new(),
+            functions: HashMap::new(),
+            structs: HashMap::new(),
+        }
+    }
+
+    fn add_variable(&mut self, name: EcoString, type_: Type) {
+        self.variables.insert(name, type_);
+    }
+
+    fn get_variable_type(&self, name: &EcoString) -> Option<&Type> {
+        self.variables.get(name)
+    }
+
+    fn add_function(&mut self, name: EcoString, definition: DefinitionTyped) {
+        match definition {
+            DefinitionTyped::Function { .. } => {
+                self.functions.insert(name, definition);
+            }
+            _ => {}
+        }
+    }
+
+    fn get_function(&self, name: &EcoString) -> Option<&DefinitionTyped> {
+        self.functions.get(name)
+    }
+
+    fn add_struct(&mut self, name: EcoString, definition: DefinitionTyped) {
+        match definition {
+            DefinitionTyped::Struct { .. } => {
+                self.structs.insert(name, definition);
+            }
+            _ => {}
+        }
+    }
+
+    fn get_struct(&self, name: &EcoString) -> Option<&DefinitionTyped> {
+        self.structs.get(name)
+    }
+
+    fn clear_variables(&mut self) {
+        self.variables.clear();
+    }
+
+    fn create_scope(&self) -> HashMap<EcoString, Type> {
+        self.variables.clone()
+    }
+
+    fn restore_scope(&mut self, saved_variables: HashMap<EcoString, Type>) {
+        self.variables = saved_variables;
     }
 }
