@@ -18,7 +18,14 @@ pub struct Interpreter {
     loop_start_stack: Vec<usize>,
 }
 
+impl Default for Interpreter {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl Interpreter {
+    #[must_use]
     pub fn new() -> Self {
         Self {
             bytecode: Vec::new(),
@@ -28,14 +35,15 @@ impl Interpreter {
         }
     }
 
+    #[must_use]
     pub fn interpret_module(mut self, module: &Module<DefinitionTyped>) -> Bytecode {
         if let Some(definitions) = &module.definitions {
             // First pass - declare all structs
-            for def in definitions.iter() {
+            for def in definitions {
                 if let DefinitionTyped::Struct { name, fields, .. } = def {
                     self.bytecode.push(Instruction::Struct(name.clone()));
                     if let Some(fields) = fields {
-                        for field in fields.iter() {
+                        for field in fields {
                             self.bytecode.push(Instruction::Field(
                                 field.name.clone(),
                                 Self::default_value_for_type(&field.type_),
@@ -47,7 +55,7 @@ impl Interpreter {
             }
 
             // Second pass - process functions
-            for def in definitions.iter() {
+            for def in definitions {
                 if let DefinitionTyped::Function {
                     name,
                     arguments,
@@ -68,7 +76,7 @@ impl Interpreter {
                     }
 
                     if let Some(statements) = body {
-                        for stmt in statements.iter() {
+                        for stmt in statements {
                             self.interpret_statement(stmt);
                         }
                     }
@@ -119,11 +127,10 @@ impl Interpreter {
                     index_expression,
                     ..
                 } => {
-                    self.interpret_expression(&reassign.new_value);
                     self.bytecode
                         .push(Instruction::LoadToStack(array_name.clone()));
                     self.interpret_expression(index_expression);
-                    self.interpret_expression(index_expression);
+                    self.interpret_expression(&reassign.new_value);
                     self.bytecode.push(Instruction::SetByIndex);
                     self.bytecode
                         .push(Instruction::StoreInMap(array_name.clone()));
@@ -134,7 +141,7 @@ impl Interpreter {
                 self.loop_start_stack.push(loop_start);
 
                 if let Some(statements) = body {
-                    for stmt in statements.iter() {
+                    for stmt in statements {
                         self.interpret_statement(stmt);
                     }
                 }
@@ -166,7 +173,7 @@ impl Interpreter {
                 self.bytecode.push(Instruction::JumpIfFalse(0)); // Placeholder
 
                 if let Some(statements) = if_body {
-                    for stmt in statements.iter() {
+                    for stmt in statements {
                         self.interpret_statement(stmt);
                     }
                 }
@@ -176,7 +183,7 @@ impl Interpreter {
 
                 let else_start = self.bytecode.len();
                 if let Some(statements) = else_body {
-                    for stmt in statements.iter() {
+                    for stmt in statements {
                         self.interpret_statement(stmt);
                     }
                 }
@@ -251,7 +258,7 @@ impl Interpreter {
             TypedExpression::ArrayInitialization { elements, .. } => {
                 self.bytecode.push(Instruction::PushArray(Vec::new()));
                 if let Some(elems) = elements {
-                    for elem in elems.iter() {
+                    for elem in elems {
                         self.interpret_expression(elem);
                         self.bytecode.push(Instruction::Append);
                     }
@@ -261,7 +268,7 @@ impl Interpreter {
                 if let Type::Custom { name } = type_ {
                     self.bytecode.push(Instruction::NewStruct(name.clone()));
                     if let Some(fields) = fields {
-                        for field in fields.iter() {
+                        for field in fields {
                             self.interpret_expression(&field.value);
                             self.bytecode
                                 .push(Instruction::SetField(field.name.clone()));
@@ -293,15 +300,15 @@ impl Interpreter {
                     BinaryOperator::LessEqualInt => self.bytecode.push(Instruction::LessEqualInt),
                     BinaryOperator::GreaterInt => self.bytecode.push(Instruction::GreaterInt),
                     BinaryOperator::GreaterEqualInt => {
-                        self.bytecode.push(Instruction::GreaterEqualInt)
+                        self.bytecode.push(Instruction::GreaterEqualInt);
                     }
                     BinaryOperator::LessFloat => self.bytecode.push(Instruction::LessFloat),
                     BinaryOperator::LessEqualFloat => {
-                        self.bytecode.push(Instruction::LessEqualFloat)
+                        self.bytecode.push(Instruction::LessEqualFloat);
                     }
                     BinaryOperator::GreaterFloat => self.bytecode.push(Instruction::GreaterFloat),
                     BinaryOperator::GreaterEqualFloat => {
-                        self.bytecode.push(Instruction::GreaterEqualFloat)
+                        self.bytecode.push(Instruction::GreaterEqualFloat);
                     }
                     BinaryOperator::Concatenation => self.bytecode.push(Instruction::Concat),
                     BinaryOperator::And => self.bytecode.push(Instruction::And),
