@@ -637,12 +637,23 @@ impl TypeAnalyzer {
                     end_expression_location,
                 )?;
 
+                let inner_type = match resolved_type {
+                    Type::Array { ref type_ } => Ok(type_.clone()),
+                    _ => Err(ConvertingError {
+                        error: ConvertingErrorType::UnsupportedType,
+                        location: crate::lex::location::Location {
+                            start: start_expression_location,
+                            end: end_expression_location,
+                        },
+                    }),
+                }?;
+
                 let typed_elements = elements
                     .as_ref()
                     .map(|expressions| {
                         expressions.clone().try_mapped(|expression| {
                             let typed_expr = self.convert_expression_to_typed(&expression)?;
-                            if !Self::compare_types(&resolved_type, typed_expr.get_type()) {
+                            if !Self::compare_types(&inner_type, typed_expr.get_type()) {
                                 return Err(ConvertingError {
                                     error: ConvertingErrorType::TypeMismatch {
                                         expected: resolved_type.clone(),
