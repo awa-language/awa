@@ -1,13 +1,10 @@
 use crate::ast::expression::TypedExpression;
 use crate::ast::module::Module;
-use crate::ast::reassignment::{
-    TypedReassignment, TypedReassignmentTarget,
-};
-use crate::ast::statement::{TypedStatement};
+use crate::ast::reassignment::TypedReassignmentTarget;
+use crate::ast::statement::TypedStatement;
 use crate::ast::{argument, definition, statement};
 use crate::type_::Type;
 use std::fmt;
-
 
 /// Prints structure of typed AST module
 ///
@@ -132,7 +129,7 @@ fn print_expression(
                 operator,
                 location.start,
                 location.end,
-                 type_
+                type_
             )?;
 
             let mut new_indentation_levels = indentation_levels.to_vec();
@@ -724,7 +721,6 @@ fn print_definition(
                 new_indentation_levels.pop();
             }
 
-
             let has_more = body.is_some();
             new_indentation_levels.push(has_more);
             writeln!(
@@ -750,3 +746,4 @@ fn print_definition(
 
     Ok(())
 }
+

@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 
 use super::argument::{CallArgumentTyped, CallArgumentUntyped};
+use super::module;
 use super::reassignment::{TypedReassignment, TypedReassignmentTarget};
 use crate::ast;
 use crate::ast::argument::{ArgumentTyped, ArgumentUntyped};
@@ -15,9 +16,19 @@ use crate::ast::reassignment::UntypedReassignmentTarget;
 use crate::ast::statement::{TypedStatement, UntypedStatement};
 use crate::lex::location::Location;
 use crate::parse::error::{ConvertingError, ConvertingErrorType};
+use crate::parse::parse_module;
 use crate::type_::{Type, UntypedType};
 use ecow::EcoString;
 use vec1::Vec1;
+
+pub fn analyze_input(input: &str) -> Result<module::Typed, ConvertingError> {
+    let module = parse_module(input).unwrap();
+
+    let mut analyzer = TypeAnalyzer::new();
+    let typed_module = analyzer.convert_ast_to_tast(&module)?;
+
+    Ok(typed_module)
+}
 
 #[derive(Debug)]
 pub struct TypeAnalyzer {
