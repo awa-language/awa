@@ -206,8 +206,8 @@ impl Interpreter {
         }
     }
 
-    fn interpret_expression(&mut self, expr: &TypedExpression) {
-        match expr {
+    fn interpret_expression(&mut self, expression: &TypedExpression) {
+        match expression {
             TypedExpression::IntLiteral { value, .. } => {
                 self.bytecode.push(Instruction::PushInt(*value));
             }
@@ -228,9 +228,9 @@ impl Interpreter {
                 arguments,
                 ..
             } => {
-                if let Some(args) = arguments {
-                    for arg in args {
-                        self.interpret_expression(&arg.value);
+                if let Some(arguments) = arguments {
+                    for argument in arguments {
+                        self.interpret_expression(&argument.value);
                     }
                 }
                 self.bytecode.push(Instruction::Call(function_name.clone()));
@@ -257,9 +257,9 @@ impl Interpreter {
             }
             TypedExpression::ArrayInitialization { elements, .. } => {
                 self.bytecode.push(Instruction::PushArray(Vec::new()));
-                if let Some(elems) = elements {
-                    for elem in elems {
-                        self.interpret_expression(elem);
+                if let Some(elements) = elements {
+                    for element in elements {
+                        self.interpret_expression(element);
                         self.bytecode.push(Instruction::Append);
                     }
                 }
