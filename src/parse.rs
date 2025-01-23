@@ -51,6 +51,14 @@ pub fn parse_module(input: &str) -> Result<module::Untyped, ParsingError> {
     Ok(module)
 }
 
+/// Parses statements.
+///
+/// - Statements consist of expressions (primitive type literals, value accesses and
+///   initializations)
+///
+/// # Errors
+///
+/// This function will return `ParsingError` if the input cannot be parsed into module.
 #[cfg(test)]
 pub fn parse_statement_sequence(
     input: &str,
