@@ -1,11 +1,10 @@
-use crate::ast::argument::Name;
-use crate::ast::expression::Expression;
+use crate::ast::expression::UntypedExpression;
 use crate::ast::module::Module;
-use crate::ast::statement::Statement;
+use crate::ast::statement::UntypedStatement;
 use crate::ast::{argument, definition, statement};
 use std::fmt;
 
-use super::reassignment::ReassignmentTarget;
+use super::reassignment::UntypedReassignmentTarget;
 
 /// Prints structure of untyped AST module
 ///
@@ -13,7 +12,7 @@ use super::reassignment::ReassignmentTarget;
 ///
 /// This function will return `fmt::Error` if it cannot perform writes.
 pub fn print_parse_tree(
-    module: &Module<definition::Untyped>,
+    module: &Module<definition::DefinitionUntyped>,
     formatter: &mut fmt::Formatter<'_>,
 ) -> fmt::Result {
     writeln!(formatter, "{}Module:", make_prefix(&[]))?;
@@ -54,12 +53,12 @@ fn make_prefix(indentation_levels: &[bool]) -> String {
 }
 
 fn print_definition(
-    definition: &definition::Untyped,
+    definition: &definition::DefinitionUntyped,
     indentation_levels: &[bool],
     formatter: &mut fmt::Formatter<'_>,
 ) -> fmt::Result {
     match definition {
-        definition::Untyped::Struct {
+        definition::DefinitionUntyped::Struct {
             location,
             name,
             fields,
@@ -90,7 +89,7 @@ fn print_definition(
                 }
             }
         }
-        definition::Untyped::Function {
+        definition::DefinitionUntyped::Function {
             location,
             name,
             arguments,
@@ -167,44 +166,38 @@ fn print_definition(
 }
 
 fn print_argument(
-    arg: &argument::Untyped,
+    arg: &argument::ArgumentUntyped,
     indentation_levels: &[bool],
     formatter: &mut fmt::Formatter<'_>,
 ) -> fmt::Result {
-    match &arg.name {
-        Name::Named { name, location } => {
-            writeln!(
-                formatter,
-                "{}Argument {} ({}..{})",
-                make_prefix(indentation_levels),
-                name,
-                location.start,
-                location.end
-            )?;
+    writeln!(
+        formatter,
+        "{}Argument {} ({}..{})",
+        make_prefix(indentation_levels),
+        arg.name,
+        arg.location.start,
+        arg.location.end
+    )?;
 
-            if let Some(annotation) = &arg.annotation {
-                let mut new_indentation_levels = indentation_levels.to_vec();
-                new_indentation_levels.push(false);
-                writeln!(
-                    formatter,
-                    "{}Type: {:?}",
-                    make_prefix(&new_indentation_levels),
-                    annotation
-                )?;
-            }
-        }
-    }
+    let mut new_indentation_levels = indentation_levels.to_vec();
+    new_indentation_levels.push(false);
+    writeln!(
+        formatter,
+        "{}Type: {:?}",
+        make_prefix(&new_indentation_levels),
+        arg.type_annotation
+    )?;
 
     Ok(())
 }
 
 fn print_statement(
-    statement: &statement::Untyped,
+    statement: &statement::UntypedStatement,
     indentation_levels: &[bool],
     formatter: &mut fmt::Formatter<'_>,
 ) -> fmt::Result {
     match statement {
-        Statement::Expression(expression) => {
+        UntypedStatement::Expression(expression) => {
             writeln!(formatter, "{}Expression:", make_prefix(indentation_levels))?;
 
             let mut new_indentation_levels = indentation_levels.to_vec();
@@ -212,7 +205,7 @@ fn print_statement(
 
             print_expression(expression, &new_indentation_levels, formatter)?;
         }
-        Statement::Assignment(assignment) => {
+        UntypedStatement::Assignment(assignment) => {
             writeln!(
                 formatter,
                 "{}Assignment ({}..{}):",
@@ -246,7 +239,7 @@ fn print_statement(
 
             print_expression(&assignment.value, &value_levels, formatter)?;
         }
-        Statement::Reassignment(reassignment) => {
+        UntypedStatement::Reassignment(reassignment) => {
             writeln!(
                 formatter,
                 "{}Reassignment ({}..{})",
@@ -256,7 +249,7 @@ fn print_statement(
             )?;
 
             match &reassignment.target {
-                ReassignmentTarget::Variable { location, name } => {
+                UntypedReassignmentTarget::Variable { location, name } => {
                     writeln!(
                         formatter,
                         "{}Target: Variable {} ({}..{})",
@@ -266,7 +259,7 @@ fn print_statement(
                         location.end
                     )?;
                 }
-                ReassignmentTarget::FieldAccess {
+                UntypedReassignmentTarget::FieldAccess {
                     location,
                     struct_name,
                     field_name,
@@ -281,7 +274,7 @@ fn print_statement(
                         location.end
                     )?;
                 }
-                ReassignmentTarget::ArrayAccess {
+                UntypedReassignmentTarget::ArrayAccess {
                     location,
                     array_name,
                     index_expression,
@@ -319,7 +312,7 @@ fn print_statement(
                 formatter,
             )?;
         }
-        Statement::Loop { body, location } => {
+        UntypedStatement::Loop { body, location } => {
             writeln!(
                 formatter,
                 "{}Loop ({}..{})",
@@ -339,7 +332,7 @@ fn print_statement(
                 }
             }
         }
-        Statement::If {
+        UntypedStatement::If {
             condition,
             if_body,
             else_body,
@@ -405,7 +398,7 @@ fn print_statement(
                 }
             }
         }
-        Statement::Break { location } => {
+        UntypedStatement::Break { location } => {
             writeln!(
                 formatter,
                 "{}Break ({}..{})",
@@ -414,7 +407,7 @@ fn print_statement(
                 location.end
             )?;
         }
-        Statement::Return { location, value } => {
+        UntypedStatement::Return { location, value } => {
             writeln!(
                 formatter,
                 "{}Return ({}..{})",
@@ -429,7 +422,7 @@ fn print_statement(
                 print_expression(expression, &new_indentation_levels, formatter)?;
             }
         }
-        Statement::Todo { location } => {
+        UntypedStatement::Todo { location } => {
             writeln!(
                 formatter,
                 "{}Todo ({}..{})",
@@ -438,7 +431,7 @@ fn print_statement(
                 location.end
             )?;
         }
-        Statement::Panic { location } => {
+        UntypedStatement::Panic { location } => {
             writeln!(
                 formatter,
                 "{}Panic ({}..{})",
@@ -447,7 +440,7 @@ fn print_statement(
                 location.end
             )?;
         }
-        Statement::Exit { location } => {
+        UntypedStatement::Exit { location } => {
             writeln!(
                 formatter,
                 "{}Exit ({}..{})",
@@ -462,12 +455,12 @@ fn print_statement(
 }
 
 fn print_expression(
-    expr: &Expression,
+    expr: &UntypedExpression,
     indentation_levels: &[bool],
     formatter: &mut fmt::Formatter<'_>,
 ) -> fmt::Result {
     match expr {
-        Expression::IntLiteral { location, value } => {
+        UntypedExpression::IntLiteral { location, value } => {
             writeln!(
                 formatter,
                 "{}Integer: {} ({}..{})",
@@ -477,7 +470,7 @@ fn print_expression(
                 location.end
             )?;
         }
-        Expression::FloatLiteral { location, value } => {
+        UntypedExpression::FloatLiteral { location, value } => {
             writeln!(
                 formatter,
                 "{}Float: {} ({}..{})",
@@ -487,7 +480,7 @@ fn print_expression(
                 location.end
             )?;
         }
-        Expression::StringLiteral { location, value } => {
+        UntypedExpression::StringLiteral { location, value } => {
             writeln!(
                 formatter,
                 "{}String: {} ({}..{})",
@@ -497,7 +490,7 @@ fn print_expression(
                 location.end
             )?;
         }
-        Expression::CharLiteral { location, value } => {
+        UntypedExpression::CharLiteral { location, value } => {
             writeln!(
                 formatter,
                 "{}Char: {} ({}..{})",
@@ -507,7 +500,7 @@ fn print_expression(
                 location.end
             )?;
         }
-        Expression::VariableValue { location, name } => {
+        UntypedExpression::VariableValue { location, name } => {
             writeln!(
                 formatter,
                 "{}Variable: {} ({}..{})",
@@ -517,7 +510,7 @@ fn print_expression(
                 location.end
             )?;
         }
-        Expression::BinaryOperation {
+        UntypedExpression::BinaryOperation {
             location,
             operator,
             left,
@@ -559,7 +552,7 @@ fn print_expression(
 
             print_expression(right, &right_levels, formatter)?;
         }
-        Expression::FunctionCall {
+        UntypedExpression::FunctionCall {
             location,
             function_name,
             arguments,
@@ -593,7 +586,7 @@ fn print_expression(
                 }
             }
         }
-        Expression::StructFieldAccess {
+        UntypedExpression::StructFieldAccess {
             location,
             struct_name,
             field_name,
@@ -608,7 +601,7 @@ fn print_expression(
                 location.end
             )?;
         }
-        Expression::ArrayElementAccess {
+        UntypedExpression::ArrayElementAccess {
             location,
             array_name,
             index_expression,
@@ -630,7 +623,7 @@ fn print_expression(
             index_levels.push(false);
             print_expression(index_expression, &index_levels, formatter)?;
         }
-        Expression::ArrayInitialization {
+        UntypedExpression::ArrayInitialization {
             location,
             type_annotation,
             elements,
@@ -662,7 +655,7 @@ fn print_expression(
                 }
             }
         }
-        Expression::StructInitialization {
+        UntypedExpression::StructInitialization {
             location,
             type_annotation,
             fields,

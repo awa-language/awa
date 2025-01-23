@@ -1,16 +1,21 @@
+use super::expression::TypedExpression;
+use super::expression::UntypedExpression;
+use crate::type_::Type;
+use crate::{ast::location::Location, type_::UntypedType};
 use ecow::EcoString;
 
-use crate::{ast::location::Location, type_::Type};
-
-use super::expression::Expression;
-
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct Assignment<ExpressionT> {
+pub struct UntypedAssignment {
     pub location: Location,
     pub variable_name: EcoString,
-    pub value: Box<ExpressionT>,
-    pub type_annotation: Type,
+    pub value: Box<UntypedExpression>,
+    pub type_annotation: UntypedType,
 }
 
-pub type Typed = Assignment<Expression>;
-pub type Untyped = Assignment<Expression>;
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct TypedAssignment {
+    pub location: Location,
+    pub variable_name: EcoString,
+    pub value: Box<TypedExpression>,
+    pub type_: Type,
+}
