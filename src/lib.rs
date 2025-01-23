@@ -7,3 +7,4 @@ pub mod lex;
 pub mod parse;
 pub mod type_;
 pub mod vm;
+pub mod compiler;
