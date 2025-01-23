@@ -159,7 +159,8 @@ impl VM {
                 assert!(!(rhs == 0.0), "division by zero");
                 self.stack.push(Value::Float(lhs / rhs));
             }
-            Instruction::Append(val) => {
+            Instruction::Append => {
+                let val = self.stack.pop().expect("stack underflow");
                 let arr = self.stack.pop().expect("stack underflow");
 
                 if let Value::Ref(handle) = arr {
@@ -173,7 +174,9 @@ impl VM {
                     panic!("append expects Ref");
                 }
             }
-            Instruction::GetByIndex(index) => {
+            Instruction::GetByIndex => {
+                let index = self.stack.pop().expect("stack underflow");
+                let index = VM::get_int(&index);
                 let arr = self.stack.pop().expect("stack underflow");
 
                 if let Value::Ref(handle) = arr {
@@ -191,9 +194,11 @@ impl VM {
                     panic!("getByIndex expects Ref");
                 }
             }
-            Instruction::SetByIndex(index) => {
-                let array = self.stack.pop().expect("stack underflow");
+            Instruction::SetByIndex => {
+                let index = self.stack.pop().expect("stack underflow");
+                let index = VM::get_int(&index);
                 let value = self.stack.pop().expect("stack underflow");
+                let array = self.stack.pop().expect("stack underflow");
 
                 if let Value::Ref(handle) = array {
                     if let Object::Slice(slice) = self.gc.get_mut(handle) {
@@ -224,6 +229,20 @@ impl VM {
                 let eq = self.is_equal_values(lhs, rhs);
 
                 self.stack.push(Value::Int(i64::from(!eq)));
+            }
+            Instruction::And => {
+                let rhs = self.stack.pop().expect("stack underflow");
+                let lhs = self.stack.pop().expect("stack underflow");
+                let (x, y) = (VM::get_int(&lhs), VM::get_int(&rhs));
+
+                self.stack.push(Value::Int(x * y));
+            }
+            Instruction::Or => {
+                let rhs = self.stack.pop().expect("stack underflow");
+                let lhs = self.stack.pop().expect("stack underflow");
+                let (x, y) = (VM::get_int(&lhs), VM::get_int(&rhs));
+
+                self.stack.push(Value::Int(x | y));
             }
             Instruction::LessInt => {
                 let rhs = self.stack.pop().expect("stack underflow");
