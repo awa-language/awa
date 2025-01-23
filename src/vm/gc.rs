@@ -56,7 +56,6 @@ impl GC {
         &mut self,
         stack: &[Value],
         environments_stack: &[HashMap<EcoString, Value>],
-        global_vars: &HashMap<EcoString, Value>,
     ) {
         for mark in &mut self.marked {
             *mark = false;
@@ -69,9 +68,6 @@ impl GC {
             for val in env.values() {
                 self.mark_value(val);
             }
-        }
-        for value in global_vars.values() {
-            self.mark_value(value);
         }
 
         self.compact();
@@ -146,51 +142,51 @@ impl GC {
         }
     }
 
-    /// «Компактирующий» этап: выкидываем все объекты, которые не marked = true,
-    /// а "живые" объекты переносим в новый вектор. При этом меняем их индексы (Handle).
+    /// "Compaction" phase: discard all objects that are not marked as `true`,
+    /// and move "alive" objects to a new vector. At the same time, update their indices (Handles).
     fn compact(&mut self) {
         let old_size = self.heap.len();
 
-        // Создадим новый вектор для «выживших» объектов.
+        // Create a new vector for the "surviving" objects.
         let mut new_heap = Vec::with_capacity(old_size);
         let mut new_marked = Vec::with_capacity(old_size);
 
-        // Массив для «ремапинга»: `remap[i] = Some(j)` означает,
-        // что объект i из старого heap переехал на позицию j в новом heap.
-        // Если remap[i] = None, значит объект i — «мёртвый».
+        // Array for "remapping": `remap[i] = Some(j)` means
+        // that object `i` from the old heap has been moved to position `j` in the new heap.
+        // If `remap[i] = None`, it means object `i` is "dead".
         let mut remap = vec![None; old_size];
 
-        // 1) перенесём «живые» объекты в new_heap
+        // 1) Move "alive" objects to `new_heap`
         let mut new_index = 0;
         for (i, item) in remap.iter_mut().enumerate().take(old_size) {
             if self.marked[i] {
-                // «живой» объект
+                // "Alive" object
                 *item = Some(new_index);
 
-                // Переносим объект во вновь созданный вектор
+                // Move the object to the newly created vector
                 let obj = std::mem::replace(&mut self.heap[i], Object::String("".into()));
                 new_heap.push(obj);
 
-                // Можно поставить пометку в false (или сразу true, но обычно сбрасываем)
+                // You can reset the mark to `false` (or directly set it to `true`, but typically it’s reset)
                 new_marked.push(false);
 
                 new_index += 1;
             } else {
-                // «мёртвый» объект
+                // "Dead" object
                 *item = None;
             }
         }
 
-        // 2) Пройдёмся по всем «выжившим» объектам и починим их внутренние ссылки
+        // 2) Traverse all "surviving" objects and fix their internal references
         for obj in &mut new_heap {
             Self::update_object_handles(obj, &remap);
         }
 
-        // 3) Заменим старые heap/marked
+        // 3) Replace the old `heap` and `marked` arrays
         self.heap = new_heap;
         self.marked = new_marked;
     }
-    /// Обход полей объекта и обновление Handle на новые индексы
+    /// Traverse the fields of the object and update the Handles to the new indices.
     fn update_object_handles(obj: &mut Object, remap: &[Option<usize>]) {
         match obj {
             Object::String(_) => {}
@@ -210,16 +206,16 @@ impl GC {
     fn update_value_handles(val: &mut Value, remap: &[Option<usize>]) {
         match val {
             Value::Ref(handle) => {
-                // Найдём, на какой индекс переехал старый h.0
+                // Find the new index to which the old handle.0 has been moved.
                 let old = handle.0;
                 if let Some(new_idx) = remap[old] {
                     handle.0 = new_idx;
                 } else {
-                    // Это означает, что объект считался «живым»,
-                    // но внутри него ссылка на «мёртвый» объект —
-                    // обычно такое не должно случиться, т.к. «живой» объект
-                    // не может содержать Ref на «мёртвый».
-                    // Но если такое случилось — либо паника, либо игнорируем.
+                    // This means that the object was considered "alive",
+                    // but inside it, there is a reference to a "dead" object —
+                    // usually, this should not happen, as an "alive" object
+                    // cannot contain a reference to a "dead" one.
+                    // However, if this happens — either panic or ignore it.
                     panic!("Live object had reference to dead object, old index = {old}");
                 }
             }

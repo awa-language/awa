@@ -16,10 +16,7 @@ pub struct VM {
     pub program_counter: usize,
     pub stack: Vec<Value>,
 
-    /// Глобальные переменные (видны везде)
-    pub global_variables: HashMap<EcoString, Value>,
-
-    /// Стек окружений для локальных переменных (каждый вызов Func -> push, Return -> pop)
+    /// Environment stack for local variables (each Func call -> push, Return -> pop).
     pub environments_stack: Vec<HashMap<EcoString, Value>>,
 
     pub structures: HashMap<EcoString, HashMap<EcoString, Value>>,
@@ -38,7 +35,6 @@ impl VM {
             program_counter: 0,
             stack: Vec::new(),
             environments_stack: Vec::new(),
-            global_variables: HashMap::new(),
             structures: HashMap::new(),
             functions: HashMap::new(),
             call_stack: Vec::new(),
@@ -88,14 +84,13 @@ impl VM {
                 if let Some(env) = self.environments_stack.last_mut() {
                     env.insert(name, val);
                 } else {
-                    self.global_variables.insert(name, val);
+                    panic!("stack underflow");
                 }
             }
             Instruction::LoadToStack(name) => {
-                if let Some(variable_value) = self.lookup_variable(&name) {
+                let variable_value = self.lookup_variable(&name);
+                {
                     self.stack.push(variable_value.clone());
-                } else {
-                    panic!("undefined variable: {name}");
                 }
             }
             Instruction::AddInt => {
@@ -470,23 +465,19 @@ impl VM {
         }
     }
 
-    fn lookup_variable(&self, name: &EcoString) -> Option<&Value> {
+    fn lookup_variable(&self, name: &EcoString) -> &Value {
         for environment in self.environments_stack.iter().rev() {
             if let Some(value) = environment.get(name) {
-                return Some(value);
+                return value;
             }
         }
-
-        self.global_variables.get(name)
+        panic!("stack underflow")
     }
 
     fn maybe_run_gc(&mut self) {
         if self.gc.alloc_count > self.gc.threshold {
-            self.gc.collect_garbage(
-                &self.stack,
-                &self.environments_stack,
-                &self.global_variables,
-            );
+            self.gc
+                .collect_garbage(&self.stack, &self.environments_stack);
         }
     }
 
@@ -628,12 +619,12 @@ impl VM {
     }
 
     // ========================
-    //     HOTSWAP - МЕТОД
+    //     HOTSWAP - METHOD
     // ========================
-    /// (1) Ищет Func(name) ... `EndFunc` в новом фрагменте
-    /// (2) Смещает Jump/JumpIfTrue/JumpIfFalse на offset = текущая длина self.input
-    /// (3) Добавляет в self.input: Func(name), [тело], `EndFunc`
-    /// (4) Обновляет functions[name] на начало вставленного тела
+    /// (1) Finds `Func(name)` ... `EndFunc` in the new fragment.
+    /// (2) Adjusts `Jump`/`JumpIfTrue`/`JumpIfFalse` by an offset equal to the current length of `self.input`.
+    /// (3) Adds to `self.input`: `Func(name)`, [body], `EndFunc`.
+    /// (4) Updates `functions[name]` to point to the start of the inserted body.
     pub fn hotswap_function(&mut self, new_code: &[Instruction]) {
         let (function_name, body) = VM::extract_func_block(new_code);
         let offset = self.input.len();
