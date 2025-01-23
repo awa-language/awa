@@ -12,6 +12,7 @@ pub enum Type {
         type_: Box<Self>, // Needed for empty array
     },
     Boolean,
+    Void,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]

@@ -1,3 +1,5 @@
+use crate::parse::error::ConvertingError;
+use crate::parse::error::ConvertingErrorType;
 use crate::type_::Type;
 use crate::type_::UntypedType;
 use ecow::EcoString;
@@ -39,7 +41,7 @@ pub enum DefinitionTyped {
         name: EcoString,
         arguments: Option<Vec1<argument::ArgumentTyped>>,
         body: Option<Vec1<statement::TypedStatement>>,
-        return_type: Option<Type>,
+        return_type: Type,
     },
 }
 
@@ -54,6 +56,16 @@ impl DefinitionTyped {
         match self {
             DefinitionTyped::Function { arguments, .. } => arguments.clone(),
             DefinitionTyped::Struct { .. } => None,
+        }
+    }
+
+    pub fn get_return_type(&self) -> Result<Type, ConvertingError> {
+        match self {
+            DefinitionTyped::Function { return_type, .. } => Ok(return_type.clone()),
+            DefinitionTyped::Struct { .. } => Err(ConvertingError {
+                error: ConvertingErrorType::UnsupportedType,
+                location: crate::lex::location::Location { start: 0, end: 0 },
+            }),
         }
     }
 }

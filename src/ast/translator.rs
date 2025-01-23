@@ -117,7 +117,8 @@ impl ProgramState {
                         let return_type = return_type_annotation
                             .as_ref()
                             .map(|t| self.convert_untyped_to_typed(t, location.start, location.end))
-                            .transpose()?;
+                            .transpose()?
+                            .unwrap_or(Type::Void);
 
                         let typed_function = DefinitionTyped::Function {
                             name: name.clone(),
@@ -228,7 +229,6 @@ impl ProgramState {
         })
     }
 
-    //TODO: fix all statement convertations
     pub fn convert_statement_to_typed(
         &mut self,
         stmt: &UntypedStatement,
@@ -513,7 +513,7 @@ impl ProgramState {
                 function_name,
                 arguments,
             } => {
-                if let Some(function_def) = self.functions.get(function_name) {
+                if let Some(function_def) = self.get_function(function_name) {
                     if let Some(expected_args) = function_def.get_arguments() {
                         if arguments.clone().unwrap().len() > expected_args.len() {
                             return Err(ConvertingError {
@@ -548,8 +548,8 @@ impl ProgramState {
                     })
                     .transpose()?;
 
-                let function_type = todo!();
-                // self.resolve_function_type(function_name)?;
+                let function_type =
+                    self.resolve_function_return_type(function_name, location.start, location.end)?;
 
                 Ok(TypedExpression::FunctionCall {
                     location: location.clone(),
@@ -738,18 +738,20 @@ impl ProgramState {
         }
     }
 
-    fn resolve_function_type(
+    fn resolve_function_return_type(
         &mut self,
-        return_type_annotation: Option<UntypedType>,
+        function_name: &EcoString,
         start_location: u32,
         end_location: u32,
-    ) -> Option<Type> {
-        match return_type_annotation {
-            Some(untyped_type) => self
-                .convert_untyped_to_typed(&untyped_type, start_location, end_location)
-                .ok(),
-            None => None,
-        }
+    ) -> Result<Type, ConvertingError> {
+        let function_def = self.get_function(function_name).ok_or(ConvertingError {
+            error: ConvertingErrorType::UndefinedFunction,
+            location: crate::lex::location::Location {
+                start: start_location,
+                end: end_location,
+            },
+        })?;
+        function_def.get_return_type()
     }
 
     fn resolve_variable_type(
