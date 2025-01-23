@@ -74,7 +74,7 @@ impl ConvertingError {
             }
             ConvertingErrorType::EmptyStruct => "empty struct".to_owned(),
             ConvertingErrorType::UndefinedFunction => {
-                "before function call, it should be defined ".to_owned()
+                "before function call, it should be defined".to_owned()
             }
             ConvertingErrorType::NotTheRightAmountOfArguments { expected, found } => {
                 format!("amount arguments mismatch: expected {expected:?}, found {found:?}")
@@ -82,8 +82,9 @@ impl ConvertingError {
             ConvertingErrorType::BuildInFunctionMismatchType { found } => {
                 format!("type mismatch: expected Int/Float/String/Char/Custom/Array/Boolean, found {found:?}")
             }
-            ConvertingErrorType::ArrayMismatchType => "the second argument must be of the same type as the array".to_owned(),
-
+            ConvertingErrorType::ArrayMismatchType => {
+                "the second argument must be of the same type as the array".to_owned()
+            }
         }
     }
 }
