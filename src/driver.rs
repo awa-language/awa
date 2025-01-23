@@ -79,7 +79,11 @@ pub fn build_ast(input: &str) -> Module<DefinitionTyped> {
 
     match typed_module {
         Ok(module) => module,
-        Err(_) => todo!(),
+        Err(err) => {
+            let description = err.get_description();
+            println!("{description}");
+            std::process::exit(1);
+        }
     }
 }
 
