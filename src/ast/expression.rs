@@ -1,9 +1,10 @@
-use crate::ast::argument::CallArgument;
 use crate::ast::location::Location;
 use crate::ast::operator::BinaryOperator;
 use crate::type_::{Type, UntypedType};
 use ecow::EcoString;
 use vec1::Vec1;
+
+use super::argument::{CallArgumentTyped, CallArgumentUntyped};
 
 #[derive(Debug, Clone)]
 pub enum TypedExpression {
@@ -35,7 +36,7 @@ pub enum TypedExpression {
     FunctionCall {
         location: Location,
         function_name: EcoString,
-        arguments: Option<Vec<CallArgumentTyped<Self>>>,
+        arguments: Option<Vec<CallArgumentTyped>>,
         type_: Type,
     },
     StructFieldAccess {
@@ -110,13 +111,6 @@ impl TypedExpression {
 pub struct StructFieldValueTyped {
     pub name: EcoString,
     pub value: TypedExpression,
-    pub type_: Type,
-}
-
-#[derive(Debug, PartialEq, Eq, Clone)]
-pub struct CallArgumentTyped<A> {
-    pub location: Location,
-    pub value: A,
     pub type_: Type,
 }
 
@@ -287,7 +281,7 @@ pub enum UntypedExpression {
     FunctionCall {
         location: Location,
         function_name: EcoString,
-        arguments: Option<Vec1<CallArgument<Self>>>,
+        arguments: Option<Vec1<CallArgumentUntyped>>,
     },
     StructFieldAccess {
         location: Location,

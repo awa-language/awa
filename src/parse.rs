@@ -629,7 +629,7 @@ impl<T: Iterator<Item = LexResult>> Parser<T> {
 
     fn parse_function_call_argument(
         &mut self,
-    ) -> Result<Option<argument::CallArgument<expression::UntypedExpression>>, ParsingError> {
+    ) -> Result<Option<argument::CallArgumentUntyped>, ParsingError> {
         let Some(expression) = self.parse_expression()? else {
             return Err(ParsingError {
                 error: error::Type::UnexpectedToken {
@@ -643,7 +643,7 @@ impl<T: Iterator<Item = LexResult>> Parser<T> {
             });
         };
 
-        Ok(Some(argument::CallArgument {
+        Ok(Some(argument::CallArgumentUntyped {
             location: Location {
                 start: expression.get_location().start,
                 end: expression.get_location().end,
@@ -685,19 +685,12 @@ impl<T: Iterator<Item = LexResult>> Parser<T> {
         })?;
 
         Ok(Some(argument::ArgumentUntyped {
-            name: argument::Name::Named {
-                name,
-                location: Location {
-                    start: name_token_span.start,
-                    end: name_token_span.end,
-                },
-            },
+            name,
             location: Location {
                 start: name_token_span.start,
                 end: self.current_token.clone().unwrap().start,
             },
             type_annotation,
-            type_: (),
         }))
     }
 

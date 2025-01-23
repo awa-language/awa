@@ -1,4 +1,3 @@
-use crate::ast::argument::Name;
 use crate::ast::expression::UntypedExpression;
 use crate::ast::module::Module;
 use crate::ast::statement::Statement;
@@ -171,28 +170,23 @@ fn print_argument(
     indentation_levels: &[bool],
     formatter: &mut fmt::Formatter<'_>,
 ) -> fmt::Result {
-    match &arg.name {
-        Name::Named { name, location } => {
-            writeln!(
-                formatter,
-                "{}Argument {} ({}..{})",
-                make_prefix(indentation_levels),
-                name,
-                location.start,
-                location.end
-            )?;
+    writeln!(
+        formatter,
+        "{}Argument {} ({}..{})",
+        make_prefix(indentation_levels),
+        arg.name,
+        arg.location.start,
+        arg.location.end
+    )?;
 
-            let annotation = &arg.type_annotation;
-            let mut new_indentation_levels = indentation_levels.to_vec();
-            new_indentation_levels.push(false);
-            writeln!(
-                formatter,
-                "{}Type: {:?}",
-                make_prefix(&new_indentation_levels),
-                annotation
-            )?;
-        }
-    }
+    let mut new_indentation_levels = indentation_levels.to_vec();
+    new_indentation_levels.push(false);
+    writeln!(
+        formatter,
+        "{}Type: {:?}",
+        make_prefix(&new_indentation_levels),
+        arg.type_annotation
+    )?;
 
     Ok(())
 }

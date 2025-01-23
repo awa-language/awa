@@ -1,7 +1,6 @@
 use std::collections::HashMap;
 
-use super::argument::CallArgument;
-use super::expression::CallArgumentTyped;
+use super::argument::{CallArgumentTyped, CallArgumentUntyped};
 use super::statement;
 use crate::ast;
 use crate::ast::argument::{ArgumentTyped, ArgumentUntyped};
@@ -183,7 +182,6 @@ impl ProgramState {
         Ok(ArgumentTyped {
             name: argument_untyped.name.clone(),
             location: argument_untyped.location.clone(),
-            type_annotation: argument_untyped.type_annotation.clone(),
             type_: typed_type,
         })
     }
@@ -860,10 +858,10 @@ impl ProgramState {
     fn convert_call_argument_to_typed(
         &mut self,
         function_name: &EcoString,
-        argument: &CallArgument<UntypedExpression>,
+        argument: &CallArgumentUntyped,
         location: &ast::location::Location,
         i: usize,
-    ) -> Result<CallArgumentTyped<TypedExpression>, ConvertingError> {
+    ) -> Result<CallArgumentTyped, ConvertingError> {
         let typed_argument = self.convert_expression_to_typed(&argument.value)?;
         let function_def = self.functions.get(function_name).ok_or(ConvertingError {
             error: ConvertingErrorType::UndefinedFunction,

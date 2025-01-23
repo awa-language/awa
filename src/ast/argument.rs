@@ -2,27 +2,33 @@ use crate::type_::Type;
 use crate::type_::UntypedType;
 use ecow::EcoString;
 
+use super::expression::TypedExpression;
+use super::expression::UntypedExpression;
 use super::location::Location;
 
-pub type ArgumentTyped = Argument<Type>;
-pub type ArgumentUntyped = Argument<()>;
-
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct Argument<T> {
-    pub name: Name,
+pub struct ArgumentUntyped {
+    pub name: EcoString,
     pub location: Location,
     pub type_annotation: UntypedType,
-    pub type_: T,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub enum Name {
-    Named { name: EcoString, location: Location },
+pub struct ArgumentTyped {
+    pub name: EcoString,
+    pub location: Location,
+    pub type_: Type,
 }
 
-// TODO: perhaps move somewhere else?
 #[derive(Debug, PartialEq, Eq, Clone)]
-pub struct CallArgument<A> {
+pub struct CallArgumentUntyped {
     pub location: Location,
-    pub value: A,
+    pub value: UntypedExpression,
+}
+
+#[derive(Debug, PartialEq, Eq, Clone)]
+pub struct CallArgumentTyped {
+    pub location: Location,
+    pub value: TypedExpression,
+    pub type_: Type,
 }
