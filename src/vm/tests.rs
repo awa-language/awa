@@ -6,14 +6,18 @@ fn test_push_load_store() {
     let bytecode = vec![
         Instruction::Func("main".into()),
         Instruction::PushInt(42),
+        Instruction::Println,
         Instruction::StoreInMap("x".into()),
         Instruction::LoadToStack("x".into()),
         Instruction::Println,
         Instruction::Halt,
         Instruction::EndFunc,
     ];
-    let mut vm = VM::new(bytecode);
-    vm.run();
+
+    let mut vm = VM::new(bytecode.clone());
+    for _i in bytecode {
+        vm.run();
+    }
 }
 
 #[test]
@@ -39,8 +43,11 @@ fn test_arithmetic_int() {
         Instruction::Halt,
         Instruction::EndFunc,
     ];
-    let mut vm = VM::new(bytecode);
-    vm.run();
+
+    let mut vm = VM::new(bytecode.clone());
+    for _i in bytecode {
+        vm.run();
+    }
 }
 
 #[test]
@@ -63,8 +70,11 @@ fn test_arithmetic_float() {
         Instruction::Halt,
         Instruction::EndFunc,
     ];
-    let mut vm = VM::new(bytecode);
-    vm.run();
+
+    let mut vm = VM::new(bytecode.clone());
+    for _i in bytecode {
+        vm.run();
+    }
 }
 
 #[test]
@@ -102,8 +112,11 @@ fn test_comparisons() {
         Instruction::Halt,
         Instruction::EndFunc,
     ];
-    let mut vm = VM::new(bytecode);
-    vm.run();
+
+    let mut vm = VM::new(bytecode.clone());
+    for _i in 1..1000 {
+        vm.run();
+    }
 }
 
 #[test]
@@ -122,8 +135,11 @@ fn test_jumps() {
         Instruction::Halt,
         Instruction::EndFunc,
     ];
-    let mut vm = VM::new(bytecode);
-    vm.run();
+
+    let mut vm = VM::new(bytecode.clone());
+    for _i in bytecode {
+        vm.run();
+    }
 }
 
 #[test]
@@ -142,16 +158,19 @@ fn test_if_else() {
         Instruction::PushInt(25),
         Instruction::GreaterInt,
         Instruction::JumpIfTrue(16),
-        Instruction::PushString("c is greater than 25".into()),
+        Instruction::PushString("c is not greater than 25".into()),
         Instruction::Println,
         Instruction::Jump(18),
-        Instruction::PushString("c is not greater than 25".into()),
+        Instruction::PushString("c is greater than 25".into()),
         Instruction::Println,
         Instruction::Halt,
         Instruction::EndFunc,
     ];
-    let mut vm = VM::new(bytecode);
-    vm.run();
+
+    let mut vm = VM::new(bytecode.clone());
+    for _i in bytecode {
+        vm.run();
+    }
 }
 
 #[test]
@@ -175,8 +194,11 @@ fn test_functions() {
         Instruction::Halt,
         Instruction::EndFunc,
     ];
-    let mut vm = VM::new(bytecode);
-    vm.run();
+
+    let mut vm = VM::new(bytecode.clone());
+    for _i in bytecode {
+        vm.run();
+    }
 }
 
 #[test]
@@ -202,8 +224,11 @@ fn test_structs() {
         Instruction::Halt,
         Instruction::EndFunc,
     ];
-    let mut vm = VM::new(bytecode);
-    vm.run();
+
+    let mut vm = VM::new(bytecode.clone());
+    for _i in bytecode {
+        vm.run();
+    }
 }
 
 #[test]
@@ -217,12 +242,14 @@ fn test_concat() {
         Instruction::Halt,
         Instruction::EndFunc,
     ];
-    let mut vm = VM::new(bytecode);
-    vm.run();
+    let mut vm = VM::new(bytecode.clone());
+    for _i in bytecode {
+        vm.run();
+    }
 }
 
 #[test]
-fn test_slice() {
+fn test_slice_1d() {
     let bytecode = vec![
         Instruction::Func("main".into()),
         Instruction::PushArray(vec![Value::Int(1), Value::Int(2), Value::Int(3)]),
@@ -239,8 +266,11 @@ fn test_slice() {
         Instruction::Halt,
         Instruction::EndFunc,
     ];
-    let mut vm = VM::new(bytecode);
-    vm.run();
+
+    let mut vm = VM::new(bytecode.clone());
+    for _i in bytecode {
+        vm.run();
+    }
 }
 
 #[test]
@@ -281,8 +311,11 @@ fn test_complex() {
         Instruction::Halt,
         Instruction::EndFunc,
     ];
-    let mut vm = VM::new(bytecode);
-    vm.run();
+
+    let mut vm = VM::new(bytecode.clone());
+    for _i in bytecode {
+        vm.run();
+    }
 }
 
 #[test]
@@ -311,8 +344,10 @@ fn test_recursion() {
         Instruction::Halt,
         Instruction::EndFunc,
     ];
-    let mut vm = VM::new(bytecode);
-    vm.run();
+    let mut vm = VM::new(bytecode.clone());
+    for _i in 1..1000 {
+        vm.run();
+    }
 }
 
 /*
@@ -320,13 +355,13 @@ fn test_recursion() {
 fn test_oom() {
     let bytecode = vec![
         Instruction::Func("counter".into()),
-        Instruction::Store("value".into()),
-        Instruction::Load("value".into()),
+        Instruction::StoreInMap("value".into()),
+        Instruction::LoadToStack("value".into()),
         Instruction::PushInt(1),
         Instruction::AddInt,
         Instruction::Println,
-        Instruction::Store("value".into()),
-        Instruction::Load("value".into()),
+        Instruction::StoreInMap("value".into()),
+        Instruction::LoadToStack("value".into()),
         Instruction::Call("counter".into()),
         Instruction::Return,
         Instruction::EndFunc,
@@ -337,7 +372,10 @@ fn test_oom() {
         Instruction::Halt,
         Instruction::EndFunc,
     ];
-    let mut vm = VM::new(bytecode);
+    let mut vm = VM::new(bytecode.clone());
+    for _i in 1..10000000 {
+        vm.run();
+    }
 
     vm.run();
 }
@@ -345,7 +383,7 @@ fn test_oom() {
 
 #[test]
 fn test_gc_local_alloc_print() {
-    let code = vec![
+    let bytecode = vec![
         Instruction::Func("foo".into()),
         Instruction::PushArray(vec![Value::Int(1), Value::Int(2), Value::Int(3)]),
         Instruction::StoreInMap("local_arr".into()),
@@ -357,16 +395,17 @@ fn test_gc_local_alloc_print() {
         Instruction::EndFunc,
     ];
 
-    let mut vm = VM::new(code);
-    vm.run();
+    let mut vm = VM::new(bytecode.clone());
+    for _i in bytecode {
+        vm.run();
+    }
 
     println!("Heap before manual GC:");
     for (i, obj) in vm.gc.heap.iter().enumerate() {
         println!("  [{i}] {obj:?}");
     }
 
-    vm.gc
-        .collect_garbage(&vm.stack, &vm.environments_stack, &vm.global_variables);
+    vm.gc.collect_garbage(&vm.stack, &vm.environments_stack);
 
     println!("Heap after manual GC:");
     for (i, obj) in vm.gc.heap.iter().enumerate() {
@@ -376,7 +415,7 @@ fn test_gc_local_alloc_print() {
 
 #[test]
 fn test_gc_auto_trigger() {
-    let code = vec![
+    let bytecode = vec![
         Instruction::Func("creator".into()),
         Instruction::PushArray(vec![Value::Int(42)]),
         Instruction::StoreInMap("temp_arr".into()),
@@ -390,11 +429,12 @@ fn test_gc_auto_trigger() {
         Instruction::EndFunc,
     ];
 
-    let mut vm = VM::new(code);
-
+    let mut vm = VM::new(bytecode.clone());
     vm.gc.threshold = 2;
 
-    vm.run();
+    for _i in bytecode {
+        vm.run();
+    }
 
     println!("Heap after auto-run with threshold=2:");
     for (i, obj) in vm.gc.heap.iter().enumerate() {
@@ -406,14 +446,14 @@ fn test_gc_auto_trigger() {
 #[test]
 fn test_gc_recursion() {
     let mut big_vector = Vec::with_capacity(10_000);
-    for i in 0..10_000 {
+    for i in 0..5 {
         big_vector.push(Value::Int(i as i64));
     }
 
-    let mut code = vec![
+    let bytecode = vec![
         Instruction::Func("rec".into()),
         Instruction::LoadToStack("n".into()),
-        Instruction::PushSlice(big_vector.clone()),
+        Instruction::PushArray(big_vector.clone()),
         Instruction::StoreInMap("big_arr".into()),
         Instruction::LoadToStack("n".into()),
         Instruction::PushInt(1),
@@ -430,19 +470,20 @@ fn test_gc_recursion() {
         Instruction::EndFunc,
     ];
 
-    let mut vm = VM::new(code);
+    let mut vm = VM::new(bytecode.clone());
 
     vm.gc.threshold = 5;
 
-    vm.run();
+    for _i in bytecode {
+        vm.run();
+    }
 
     println!("=== After run() completed (deep recursion) ===");
     for (i, obj) in vm.gc.heap.iter().enumerate() {
         println!("  [{}] {:?}", i, obj);
     }
 
-    vm.gc
-        .collect_garbage(&vm.stack, &vm.environments_stack, &vm.global_variables);
+    vm.gc.collect_garbage(&vm.stack, &vm.environments_stack);
 
     println!("=== After manual GC ===");
     for (i, obj) in vm.gc.heap.iter().enumerate() {
@@ -450,6 +491,7 @@ fn test_gc_recursion() {
     }
 }
 */
+
 #[test]
 fn test_hotswap() {
     let code = vec![
@@ -469,7 +511,7 @@ fn test_hotswap() {
 
     let mut vm = VM::new(code);
 
-    for i in 1..=100 {
+    for _i in 1..=100 {
         vm.run();
     }
 
@@ -483,7 +525,7 @@ fn test_hotswap() {
 
     vm.hotswap_function(&new_code);
 
-    for i in 1..=100 {
+    for _i in 1..=100 {
         vm.run();
     }
 }
@@ -510,6 +552,8 @@ fn test_slice_2d() {
         Instruction::Halt,
         Instruction::EndFunc,
     ];
-    let mut vm = VM::new(bytecode);
-    vm.run();
+    let mut vm = VM::new(bytecode.clone());
+    for _i in bytecode {
+        vm.run();
+    }
 }

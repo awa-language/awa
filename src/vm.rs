@@ -40,6 +40,8 @@ impl VM {
             call_stack: Vec::new(),
             gc: GC::new(),
         };
+
+        vm.environments_stack.push(HashMap::new());
         vm.preprocess_bytecode();
 
         if let Some(&main_address) = vm.functions.get("main") {
@@ -84,14 +86,12 @@ impl VM {
                 if let Some(env) = self.environments_stack.last_mut() {
                     env.insert(name, val);
                 } else {
-                    panic!("stack underflow");
+                    println!("No environment available to store the variable.");
                 }
             }
             Instruction::LoadToStack(name) => {
                 let variable_value = self.lookup_variable(&name);
-                {
-                    self.stack.push(variable_value.clone());
-                }
+                self.stack.push(variable_value.clone());
             }
             Instruction::AddInt => {
                 let rhs = self.stack.pop().expect("stack underflow");
@@ -242,9 +242,9 @@ impl VM {
             Instruction::GreaterInt => {
                 let rhs = self.stack.pop().expect("stack underflow");
                 let lhs = self.stack.pop().expect("stack underflow");
-                let (x, y) = (VM::get_int(&lhs), VM::get_int(&rhs));
+                let (lhs, rhs) = (VM::get_int(&lhs), VM::get_int(&rhs));
 
-                self.stack.push(Value::Int(i64::from(x > y)));
+                self.stack.push(Value::Int(i64::from(lhs > rhs)));
             }
             Instruction::GreaterEqualInt => {
                 let rhs = self.stack.pop().expect("stack underflow");
