@@ -1,7 +1,7 @@
 #[derive(Debug, strum::EnumIter)]
 pub enum MenuAction {
     PerformHotswap,
-    ReturnToExecution,
+    ReturnToExecution, // Do nothing
 }
 
 impl std::fmt::Display for MenuAction {

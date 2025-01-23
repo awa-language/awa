@@ -14,6 +14,5 @@ pub fn handle(filename: Option<Utf8PathBuf>) {
         Err(_err) => todo!(),
     };
 
-    driver::build_ast(&input);
-    // TODO: add beautiful error wrapping everywhere
+    let _ = driver::build_ast(&input);
 }
