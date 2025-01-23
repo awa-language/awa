@@ -183,8 +183,8 @@ impl Interpreter {
 
                 let else_start = self.bytecode.len();
                 if let Some(statements) = else_body {
-                    for stmt in statements {
-                        self.interpret_statement(stmt);
+                    for statement in statements {
+                        self.interpret_statement(statement);
                     }
                 }
 
