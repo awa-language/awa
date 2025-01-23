@@ -113,15 +113,13 @@ impl TypeAnalyzer {
                             })
                             .transpose()?;
 
-                        let typed_function = DefinitionTyped::Function {
+                        DefinitionTyped::Function {
                             name: name.clone(),
                             location: *location,
                             arguments: typed_args,
                             body: typed_body,
                             return_type,
-                        };
-
-                        typed_function
+                        }
                     }
                     DefinitionUntyped::Struct {
                         location,
@@ -298,17 +296,8 @@ impl TypeAnalyzer {
                     } => {
                         let struct_def_name =
                             match self.program_state.get_variable_type(struct_name) {
-                                Some(ty) => match ty {
-                                    Type::Custom { name } => Ok(name),
-                                    _ => Err(ConvertingError {
-                                        error: ConvertingErrorType::UnsupportedType,
-                                        location: crate::lex::location::Location {
-                                            start: location.start,
-                                            end: location.end,
-                                        },
-                                    }),
-                                },
-                                None => Err(ConvertingError {
+                                Some(Type::Custom { name }) => Ok(name),
+                                _ => Err(ConvertingError {
                                     error: ConvertingErrorType::UnsupportedType,
                                     location: crate::lex::location::Location {
                                         start: location.start,
