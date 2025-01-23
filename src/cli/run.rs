@@ -25,13 +25,13 @@ pub fn handle(filename: Option<Utf8PathBuf>) {
     let (confirmation_sender, confirmation_reciever): (Sender<()>, Receiver<()>) = channel();
 
     let _ = std::thread::spawn(move || {
-        interpreter::run(input_reciever, confirmation_sender);
+        interpreter::run(&input_reciever, &confirmation_sender);
     });
 
     let term = console::Term::stdout();
     loop {
         let _ = term.read_char().unwrap();
-        let _ = input_sender.send(Command::OpenMenu).unwrap();
+        let () = input_sender.send(Command::OpenMenu).unwrap();
         let _ = confirmation_reciever.recv();
     }
 }
