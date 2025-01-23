@@ -137,6 +137,15 @@ impl TypeAnalyzer {
                         name,
                         fields,
                     } => {
+                        let typed_struct_without_fields = DefinitionTyped::Struct {
+                            location: *location,
+                            name: name.clone(),
+                            fields: None,
+                        };
+
+                        self.program_state
+                            .add_struct(name.clone(), typed_struct_without_fields.clone());
+
                         let typed_fields = fields
                             .as_ref()
                             .map(|fields| {
