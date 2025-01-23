@@ -141,8 +141,8 @@ impl Interpreter {
                 self.loop_start_stack.push(loop_start);
 
                 if let Some(statements) = body {
-                    for stmt in statements {
-                        self.interpret_statement(stmt);
+                    for statement in statements {
+                        self.interpret_statement(statement);
                     }
                 }
 
