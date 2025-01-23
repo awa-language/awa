@@ -23,7 +23,7 @@ use clap::{
 enum Command {
     /// Check the code.
     ///
-    /// Performs lexing, parsing and translation from untyped to typed AST, thus
+    /// Performs lexing, parsing and translating from untyped to typed AST, thus
     /// identifying lexing, parsing and type mismatch errors.
     /// By default, checks `main.awa`
     Check { filename: Option<Utf8PathBuf> },
