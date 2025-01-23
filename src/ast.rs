@@ -1,3 +1,4 @@
+pub mod analyzer;
 pub mod argument;
 pub mod assignment;
 pub mod definition;

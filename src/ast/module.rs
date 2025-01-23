@@ -11,9 +11,10 @@ pub struct Module<Definitions> {
     pub definitions: Option<Vec1<Definitions>>,
 }
 
-pub type Untyped = Module<definition::Untyped>;
+pub type Untyped = Module<definition::DefinitionUntyped>;
+pub type Typed = Module<definition::DefinitionTyped>;
 
-impl fmt::Display for Module<definition::Untyped> {
+impl fmt::Display for Module<definition::DefinitionUntyped> {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         writeln!(formatter, "\nAST structure:")?;
         writeln!(formatter, "-------------")?;
