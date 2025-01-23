@@ -101,7 +101,7 @@ impl ProgramState {
                     } => {
                         let typed_args = arguments
                             .as_ref()
-                            .map(|args| args.clone().try_mapped(|arg| self.convert_arguments(&arg)))
+                            .map(|args| args.clone().try_mapped(|arg| self.convert_argument(&arg)))
                             .transpose()?;
 
                         let typed_body = body
@@ -169,7 +169,7 @@ impl ProgramState {
         })
     }
 
-    fn convert_arguments(
+    fn convert_argument(
         &mut self,
         argument_untyped: &ArgumentUntyped,
     ) -> Result<ArgumentTyped, ConvertingError> {
