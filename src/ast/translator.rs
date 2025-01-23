@@ -266,7 +266,6 @@ impl ProgramState {
                     type_: resolved_type.clone(),
                 }))
             }
-            // TODO: add type to reasignment target
             UntypedStatement::Reassignment(reassignment) => {
                 let typed_new_value = self.convert_expression_to_typed(&reassignment.new_value)?;
 
@@ -757,7 +756,13 @@ impl ProgramState {
         &mut self,
         variable_name: &EcoString,
     ) -> Result<Type, ConvertingError> {
-        todo!()
+        let variable_type = self
+            .get_variable_type(variable_name)
+            .ok_or(ConvertingError {
+                error: ConvertingErrorType::UnsupportedType,
+                location: crate::lex::location::Location { start: 0, end: 0 },
+            })?;
+        Ok(variable_type.clone())
     }
 
     fn check_type_of_binary_operation(
