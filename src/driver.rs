@@ -19,7 +19,11 @@ pub enum BackwardsCommunication {
     Finished,
 }
 
-// TODO: will take typed ast module as an argument
+/// Create bytecode and run typed AST module in VM
+///
+/// # Panics
+///
+/// Will panic in case of failed backwards communication via mpsc
 pub fn run(
     module: &module::Typed,
     command_receiver: &std::sync::mpsc::Receiver<Command>,
@@ -38,8 +42,6 @@ pub fn run(
                     match decision {
                         MenuAction::PerformHotswap => {
                             let user_input = cli::input::get_user_input();
-                            dbg!(user_input.clone());
-
                             let module = build_ast(&user_input);
                             let hotswap_bytecode = make_bytecode(&module);
 

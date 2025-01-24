@@ -4,22 +4,27 @@ use camino::Utf8PathBuf;
 
 use crate::driver::{self, BackwardsCommunication, Command};
 
+/// Handle run cli command - read from provided filename and run VM with interpreted bytecode
+///
+/// # Panics
+///
+/// Will panic if file does not exist, or in case of unexpected internal errors
 pub fn handle(filename: Option<Utf8PathBuf>) {
     let filename = match filename {
         Some(filename) => filename,
         None => "main.awa".into(),
     };
 
-    let _input = std::fs::read_to_string(filename);
-    let _input = match _input {
+    let input = std::fs::read_to_string(filename);
+    let input = match input {
         Ok(input) => input,
-        Err(_err) => {
-            dbg!(_err);
-            todo!();
+        Err(err) => {
+            println!("{err}");
+            return;
         }
     };
 
-    let module = driver::build_ast(&_input);
+    let module = driver::build_ast(&input);
 
     let (input_sender, input_reciever): (Sender<Command>, Receiver<Command>) = channel();
     // TODO: perhaps make it perform backwards communication - force hotswap on panics

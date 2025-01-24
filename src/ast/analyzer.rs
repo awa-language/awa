@@ -60,6 +60,10 @@ impl TypeAnalyzer {
 
     /// Converts AST to typed AST
     ///
+    /// # Panics
+    ///
+    /// Will panic in case of unexpected state
+    ///
     /// # Errors
     /// Returns `ConvertingError` if:
     /// - Type checking fails
@@ -127,12 +131,25 @@ impl TypeAnalyzer {
                         location,
                         name,
                         body,
+                        arguments,
                         ..
                     } => {
                         self.program_state.set_current_function_name(name);
 
                         let typed_function_definition =
                             self.program_state.get_function(&name.clone()).unwrap();
+
+                        let typed_args = arguments
+                            .as_ref()
+                            .map(|args| args.clone().try_mapped(|arg| self.convert_argument(&arg)))
+                            .transpose()?;
+
+                        if let Some(args) = typed_args.as_ref() {
+                            for arg in args {
+                                self.program_state
+                                    .add_variable(arg.name.clone(), arg.type_.clone());
+                            }
+                        }
 
                         let typed_body = body
                             .as_ref()
@@ -1425,7 +1442,7 @@ impl ProgramState {
                 location: ast::location::Location { start: 0, end: 0 },
                 arguments: Some(
                     Vec1::try_from(vec![ArgumentTyped {
-                        name: Default::default(),
+                        name: EcoString::default(),
                         location: ast::location::Location { start: 0, end: 0 },
                         type_: Type::Int,
                     }])
@@ -1443,12 +1460,12 @@ impl ProgramState {
                 arguments: Some(
                     Vec1::try_from(vec![
                         ArgumentTyped {
-                            name: Default::default(),
+                            name: EcoString::default(),
                             location: ast::location::Location { start: 0, end: 0 },
                             type_: Type::Int,
                         },
                         ArgumentTyped {
-                            name: Default::default(),
+                            name: EcoString::default(),
                             location: ast::location::Location { start: 0, end: 0 },
                             type_: Type::Int,
                         },
