@@ -31,3 +31,9 @@ jobs:
         run: cargo clippy
       - name: Cargo build release
         run: cargo build --release
+      - name: Run awa check
+        run: |
+          cargo run --release -- run benchmarks/factorial.awa
+          cargo run --release -- run benchmarks/sort.awa
+          cargo run --release -- run benchmarks/prime_numbers.awa
+          cargo run --release -- run benchmarks/tree_traversal.awa
