@@ -1,4 +1,5 @@
 func main() {
+    var amount int = 100000
     var isPrime []int = []int{}
 
     var i int = 0
@@ -7,7 +8,7 @@ func main() {
         append(isPrime, 1)
 
         i = i + 1
-        if (i == 10000) {
+        if (i == 100000) {
             break
         }
     }
@@ -22,7 +23,7 @@ func main() {
             var multiple int = i * i 
 
             loop {
-              if (multiple >= 10000) {
+              if (multiple >= amount) {
                 break
               }
                 isPrime[multiple] = 0
@@ -32,7 +33,7 @@ func main() {
         }
 
         i = i + 1
-        if (i == 10000) {
+        if (i == amount) {
             break
         }
     }
@@ -46,7 +47,7 @@ func main() {
         }
     
         i = i + 1
-        if (i == 10000) {
+        if (i == amount) {
             break
         }
     }
