@@ -70,7 +70,9 @@ pub fn handle(filename: Option<Utf8PathBuf>) {
                     require_hotswap = false;
                 }
             }
-            BackwardsCommunication::RequireHotswap => unreachable!(),
+            BackwardsCommunication::RequireHotswap => {
+                require_hotswap = true;
+            }
             BackwardsCommunication::Finished => return,
         }
     }
