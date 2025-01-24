@@ -88,12 +88,34 @@ impl TypeAnalyzer {
     /// - Type checking fails
     /// - Unknown variable/function reference
     /// - Type mismatch
-    pub fn handle_hotswap(
-        &mut self,
-        input: &str,
-        function_name_str: &str,
-    ) -> Result<module::Typed, ConvertingError> {
-        let function_name = &EcoString::from(function_name_str);
+    pub fn handle_hotswap(&mut self, input: &str) -> Result<module::Typed, ConvertingError> {
+        let module = parse_module(input).unwrap();
+
+        let function_name = match module
+            .definitions
+            .as_ref()
+            .ok_or(ConvertingError {
+                error: ConvertingErrorType::InvalidHotswapMultipleDefinitions,
+                location: Location { start: 0, end: 0 },
+            })?
+            .first()
+        {
+            DefinitionUntyped::Function { name, .. } => &name.clone(),
+            DefinitionUntyped::Struct { .. } => {
+                return Err(ConvertingError {
+                    error: ConvertingErrorType::InvalidHotswapNotFunction,
+                    location: Location { start: 0, end: 0 },
+                })
+            }
+        };
+
+        if module.definitions.as_ref().unwrap().len() != 1 {
+            return Err(ConvertingError {
+                error: ConvertingErrorType::InvalidHotswapMultipleDefinitions,
+                location: Location { start: 0, end: 0 },
+            });
+        }
+
         let old_function =
             self.program_state
                 .get_function(function_name)
@@ -104,7 +126,6 @@ impl TypeAnalyzer {
                     location: Location { start: 0, end: 0 },
                 })?;
 
-        let module = parse_module(input).unwrap();
         let typed_module = self.convert_ast_to_tast(&module)?;
 
         let definitions = typed_module.clone().definitions.ok_or(ConvertingError {
