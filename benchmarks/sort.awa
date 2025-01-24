@@ -1,58 +1,81 @@
-func merge(left []int, leftLength int, right []int, rightLength int) []int {
-    var result []int = []int{}
+func merge(l int, m int, r int, array []int) {
+    var n1 int = m - l + 1
+    var n2 int = r - m
+
+    var leftArr []int = []int{}
+    var rightArr []int = []int{}
+
+    var x int = 0
+    loop {
+        if (x >= n1) {
+        break
+    }
+        append(leftArr, array[l + x])
+        x = x + 1
+    }
+
+    var y int = 0
+    loop {
+        if (y >= n2) {
+            break
+        }
+
+        append(rightArr, array[m + 1 + y])
+        y = y + 1
+    }
+
     var i int = 0
     var j int = 0
+    var k int = l
 
     loop {
-        if (i >= leftLength) {
-            loop {
-                if (j >= rightLength) {
-                    break
-                }
-                append(result, right[j])
-                j = j + 1
-            }
+        if (i >= n1) {
             break
         }
-
-        if (j >= rightLength) {
-            loop {
-                if (i >= leftLength) {
-                    break
-                }
-                append(result, left[i])
-                i = i + 1
-            }
+        if (j >= n2) {
             break
         }
-
-        if (left[i] <= right[j]) {
-            append(result, left[i])
+        if (leftArr[i] <= rightArr[j]) {
+            array[k] = leftArr[i]
             i = i + 1
         } else {
-            append(result, right[j])
+            array[k] = rightArr[j]
             j = j + 1
         }
+
+        k = k + 1
     }
 
-    return result
+    loop {
+        if (i >= n1) {
+          break
+        }
+
+        array[k] = leftArr[i]
+        i = i + 1
+        k = k + 1
+    }
+
+    loop {
+        if (j >= n2) {
+            break
+        }
+
+        array[k] = rightArr[j]
+        j = j + 1
+        k = k + 1
+    }
 }
 
-func mergeSort(arr []int, start int, end int) []int {
-    if (end - start <= 1) {
-        var result []int = []int{}
-        append(result, arr[start])
-        return result
+func mergesort(l int, r int, array []int) {
+    if (l < r) {
+        var m int = (l + r) / 2
+
+        mergesort(l, m, array)
+        mergesort(m + 1, r, array)
+
+        merge(l, m, r, array)
     }
-
-    var mid int = start + (end - start) / 2
-    var leftLength int = mid - start
-    var rightLength int = end - mid
-
-    var left []int = mergeSort(arr, start, mid)
-    var right []int = mergeSort(arr, mid, end)
-
-    return merge(left, leftLength, right, rightLength)
 }
 
 func main() {
@@ -61,10 +84,12 @@ func main() {
     var array []int = []int{}
 
     var lengthCopy int = length
+
     loop {
         if (lengthCopy == 0) {
             break
         }
+
         append(array, lengthCopy)
         lengthCopy = lengthCopy - 1
     }
@@ -73,4 +98,3 @@ func main() {
   
     print(array)
 }
-

@@ -1,107 +1,111 @@
 struct treeNode {
-  left treeNode
-  right treeNode
-  isInitialise int
-  item int
+    left treeNode
+    right treeNode
+    isInitialized int
+    value int
 }
 
-func itemCheck(t treeNode) int {
-  var left treeNode = t.left
-  var right treeNode = t.right
-  var isLeftInitialise int = left.isInitialise
-  if (isLeftInitialise == 0) {
-    return t.item
-  }
+func valueCheck(current treeNode) int {
+    var left treeNode = current.left
+    var right treeNode = current.right
 
-  var leftCheck int = itemCheck(left)
-  var rightCheck int = itemCheck(right)
-  var item int = t.item
-  return item + leftCheck - rightCheck
+    var isLeftInitialized int = left.isInitialized
+
+    if (isLeftInitialized == 0) {
+        return current.value
+    }
+
+    var leftCheck int = valueCheck(left)
+    var rightCheck int = valueCheck(right)
+    var value int = current.value
+
+    return value + leftCheck - rightCheck
 }
 
-func bottomUpTree(item int, depth int) treeNode {
-  var t treeNode = treeNode{item: item, isInitialise: 1}
+func bottomUpTree(value int, depth int) treeNode {
+    var current treeNode = treeNode{value: value, isInitialized: 1}
 
-  if (depth > 0) {
-    var left treeNode = bottomUpTree(2 * item - 1, depth - 1)
-    var right treeNode = bottomUpTree(2 * item, depth - 1)
+    if (depth > 0) {
+        var left treeNode = bottomUpTree(2 * value - 1, depth - 1)
+        var right treeNode = bottomUpTree(2 * value, depth - 1)
 
-    t.left = left
-    t.right = right
-  }
+        current.left = left
+        current.right = right
+    }
   
-  return t
+    return current
 }
 
 func max(a int, b int) int {
-  if (a > b) {
-    return a
-  }
+    if (a > b) {
+        return a
+    }
 
-  return b
+    return b
 }
 
 func pow(n int) int {
-  var result int = 1
-  var i int = 0
+    var result int = 1
+    var i int = 0
 
-  loop {
-    if (i >= n) {
-      break
+    loop {
+        if (i >= n) {
+            break
+        }
+        
+        result = result * 2
+        i = i + 1
     }
-    
-    result = result * 2
-    i = i + 1
-  }
 
-  return result
+    return result
 }
 
 func main() {
-  var ret int = 0
-  var n int = 4
+    var result int = 0
+    var n int = 4
 
-  loop {
-    if (n > 7) {
-      break
-    }
-
-    var minDepth int = 4
-    var maxDepth int = max(minDepth + 2, n)
-    var stretchDepth int = maxDepth + 1
-
-    var check int = itemCheck(bottomUpTree(0, stretchDepth))
-
-    var longLivedTree treeNode = bottomUpTree(0, maxDepth)
-    var depth int = minDepth
     loop {
-      if (depth > maxDepth) {
-        break
-      }
-
-      var exponent int = maxDepth - depth + minDepth
-      var iterations int = pow(exponent)
-
-      check = 0
-      var i int = 0
-
-      loop {
-        if (i > iterations) {
-          break
+        if (n > 7) {
+            break
         }
 
-        check = check + itemCheck(bottomUpTree(i, depth))
-        check = check + itemCheck(bottomUpTree(0 - i, depth))
+        var minDepth int = 4
+        var maxDepth int = max(minDepth + 2, n)
+        var stretchDepth int = maxDepth + 1
 
-        i = i + 1
-      }
+        var check int = valueCheck(bottomUpTree(0, stretchDepth))
 
-      depth = depth + 2
+        var longLivedTree treeNode = bottomUpTree(0, maxDepth)
+        var depth int = minDepth
+
+        loop {
+            if (depth > maxDepth) {
+                break
+            }
+
+            var exponent int = maxDepth - depth + minDepth
+            var iterations int = pow(exponent)
+
+            check = 0
+            var i int = 0
+
+            loop {
+                if (i > iterations) {
+                    break
+                }
+
+                check = check + valueCheck(bottomUpTree(i, depth))
+                check = check + valueCheck(bottomUpTree(0 - i, depth))
+
+                i = i + 1
+            }
+
+            depth = depth + 2
+        }
+
+        result = result + valueCheck(longLivedTree)
+        n = n + 1
     }
 
-    ret = ret + itemCheck(longLivedTree)
-    n = n + 1
-  }
-
-  println(ret)
+    println(result)
 }
