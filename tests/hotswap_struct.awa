@@ -1,0 +1,15 @@
+struct Name {
+    value string
+}
+
+func say_hello() {
+    var amazing_name Name = Name{value: "awa!"}
+
+    println("hello, " <> amazing_name.value)
+}
+
+func main() {
+    loop {
+        say_hello()
+    }
+}
