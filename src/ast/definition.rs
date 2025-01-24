@@ -52,7 +52,10 @@ pub struct StructFieldTyped {
 }
 
 impl DefinitionTyped {
-    #[must_use]
+    /// Returns the arguments of a definition
+    ///
+    /// # Errors
+    /// Returns `ConvertingError` if definition is a struct (only functions have arguments)
     pub fn get_arguments(&self) -> Result<Option<Vec1<argument::ArgumentTyped>>, ConvertingError> {
         match self {
             DefinitionTyped::Function { arguments, .. } => Ok(arguments.clone()),
