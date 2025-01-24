@@ -52,11 +52,17 @@ pub struct StructFieldTyped {
 }
 
 impl DefinitionTyped {
-    #[must_use]
-    pub fn get_arguments(&self) -> Option<Vec1<argument::ArgumentTyped>> {
+    /// Returns the arguments of a definition
+    ///
+    /// # Errors
+    /// Returns `ConvertingError` if definition is a struct (only functions have arguments)
+    pub fn get_arguments(&self) -> Result<Option<Vec1<argument::ArgumentTyped>>, ConvertingError> {
         match self {
-            DefinitionTyped::Function { arguments, .. } => arguments.clone(),
-            DefinitionTyped::Struct { .. } => None,
+            DefinitionTyped::Function { arguments, .. } => Ok(arguments.clone()),
+            DefinitionTyped::Struct { .. } => Err(ConvertingError {
+                error: ConvertingErrorType::UnsupportedType,
+                location: crate::lex::location::Location { start: 0, end: 0 },
+            }),
         }
     }
 
