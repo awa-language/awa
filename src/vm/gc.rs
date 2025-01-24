@@ -63,12 +63,12 @@ impl Default for GC {
 impl GC {
     pub fn new() -> Self {
         Self {
-            heap: Vec::new(),
-            marked: Vec::new(),
+            heap: Vec::with_capacity(100000),
+            marked: Vec::with_capacity(100000),
             alloc_count: 0,
             threshold: 10,
             object_pool: ObjectPool::new(),
-            mark_stack: Vec::new(),
+            mark_stack: Vec::with_capacity(100000),
         }
     }
 
