@@ -63,20 +63,18 @@ impl Default for GC {
 impl GC {
     pub fn new() -> Self {
         Self {
-            heap: Vec::with_capacity(100000),
-            marked: Vec::with_capacity(100000),
+            heap: Vec::with_capacity(100_000),
+            marked: Vec::with_capacity(100_000),
             alloc_count: 0,
             threshold: 10,
             object_pool: ObjectPool::new(),
-            mark_stack: Vec::with_capacity(100000),
+            mark_stack: Vec::with_capacity(100_000),
         }
     }
 
     pub fn allocate(&mut self, object: Object) -> Handle {
         let index = self.heap.len();
-        if index == usize::MAX {
-            panic!("GC heap overflow");
-        }
+        assert!(index != usize::MAX, "GC heap overflow");
 
         let reused_object = match object {
             Object::String(string) => {
@@ -220,7 +218,7 @@ impl GC {
     }
 
     fn compact(&mut self) -> Vec<Option<usize>> {
-        let marked_count = self.marked.iter().filter(|&&m| m).count();
+        let marked_count = self.marked.iter().filter(|&&marked| marked).count();
         let mut new_heap = Vec::with_capacity(marked_count);
         let mut remap = vec![None; self.heap.len()];
 
@@ -231,11 +229,11 @@ impl GC {
                     std::mem::replace(&mut self.heap[i], Object::Array(Vec::with_capacity(100)));
 
                 match &mut object {
-                    Object::String(s) if s.is_empty() => {
-                        self.object_pool.strings.push(std::mem::take(s));
+                    Object::String(string) if string.is_empty() => {
+                        self.object_pool.strings.push(std::mem::take(string));
                     }
-                    Object::Array(v) if v.is_empty() => {
-                        self.object_pool.slices.push(std::mem::take(v));
+                    Object::Array(array) if array.is_empty() => {
+                        self.object_pool.slices.push(std::mem::take(array));
                     }
                     Object::Struct { fields, .. } if fields.is_empty() => {
                         self.object_pool.structs.push(std::mem::take(fields));
