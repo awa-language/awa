@@ -6,7 +6,7 @@ use ecow::EcoString;
 #[derive(Debug)]
 pub enum Object {
     String(EcoString),
-    Slice(Vec<Value>),
+    Array(Vec<Value>),
     Struct {
         name: EcoString,
         fields: HashMap<EcoString, Value>,
@@ -18,6 +18,40 @@ pub struct GC {
     pub marked: Vec<bool>,
     pub alloc_count: usize,
     pub threshold: usize,
+    object_pool: ObjectPool,
+    mark_stack: Vec<Handle>,
+}
+
+struct ObjectPool {
+    strings: Vec<EcoString>,
+    slices: Vec<Vec<Value>>,
+    structs: Vec<HashMap<EcoString, Value>>,
+}
+
+impl ObjectPool {
+    fn new() -> Self {
+        Self {
+            strings: Vec::with_capacity(100),
+            slices: Vec::with_capacity(100),
+            structs: Vec::with_capacity(100),
+        }
+    }
+
+    fn get_string(&mut self) -> EcoString {
+        self.strings
+            .pop()
+            .unwrap_or_else(|| EcoString::with_capacity(10))
+    }
+
+    fn get_slice(&mut self) -> Vec<Value> {
+        self.slices.pop().unwrap_or_else(|| Vec::with_capacity(10))
+    }
+
+    fn get_struct(&mut self) -> HashMap<EcoString, Value> {
+        self.structs
+            .pop()
+            .unwrap_or_else(|| HashMap::with_capacity(5))
+    }
 }
 
 impl Default for GC {
@@ -29,18 +63,51 @@ impl Default for GC {
 impl GC {
     pub fn new() -> Self {
         Self {
-            heap: Vec::new(),
-            marked: Vec::new(),
+            heap: Vec::with_capacity(100000),
+            marked: Vec::with_capacity(100000),
             alloc_count: 0,
             threshold: 10,
+            object_pool: ObjectPool::new(),
+            mark_stack: Vec::with_capacity(100000),
         }
     }
 
     pub fn allocate(&mut self, object: Object) -> Handle {
         let index = self.heap.len();
-        self.heap.push(object);
+        if index == usize::MAX {
+            panic!("GC heap overflow");
+        }
+
+        let reused_object = match object {
+            Object::String(string) => {
+                let mut pooled = self.object_pool.get_string();
+                pooled.clear();
+                pooled.push_str(&string);
+
+                Object::String(pooled)
+            }
+            Object::Array(value) => {
+                let mut pooled = self.object_pool.get_slice();
+                pooled.clear();
+                pooled.extend(value);
+
+                Object::Array(pooled)
+            }
+            Object::Struct { name, fields } => {
+                let mut pooled = self.object_pool.get_struct();
+                pooled.clear();
+                pooled.extend(fields);
+                Object::Struct {
+                    name,
+                    fields: pooled,
+                }
+            }
+        };
+
+        self.heap.push(reused_object);
         self.marked.push(false);
         self.alloc_count += 1;
+
         Handle(index)
     }
 
@@ -57,15 +124,16 @@ impl GC {
         stack: &mut [Value],
         environments_stack: &mut [HashMap<EcoString, Value>],
     ) {
-        for mark in &mut self.marked {
-            *mark = false;
-        }
+        self.threshold += self.threshold / 2;
 
-        for value in stack.iter_mut() {
+        self.marked.clear();
+        self.marked.resize(self.heap.len(), false);
+
+        for value in stack.iter() {
             self.mark_value(value);
         }
 
-        for environment in environments_stack.iter_mut() {
+        for environment in environments_stack.iter() {
             for value in environment.values() {
                 self.mark_value(value);
             }
@@ -105,29 +173,27 @@ impl GC {
     }
 
     fn mark_object(&mut self, handle: Handle) {
-        let mut stack = vec![handle];
+        self.mark_stack.clear();
+        self.mark_stack.push(handle);
 
-        while let Some(handle) = stack.pop() {
+        while let Some(handle) = self.mark_stack.pop() {
             let index = handle.0;
-            if index >= self.marked.len() {
+            if index >= self.marked.len() || self.marked[index] {
                 continue;
             }
-            if self.marked[index] {
-                continue;
-            }
+
             self.marked[index] = true;
 
             match &self.heap[index] {
-                Object::String(_) => {
-                }
-                Object::Slice(elements) => {
+                Object::String(_) => {}
+                Object::Array(elements) => {
                     for value in elements {
-                        Self::collect_children(value, &mut stack);
+                        Self::collect_children(value, &mut self.mark_stack);
                     }
                 }
                 Object::Struct { fields, .. } => {
                     for value in fields.values() {
-                        Self::collect_children(value, &mut stack);
+                        Self::collect_children(value, &mut self.mark_stack);
                     }
                 }
             }
@@ -154,26 +220,30 @@ impl GC {
     }
 
     fn compact(&mut self) -> Vec<Option<usize>> {
-        let old_size = self.heap.len();
+        let marked_count = self.marked.iter().filter(|&&m| m).count();
+        let mut new_heap = Vec::with_capacity(marked_count);
+        let mut remap = vec![None; self.heap.len()];
 
-        let mut new_heap = Vec::with_capacity(old_size);
-        let mut new_marked = Vec::with_capacity(old_size);
+        for (i, marked) in self.marked.iter().enumerate() {
+            if *marked {
+                remap[i] = Some(new_heap.len());
+                let mut object =
+                    std::mem::replace(&mut self.heap[i], Object::Array(Vec::with_capacity(100)));
 
-        let mut remap = vec![None; old_size];
+                match &mut object {
+                    Object::String(s) if s.is_empty() => {
+                        self.object_pool.strings.push(std::mem::take(s));
+                    }
+                    Object::Array(v) if v.is_empty() => {
+                        self.object_pool.slices.push(std::mem::take(v));
+                    }
+                    Object::Struct { fields, .. } if fields.is_empty() => {
+                        self.object_pool.structs.push(std::mem::take(fields));
+                    }
+                    _ => {}
+                }
 
-        let mut new_index = 0;
-        for (i, item) in remap.iter_mut().enumerate().take(old_size) {
-            if self.marked[i] {
-                *item = Some(new_index);
-
-                let object = std::mem::replace(&mut self.heap[i], Object::String("".into()));
                 new_heap.push(object);
-
-                new_marked.push(false);
-
-                new_index += 1;
-            } else {
-                *item = None;
             }
         }
 
@@ -182,15 +252,13 @@ impl GC {
         }
 
         self.heap = new_heap;
-        self.marked = new_marked;
-
         remap
     }
 
     fn update_object_handles(obj: &mut Object, remap: &[Option<usize>]) {
         match obj {
             Object::String(_) => {}
-            Object::Slice(elements) => {
+            Object::Array(elements) => {
                 for value in elements {
                     Self::update_value_handles(value, remap);
                 }

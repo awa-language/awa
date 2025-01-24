@@ -51,16 +51,16 @@ impl VM {
         let mut vm = Self {
             input,
             program_counter: 0,
-            stack: Vec::new(),
-            environments_stack: Vec::new(),
-            structures: HashMap::new(),
-            functions: HashMap::new(),
-            call_stack: Vec::new(),
+            stack: Vec::with_capacity(100000),
+            environments_stack: Vec::with_capacity(100000),
+            structures: HashMap::with_capacity(10),
+            functions: HashMap::with_capacity(10),
+            call_stack: Vec::with_capacity(100000),
             gc: GC::new(),
             backup_state: None,
         };
 
-        vm.environments_stack.push(HashMap::new());
+        vm.environments_stack.push(HashMap::with_capacity(50));
         vm.preprocess_bytecode();
 
         if let Some(&main_address) = vm.functions.get("main") {
@@ -108,7 +108,7 @@ impl VM {
                 self.maybe_run_gc();
             }
             Instruction::PushArray(array) => {
-                let handle = self.gc.allocate(Object::Slice(array));
+                let handle = self.gc.allocate(Object::Array(array));
 
                 self.stack.push(Value::Ref(handle));
                 self.maybe_run_gc();
@@ -212,7 +212,7 @@ impl VM {
                 let array = self.stack.pop().expect("stack underflow");
 
                 if let Value::Ref(handle) = array {
-                    if let Object::Slice(ref mut slice) = self.gc.get_mut(handle) {
+                    if let Object::Array(ref mut slice) = self.gc.get_mut(handle) {
                         slice.push(value);
                     } else {
                         panic!("Append to non-slice");
@@ -226,7 +226,7 @@ impl VM {
                 let array = self.stack.pop().expect("stack underflow");
 
                 if let Value::Ref(handle) = array {
-                    if let Object::Slice(ref mut slice) = self.gc.get_mut(handle) {
+                    if let Object::Array(ref mut slice) = self.gc.get_mut(handle) {
                         slice.pop();
                     } else {
                         panic!("Append to non-slice");
@@ -242,7 +242,7 @@ impl VM {
                 let array = self.stack.pop().expect("stack underflow");
 
                 if let Value::Ref(handle) = array {
-                    let Object::Slice(slice) = self.gc.get(handle) else {
+                    let Object::Array(slice) = self.gc.get(handle) else {
                         panic!("GetByIndex on non-slice");
                     };
 
@@ -265,7 +265,7 @@ impl VM {
                 let array = self.stack.pop().expect("stack underflow");
 
                 if let Value::Ref(handle) = array {
-                    let Object::Slice(slice) = self.gc.get_mut(handle) else {
+                    let Object::Array(slice) = self.gc.get_mut(handle) else {
                         panic!("SetByIndex on non-slice");
                     };
 
@@ -404,7 +404,7 @@ impl VM {
                         program_counter: self.program_counter,
                     });
 
-                    self.environments_stack.push(HashMap::new());
+                    self.environments_stack.push(HashMap::with_capacity(10));
                     self.call_stack.push(self.program_counter + 1);
                     self.program_counter = address;
 
@@ -429,7 +429,7 @@ impl VM {
             }
             Instruction::NewStruct(struct_name) => {
                 if let Some(fields) = self.structures.get(&struct_name) {
-                    let mut map = HashMap::new();
+                    let mut map = HashMap::with_capacity(fields.len());
 
                     for (key, value) in fields {
                         map.insert(key.clone(), value.clone());
@@ -553,7 +553,7 @@ impl VM {
                     panic!("Func without EndFunc");
                 }
                 Instruction::Struct(struct_name) => {
-                    let mut fields = HashMap::new();
+                    let mut fields = HashMap::with_capacity(10);
                     i += 1;
 
                     while i < self.input.len() {
@@ -658,7 +658,7 @@ impl VM {
 
                 match (lhs, rhs) {
                     (Object::String(lhs), Object::String(rhs)) => lhs == rhs,
-                    (Object::Slice(lhs), Object::Slice(rhs)) => lhs == rhs,
+                    (Object::Array(lhs), Object::Array(rhs)) => lhs == rhs,
                     (
                         Object::Struct {
                             name: name1,
@@ -727,7 +727,7 @@ impl VM {
 
                 match object {
                     Object::String(string) => print!("{string}"),
-                    Object::Slice(array) => {
+                    Object::Array(array) => {
                         print!("[");
                         for (i, value) in array.iter().enumerate() {
                             if i > 0 {

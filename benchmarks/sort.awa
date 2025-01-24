@@ -8,8 +8,8 @@ func merge(l int, m int, r int, array []int) {
     var x int = 0
     loop {
         if (x >= n1) {
-        break
-    }
+            break
+        }
         append(leftArr, array[l + x])
         x = x + 1
     }
@@ -19,7 +19,6 @@ func merge(l int, m int, r int, array []int) {
         if (y >= n2) {
             break
         }
-
         append(rightArr, array[m + 1 + y])
         y = y + 1
     }
@@ -29,12 +28,9 @@ func merge(l int, m int, r int, array []int) {
     var k int = l
 
     loop {
-        if (i >= n1) {
-            break
-        }
-        if (j >= n2) {
-            break
-        }
+    if ((i >= n1) || (j >= n2)) {
+      break
+    }
         if (leftArr[i] <= rightArr[j]) {
             array[k] = leftArr[i]
             i = i + 1
@@ -42,15 +38,13 @@ func merge(l int, m int, r int, array []int) {
             array[k] = rightArr[j]
             j = j + 1
         }
-
         k = k + 1
     }
 
     loop {
         if (i >= n1) {
-          break
+            break
         }
-
         array[k] = leftArr[i]
         i = i + 1
         k = k + 1
@@ -60,27 +54,48 @@ func merge(l int, m int, r int, array []int) {
         if (j >= n2) {
             break
         }
-
         array[k] = rightArr[j]
         j = j + 1
         k = k + 1
     }
 }
 
-func mergesort(l int, r int, array []int) {
-    if (l < r) {
-        var m int = (l + r) / 2
+func mergesort_iterative(array []int, n int) {
+    var curr_size int = 1
 
-        mergesort(l, m, array)
-        mergesort(m + 1, r, array)
+    loop {
+        if (curr_size > n - 1) {
+            break
+        }
 
-        merge(l, m, r, array)
+        var left_start int = 0
+
+        loop {
+            if (left_start >= n - 1) {
+                break
+            }
+
+            var mid int = left_start + curr_size - 1
+            if (mid >= n) {
+                mid = n - 1
+            }
+
+            var right_end int = left_start + 2 * curr_size - 1
+            if (right_end >= n) {
+                right_end = n - 1
+            }
+
+            merge(left_start, mid, right_end, array)
+
+            left_start = left_start + 2 * curr_size
+        }
+
+        curr_size = 2 * curr_size
     }
 }
 
 func main() {
     var length int = 10000
-    
     var array []int = []int{}
 
     var lengthCopy int = length
@@ -89,12 +104,11 @@ func main() {
         if (lengthCopy == 0) {
             break
         }
-
         append(array, lengthCopy)
         lengthCopy = lengthCopy - 1
     }
 
-    mergesort(0, 9999, array)
+    mergesort_iterative(array, length)
 
-    println(array)
+    print(array)
 }
