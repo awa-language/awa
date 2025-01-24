@@ -211,12 +211,12 @@ fn test_structs() {
         Instruction::Func("main".into()),
         Instruction::NewStruct("Person".into()),
         Instruction::StoreInMap("a".into()),
-        Instruction::PushString("nikitka".into()),
         Instruction::LoadToStack("a".into()),
+        Instruction::PushString("nikitka".into()),
         Instruction::SetField("name".into()),
         Instruction::StoreInMap("a".into()),
-        Instruction::PushInt(22),
         Instruction::LoadToStack("a".into()),
+        Instruction::PushInt(22),
         Instruction::SetField("age".into()),
         Instruction::StoreInMap("a".into()),
         Instruction::LoadToStack("a".into()),
@@ -299,16 +299,16 @@ fn test_complex() {
         Instruction::Func("main".into()),
         Instruction::NewStruct("Wrapper".into()),
         Instruction::StoreInMap("w".into()),
-        Instruction::PushString("Vasya".into()),
-        Instruction::PushFloat(20.0),
         Instruction::NewStruct("Custom".into()),
+        Instruction::PushFloat(20.0),
         Instruction::SetField("age".into()),
+        Instruction::PushString("Vasya".into()),
         Instruction::SetField("name".into()),
         Instruction::StoreInMap("c".into()),
-        Instruction::PushFloat(15.0),
-        Instruction::LoadToStack("c".into()),
         Instruction::LoadToStack("w".into()),
+        Instruction::LoadToStack("c".into()),
         Instruction::SetField("custom".into()),
+        Instruction::PushFloat(15.0),
         Instruction::SetField("height".into()),
         Instruction::Println,
         Instruction::Halt,
@@ -408,7 +408,7 @@ fn test_gc_local_alloc_print() {
         println!("  [{i}] {obj:?}");
     }
 
-    vm.gc.collect_garbage(&vm.stack, &vm.environments_stack);
+    vm.gc.collect_garbage(&mut vm.stack, &mut vm.environments_stack);
 
     println!("Heap after manual GC:");
     for (i, obj) in vm.gc.heap.iter().enumerate() {

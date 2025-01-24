@@ -7,5 +7,5 @@ func factorial(n int) int {
 }
 
 func main() {
-    factorial(20)
+    println(factorial(20))
 }

@@ -22,12 +22,12 @@ func main() {
             var multiple int = i * i 
 
             loop {
+              if (multiple >= 10000) {
+                break
+              }
                 isPrime[multiple] = 0
                 multiple = multiple + i
 
-                if (multiple >= 10000) {
-                    break
-                }
             }
         }
 
