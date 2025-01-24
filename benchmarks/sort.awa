@@ -70,7 +70,7 @@ func main() {
     }
 
     array = mergeSort(array, 0, length)
-
+  
     print(array)
 }
 

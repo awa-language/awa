@@ -60,7 +60,7 @@ impl VM {
             backup_state: None,
         };
 
-        vm.environments_stack.push(HashMap::with_capacity(20));
+        vm.environments_stack.push(HashMap::with_capacity(50));
         vm.preprocess_bytecode();
 
         if let Some(&main_address) = vm.functions.get("main") {
