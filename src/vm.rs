@@ -461,7 +461,7 @@ impl VM {
                             if let Some(value) = fields.get(&field_name) {
                                 self.stack.push(value.clone());
                             } else {
-                                panic!("no such field: `{}`", field_name);
+                                panic!("no such field: `{field_name}`");
                             }
                         } else {
                             panic!("GetField on non-struct Ref");
@@ -472,10 +472,10 @@ impl VM {
                             if let Some(value) = fields.get(&field_name) {
                                 self.stack.push(value.clone());
                             } else {
-                                panic!("no such field: `{}`", field_name);
+                                panic!("no such field: `{field_name}`");
                             }
                         } else {
-                            panic!("struct `{}` not found in structures map", name);
+                            panic!("struct `{name}` not found in structures map");
                         }
                     }
                     _ => {

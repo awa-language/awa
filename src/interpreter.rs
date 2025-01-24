@@ -81,7 +81,7 @@ impl Interpreter {
                     }
 
                     if name == "main" {
-                        self.bytecode.push(Instruction::Halt)
+                        self.bytecode.push(Instruction::Halt);
                     }
                     if matches!(return_type, Type::Void) {
                         self.bytecode.push(Instruction::Return);
@@ -152,7 +152,7 @@ impl Interpreter {
                 self.loop_end_stack.push(loop_end);
 
                 if let Some(break_end) = self.loop_break_stack.pop() {
-                    self.bytecode[break_end] = Instruction::Jump(loop_end)
+                    self.bytecode[break_end] = Instruction::Jump(loop_end);
                 }
             }
             TypedStatement::Break { .. } => {

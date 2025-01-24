@@ -61,15 +61,15 @@ impl GC {
             *mark = false;
         }
 
-        stack.into_iter().for_each(|value| {
+        for value in stack.iter_mut() {
             self.mark_value(value);
-        });
+        }
 
-        environments_stack.into_iter().for_each(|env| {
+        for env in environments_stack.iter_mut() {
             for val in env.values() {
                 self.mark_value(val);
             }
-        });
+        }
 
         let remap = self.compact();
 
