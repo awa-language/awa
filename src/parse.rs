@@ -160,14 +160,14 @@ impl<T: Iterator<Item = LexResult>> Parser<T> {
                     Ok(definition) => Ok(Some(definition)),
                     Err(parsing_error) => Err(parsing_error),
                 },
-                _ => Err(ParsingError {
+                token => Err(ParsingError {
                     error: error::Type::UnexpectedToken {
-                        token: self.current_token.clone().unwrap().token,
+                        token,
                         expected: "either function or struct definition".to_string().into(),
                     },
                     location: LexLocation {
-                        start: self.current_token.clone().unwrap().start,
-                        end: self.current_token.clone().unwrap().end,
+                        start: token_span.start,
+                        end: token_span.end,
                     },
                 }),
             },
