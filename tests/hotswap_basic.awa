@@ -3,7 +3,7 @@ func get_name() string {
 }
 
 func say_hello() {
-    println(get_name())
+    // println(get_name())
 }
 
 func main() {

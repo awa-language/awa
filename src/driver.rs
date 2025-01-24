@@ -49,6 +49,11 @@ pub fn run(
                                 Err(err) => {
                                     let description = err.get_description();
                                     println!("{description}");
+
+                                    let () = backwards_sender
+                                        .send(BackwardsCommunication::Hotswapped)
+                                        .unwrap();
+
                                     continue;
                                 }
                             };
