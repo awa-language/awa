@@ -1047,6 +1047,7 @@ impl TypeAnalyzer {
         if function_name_str == "print"
             || function_name_str == "println"
             || function_name_str == "append"
+            || function_name_str == "pop"
         {
             return Ok(Type::Void);
         }
@@ -1271,6 +1272,32 @@ impl TypeAnalyzer {
                     }
                 }
             }
+        } else if function_name_str == "pop" {
+            if arguments.as_ref().map_or(true, |args| args.len() != 1) {
+                return Err(ConvertingError {
+                    error: ConvertingErrorType::NotTheRightAmountOfArguments {
+                        expected: 1,
+                        found: arguments.as_ref().map_or(0, vec1::Vec1::len),
+                    },
+                    location: Location {
+                        start: location.start,
+                        end: location.end,
+                    },
+                });
+            }
+
+            if i == 0 {
+                if let Type::Array { .. } = typed_argument.get_type() {
+                } else {
+                    return Err(ConvertingError {
+                        error: ConvertingErrorType::ArrayMismatchType,
+                        location: Location {
+                            start: location.start,
+                            end: location.end,
+                        },
+                    });
+                }
+            }
         } else {
             let function_def =
                 self.program_state
@@ -1443,6 +1470,23 @@ impl ProgramState {
                             type_: Type::Int,
                         },
                     ])
+                    .unwrap(),
+                ),
+                body: None,
+                return_type: Type::Void,
+            };
+            return Some(function);
+        }
+        if name == "pop" {
+            let function = DefinitionTyped::Function {
+                name: name.clone(),
+                location: ast::location::Location { start: 0, end: 0 },
+                arguments: Some(
+                    Vec1::try_from(vec![ArgumentTyped {
+                        name: EcoString::default(),
+                        location: ast::location::Location { start: 0, end: 0 },
+                        type_: Type::Int,
+                    }])
                     .unwrap(),
                 ),
                 body: None,

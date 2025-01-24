@@ -250,6 +250,7 @@ impl Interpreter {
                     "print" => self.bytecode.push(Instruction::Print),
                     "println" => self.bytecode.push(Instruction::Println),
                     "append" => self.bytecode.push(Instruction::Append),
+                    "pop" => self.bytecode.push(Instruction::Pop),
                     _ => self.bytecode.push(Instruction::Call(function_name.clone())),
                 }
             }

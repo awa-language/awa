@@ -24,6 +24,7 @@ pub enum Instruction {
     DivFloat,
 
     Append,
+    Pop,
     GetByIndex,
     SetByIndex,
 
