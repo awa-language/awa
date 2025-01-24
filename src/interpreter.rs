@@ -338,12 +338,11 @@ impl Interpreter {
 
     fn default_value_for_type(type_: &Type) -> Value {
         match type_ {
-            Type::Int => Value::Int(0),
+            Type::Int | Type::Boolean => Value::Int(0),
             Type::Float => Value::Float(0.0),
             Type::String => Value::String("".into()),
             Type::Char => Value::Char('\0'),
             Type::Array { .. } => Value::Slice(Vec::new()),
-            Type::Boolean => Value::Int(0),
             Type::Void => Value::Nil,
             Type::Custom { name } => Value::Struct {
                 name: name.clone(),

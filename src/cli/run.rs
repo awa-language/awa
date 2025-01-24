@@ -31,7 +31,7 @@ pub fn handle(filename: Option<Utf8PathBuf>) {
     ) = channel();
 
     let _ = std::thread::spawn(move || {
-        driver::run(module, &input_reciever, &backwards_sender);
+        driver::run(&module, &input_reciever, &backwards_sender);
     });
 
     let term = console::Term::stdout();
