@@ -54,7 +54,10 @@ pub fn handle(filename: Option<Utf8PathBuf>) {
         }
 
         if !require_hotswap {
-            let _ = term.read_char().unwrap();
+            if let Err(_) = term.read_char() {
+                // NOTE: only happends when there is no terminal, i.e. in CI
+                loop {}
+            }
         }
 
         let () = input_sender.send(Command::OpenMenu).unwrap();
