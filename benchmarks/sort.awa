@@ -94,7 +94,7 @@ func main() {
         lengthCopy = lengthCopy - 1
     }
 
-    array = mergeSort(array, 0, length)
-  
+    mergesort(0, length-1, array)
+
     print(array)
 }
