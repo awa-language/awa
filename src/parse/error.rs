@@ -117,12 +117,19 @@ impl ConvertingError {
             } => {
                 format!("hotswap argument type mismatch at position {argument_index}: expected {expected:?}, found {found:?}")
             }
+            ConvertingErrorType::ParsingError { error } => {
+                let description = error.get_description();
+                format!("recieved parsing error: {description}")
+            }
         }
     }
 }
 
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub enum ConvertingErrorType {
+    ParsingError {
+        error: ParsingError,
+    },
     IntOperationInvalidType,
     InvalidIntLiteral,
     FloatOperationInvalidType,

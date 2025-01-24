@@ -52,7 +52,18 @@ impl TypeAnalyzer {
     /// - Unknown variable/function reference
     /// - Type mismatch
     pub fn analyze_input(&mut self, input: &str) -> Result<module::Typed, ConvertingError> {
-        let module = parse_module(input).unwrap();
+        let module = parse_module(input);
+        let module = match module {
+            Ok(module) => module,
+            Err(parsing_error) => {
+                return Err(ConvertingError {
+                    error: ConvertingErrorType::ParsingError {
+                        error: parsing_error.clone(),
+                    },
+                    location: parsing_error.location,
+                });
+            }
+        };
 
         let typed_module = self.convert_ast_to_tast(&module)?;
 
@@ -71,7 +82,18 @@ impl TypeAnalyzer {
     /// - Unknown variable/function reference
     /// - Type mismatch
     pub fn handle_hotswap(&mut self, input: &str) -> Result<module::Typed, ConvertingError> {
-        let module = parse_module(input).unwrap();
+        let module = parse_module(input);
+        let module = match module {
+            Ok(module) => module,
+            Err(parsing_error) => {
+                return Err(ConvertingError {
+                    error: ConvertingErrorType::ParsingError {
+                        error: parsing_error.clone(),
+                    },
+                    location: parsing_error.location,
+                });
+            }
+        };
 
         let function_name = match module
             .definitions
