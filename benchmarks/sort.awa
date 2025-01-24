@@ -57,6 +57,7 @@ func mergeSort(arr []int, start int, end int) []int {
 
 func main() {
     var length int = 10000
+    
     var array []int = []int{}
 
     var lengthCopy int = length

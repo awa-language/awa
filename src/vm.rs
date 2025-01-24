@@ -51,16 +51,16 @@ impl VM {
         let mut vm = Self {
             input,
             program_counter: 0,
-            stack: Vec::new(),
-            environments_stack: Vec::new(),
-            structures: HashMap::new(),
-            functions: HashMap::new(),
-            call_stack: Vec::new(),
+            stack: Vec::with_capacity(100000),
+            environments_stack: Vec::with_capacity(100000),
+            structures: HashMap::with_capacity(10),
+            functions: HashMap::with_capacity(10),
+            call_stack: Vec::with_capacity(100000),
             gc: GC::new(),
             backup_state: None,
         };
 
-        vm.environments_stack.push(HashMap::new());
+        vm.environments_stack.push(HashMap::with_capacity(20));
         vm.preprocess_bytecode();
 
         if let Some(&main_address) = vm.functions.get("main") {
@@ -404,7 +404,7 @@ impl VM {
                         program_counter: self.program_counter,
                     });
 
-                    self.environments_stack.push(HashMap::new());
+                    self.environments_stack.push(HashMap::with_capacity(10));
                     self.call_stack.push(self.program_counter + 1);
                     self.program_counter = address;
 
@@ -429,7 +429,7 @@ impl VM {
             }
             Instruction::NewStruct(struct_name) => {
                 if let Some(fields) = self.structures.get(&struct_name) {
-                    let mut map = HashMap::new();
+                    let mut map = HashMap::with_capacity(fields.len());
 
                     for (key, value) in fields {
                         map.insert(key.clone(), value.clone());
@@ -553,7 +553,7 @@ impl VM {
                     panic!("Func without EndFunc");
                 }
                 Instruction::Struct(struct_name) => {
-                    let mut fields = HashMap::new();
+                    let mut fields = HashMap::with_capacity(10);
                     i += 1;
 
                     while i < self.input.len() {
