@@ -315,19 +315,8 @@ impl TypeAnalyzer {
                         struct_name,
                         field_name,
                     } => {
-                        let struct_def_name =
-                            match self.program_state.get_variable_type(struct_name) {
-                                Some(Type::Custom { name }) => Ok(name),
-                                _ => Err(ConvertingError {
-                                    error: ConvertingErrorType::UnsupportedType,
-                                    location: crate::lex::location::Location {
-                                        start: location.start,
-                                        end: location.end,
-                                    },
-                                }),
-                            };
                         let field_type =
-                            self.resolve_struct_field_type(struct_def_name.unwrap(), field_name)?;
+                            self.resolve_struct_field_access_type(struct_name, field_name)?;
                         TypedReassignmentTarget::FieldAccess {
                             location: *location,
                             struct_name: struct_name.clone(),
@@ -1265,17 +1254,21 @@ impl ProgramState {
             let function = DefinitionTyped::Function {
                 name: name.clone(),
                 location: ast::location::Location { start: 0, end: 0 },
-                arguments: Some(Vec1::try_from(vec![
-                    ArgumentTyped {
-                        name: Default::default(),
-                        location: ast::location::Location { start: 0, end: 0 },
-                        type_: Type::Int,
-                    },  ArgumentTyped {
-                        name: Default::default(),
-                        location: ast::location::Location { start: 0, end: 0 },
-                        type_: Type::Int,
-                    }
-                ]).unwrap()),
+                arguments: Some(
+                    Vec1::try_from(vec![
+                        ArgumentTyped {
+                            name: Default::default(),
+                            location: ast::location::Location { start: 0, end: 0 },
+                            type_: Type::Int,
+                        },
+                        ArgumentTyped {
+                            name: Default::default(),
+                            location: ast::location::Location { start: 0, end: 0 },
+                            type_: Type::Int,
+                        },
+                    ])
+                    .unwrap(),
+                ),
                 body: None,
                 return_type: Type::Void,
             };
