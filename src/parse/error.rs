@@ -67,15 +67,25 @@ impl ConvertingError {
                 "unsupported binary operation".to_owned()
             }
             ConvertingErrorType::UnsupportedType => "unsupported type".to_owned(),
-            ConvertingErrorType::StructNotFound => "struct not found".to_owned(),
-            ConvertingErrorType::FieldNotFound => "field not found in struct".to_owned(),
+            ConvertingErrorType::FunctionNotDefined { function_name } => {
+                format!("function '{function_name:?}' is not defined")
+            }
+            ConvertingErrorType::StructNotDefined { struct_name } => {
+                format!("struct '{struct_name:?}' is not defined")
+            }
+            ConvertingErrorType::VariableNotDefined { variable_name } => {
+                format!("variable '{variable_name:?}' is not defined")
+            }
+            ConvertingErrorType::FieldNotFound {
+                field_name,
+                struct_name,
+            } => {
+                format!("field '{field_name:?}' not found in struct '{struct_name:?}'")
+            }
             ConvertingErrorType::TypeMismatch { expected, found } => {
                 format!("type mismatch: expected {expected:?}, found {found:?}")
             }
             ConvertingErrorType::EmptyStruct => "empty struct".to_owned(),
-            ConvertingErrorType::UndefinedFunction => {
-                "before function call, it should be defined".to_owned()
-            }
             ConvertingErrorType::NotTheRightAmountOfArguments { expected, found } => {
                 format!("amount arguments mismatch: expected {expected:?}, found {found:?}")
             }
@@ -100,14 +110,24 @@ pub enum ConvertingErrorType {
     InvalidBooleanOperation,
     UnsupportedBinaryOperation,
     UnsupportedType,
-    StructNotFound,
-    FieldNotFound,
+    FunctionNotDefined {
+        function_name: EcoString,
+    },
+    StructNotDefined {
+        struct_name: EcoString,
+    },
+    VariableNotDefined {
+        variable_name: EcoString,
+    },
+    FieldNotFound {
+        struct_name: EcoString,
+        field_name: EcoString,
+    },
     TypeMismatch {
         expected: crate::type_::Type,
         found: crate::type_::Type,
     },
     EmptyStruct,
-    UndefinedFunction,
     NotTheRightAmountOfArguments {
         expected: usize,
         found: usize,

@@ -213,11 +213,18 @@ impl TypeAnalyzer {
         &mut self,
         struct_field_value: &StructFieldValue,
         struct_name: &EcoString,
+        start_location: u32,
+        end_location: u32,
     ) -> Result<StructFieldValueTyped, ConvertingError> {
         let typed_value = self.convert_expression_to_typed(&struct_field_value.value)?;
         let location = typed_value.get_location();
 
-        let field_type = self.resolve_struct_field_type(struct_name, &struct_field_value.name)?;
+        let field_type = self.resolve_struct_field_type(
+            struct_name,
+            &struct_field_value.name,
+            start_location,
+            end_location,
+        )?;
 
         if !Self::compare_types(&field_type, typed_value.get_type()) {
             return Err(ConvertingError {
@@ -298,7 +305,9 @@ impl TypeAnalyzer {
                             self.program_state
                                 .get_variable_type(name)
                                 .ok_or(ConvertingError {
-                                    error: ConvertingErrorType::UnsupportedType,
+                                    error: ConvertingErrorType::VariableNotDefined {
+                                        variable_name: name.clone(),
+                                    },
                                     location: crate::lex::location::Location {
                                         start: location.start,
                                         end: location.end,
@@ -315,8 +324,12 @@ impl TypeAnalyzer {
                         struct_name,
                         field_name,
                     } => {
-                        let field_type =
-                            self.resolve_struct_field_access_type(struct_name, field_name)?;
+                        let field_type = self.resolve_struct_field_access_type(
+                            struct_name,
+                            field_name,
+                            location.start,
+                            location.end,
+                        )?;
                         TypedReassignmentTarget::FieldAccess {
                             location: *location,
                             struct_name: struct_name.clone(),
@@ -456,21 +469,33 @@ impl TypeAnalyzer {
 
                 let function_name = self.program_state.get_current_function_name();
 
-                if let Some(function_def) = self.program_state.get_function(&function_name) {
-                    let return_type = function_def.get_return_type()?;
-                    if let Some(typed_value) = &typed_value {
-                        if !Self::compare_types(&return_type, typed_value.get_type()) {
-                            return Err(ConvertingError {
-                                error: ConvertingErrorType::TypeMismatch {
-                                    expected: return_type.clone(),
-                                    found: typed_value.get_type().clone(),
-                                },
-                                location: crate::lex::location::Location {
-                                    start: location.start,
-                                    end: location.end,
-                                },
-                            });
-                        }
+                let function_def = self
+                    .program_state
+                    .get_function(&function_name.clone())
+                    .ok_or(ConvertingError {
+                        error: ConvertingErrorType::FunctionNotDefined {
+                            function_name: function_name.clone(),
+                        },
+                        location: Location {
+                            start: location.start,
+                            end: location.end,
+                        },
+                    })?;
+
+                let return_type = function_def.get_return_type()?;
+
+                if let Some(typed_value) = &typed_value {
+                    if !Self::compare_types(&return_type, typed_value.get_type()) {
+                        return Err(ConvertingError {
+                            error: ConvertingErrorType::TypeMismatch {
+                                expected: return_type.clone(),
+                                found: typed_value.get_type().clone(),
+                            },
+                            location: crate::lex::location::Location {
+                                start: location.start,
+                                end: location.end,
+                            },
+                        });
                     }
                 }
 
@@ -544,7 +569,8 @@ impl TypeAnalyzer {
                 })
             }
             UntypedExpression::VariableValue { location, name } => {
-                let resolved_type = self.resolve_variable_type(name)?;
+                let resolved_type =
+                    self.resolve_variable_type(name, location.start, location.end)?;
                 Ok(TypedExpression::VariableValue {
                     location: *location,
                     name: name.clone(),
@@ -580,20 +606,32 @@ impl TypeAnalyzer {
                 function_name,
                 arguments,
             } => {
-                if let Some(function_def) = self.program_state.get_function(function_name) {
-                    if let Some(expected_args) = function_def.get_arguments() {
-                        if arguments.clone().unwrap().len() > expected_args.len() {
-                            return Err(ConvertingError {
-                                error: ConvertingErrorType::NotTheRightAmountOfArguments {
-                                    expected: expected_args.len(),
-                                    found: arguments.clone().unwrap().len(),
-                                },
-                                location: Location {
-                                    start: location.start,
-                                    end: location.end,
-                                },
-                            });
-                        }
+                let function_def =
+                    self.program_state
+                        .get_function(function_name)
+                        .ok_or(ConvertingError {
+                            error: ConvertingErrorType::FunctionNotDefined {
+                                function_name: function_name.clone(),
+                            },
+                            location: Location {
+                                start: location.start,
+                                end: location.end,
+                            },
+                        })?;
+
+                if let (Some(expected_args), Some(args)) = (function_def.get_arguments(), arguments)
+                {
+                    if args.len() > expected_args.len() {
+                        return Err(ConvertingError {
+                            error: ConvertingErrorType::NotTheRightAmountOfArguments {
+                                expected: expected_args.len(),
+                                found: args.len(),
+                            },
+                            location: Location {
+                                start: location.start,
+                                end: location.end,
+                            },
+                        });
                     }
                 }
 
@@ -631,7 +669,12 @@ impl TypeAnalyzer {
                 struct_name,
                 field_name,
             } => {
-                let field_type = self.resolve_struct_field_access_type(struct_name, field_name)?;
+                let field_type = self.resolve_struct_field_access_type(
+                    struct_name,
+                    field_name,
+                    location.start,
+                    location.end,
+                )?;
                 Ok(TypedExpression::StructFieldAccess {
                     location: *location,
                     struct_name: struct_name.clone(),
@@ -682,7 +725,12 @@ impl TypeAnalyzer {
                 let inner_type = match resolved_type {
                     Type::Array { ref type_ } => Ok(type_.clone()),
                     _ => Err(ConvertingError {
-                        error: ConvertingErrorType::UnsupportedType,
+                        error: ConvertingErrorType::TypeMismatch {
+                            expected: Type::Array {
+                                type_: Box::new(Type::Void),
+                            },
+                            found: resolved_type.clone(),
+                        },
                         location: crate::lex::location::Location {
                             start: start_expression_location,
                             end: end_expression_location,
@@ -731,10 +779,15 @@ impl TypeAnalyzer {
 
                 let Type::Custom { name: struct_name } = &resolved_type else {
                     return Err(ConvertingError {
-                        error: ConvertingErrorType::UnsupportedType,
+                        error: ConvertingErrorType::TypeMismatch {
+                            expected: Type::Custom {
+                                name: "struct_name".into(),
+                            },
+                            found: resolved_type,
+                        },
                         location: crate::lex::location::Location {
-                            start: start_expression_location,
-                            end: end_expression_location,
+                            start: location.start,
+                            end: location.end,
                         },
                     });
                 };
@@ -743,7 +796,12 @@ impl TypeAnalyzer {
                     .as_ref()
                     .map(|fields| {
                         fields.clone().try_mapped(|field| {
-                            self.convert_struct_field_value(&field, struct_name)
+                            self.convert_struct_field_value(
+                                &field,
+                                struct_name,
+                                location.start,
+                                location.end,
+                            )
                         })
                     })
                     .transpose()?;
@@ -767,7 +825,9 @@ impl TypeAnalyzer {
             self.program_state
                 .get_variable_type(array_name)
                 .ok_or(ConvertingError {
-                    error: ConvertingErrorType::UnsupportedType,
+                    error: ConvertingErrorType::VariableNotDefined {
+                        variable_name: array_name.clone(),
+                    },
                     location: crate::lex::location::Location {
                         start: start_location,
                         end: end_location,
@@ -776,7 +836,16 @@ impl TypeAnalyzer {
         match array_type {
             Type::Array { type_ } => Ok(*type_.clone()),
             _ => Err(ConvertingError {
-                error: ConvertingErrorType::UnsupportedType,
+                error: ConvertingErrorType::TypeMismatch {
+                    expected: Type::Array {
+                        type_: Box::new(Type::Void),
+                    },
+                    found: self
+                        .program_state
+                        .get_variable_type(array_name)
+                        .unwrap()
+                        .clone(),
+                },
                 location: crate::lex::location::Location {
                     start: start_location,
                     end: end_location,
@@ -789,34 +858,55 @@ impl TypeAnalyzer {
         &self,
         struct_name: &EcoString,
         field_name: &EcoString,
+        start_location: u32,
+        end_location: u32,
     ) -> Result<Type, ConvertingError> {
         let struct_def = self
             .program_state
             .get_struct(struct_name)
             .ok_or(ConvertingError {
-                error: ConvertingErrorType::StructNotFound,
-                location: crate::lex::location::Location { start: 0, end: 0 },
+                error: ConvertingErrorType::StructNotDefined {
+                    struct_name: struct_name.clone(),
+                },
+                location: crate::lex::location::Location {
+                    start: start_location,
+                    end: end_location,
+                },
             })?;
 
         if let DefinitionTyped::Struct { fields, .. } = struct_def {
             let fields = fields.as_ref().ok_or(ConvertingError {
                 error: ConvertingErrorType::EmptyStruct,
-                location: crate::lex::location::Location { start: 0, end: 0 },
+                location: crate::lex::location::Location {
+                    start: start_location,
+                    end: end_location,
+                },
             })?;
 
             let field = fields
                 .iter()
                 .find(|field| field.name == *field_name)
                 .ok_or(ConvertingError {
-                    error: ConvertingErrorType::FieldNotFound,
-                    location: crate::lex::location::Location { start: 0, end: 0 },
+                    error: ConvertingErrorType::FieldNotFound {
+                        field_name: field_name.clone(),
+                        struct_name: struct_name.clone(),
+                    },
+                    location: crate::lex::location::Location {
+                        start: start_location,
+                        end: end_location,
+                    },
                 })?;
 
             Ok(field.type_.clone())
         } else {
             Err(ConvertingError {
-                error: ConvertingErrorType::StructNotFound,
-                location: crate::lex::location::Location { start: 0, end: 0 },
+                error: ConvertingErrorType::StructNotDefined {
+                    struct_name: struct_name.clone(),
+                },
+                location: crate::lex::location::Location {
+                    start: start_location,
+                    end: end_location,
+                },
             })
         }
     }
@@ -825,6 +915,8 @@ impl TypeAnalyzer {
         &self,
         struct_variable_name: &EcoString,
         field_name: &EcoString,
+        start_location: u32,
+        end_location: u32,
     ) -> Result<Type, ConvertingError> {
         if let Type::Custom {
             name: struct_def_name,
@@ -832,43 +924,79 @@ impl TypeAnalyzer {
             .program_state
             .get_variable_type(struct_variable_name)
             .ok_or(ConvertingError {
-                error: ConvertingErrorType::StructNotFound,
-                location: crate::lex::location::Location { start: 0, end: 0 },
+                error: ConvertingErrorType::VariableNotDefined {
+                    variable_name: struct_variable_name.clone(),
+                },
+                location: crate::lex::location::Location {
+                    start: start_location,
+                    end: end_location,
+                },
             })?
         {
             let struct_def =
                 self.program_state
                     .get_struct(struct_def_name)
                     .ok_or(ConvertingError {
-                        error: ConvertingErrorType::StructNotFound,
-                        location: crate::lex::location::Location { start: 0, end: 0 },
+                        error: ConvertingErrorType::StructNotDefined {
+                            struct_name: struct_def_name.clone(),
+                        },
+                        location: crate::lex::location::Location {
+                            start: start_location,
+                            end: end_location,
+                        },
                     })?;
 
             if let DefinitionTyped::Struct { fields, .. } = struct_def {
                 let fields = fields.as_ref().ok_or(ConvertingError {
                     error: ConvertingErrorType::EmptyStruct,
-                    location: crate::lex::location::Location { start: 0, end: 0 },
+                    location: crate::lex::location::Location {
+                        start: start_location,
+                        end: end_location,
+                    },
                 })?;
 
                 let field = fields
                     .iter()
                     .find(|field| field.name == *field_name)
                     .ok_or(ConvertingError {
-                        error: ConvertingErrorType::FieldNotFound,
-                        location: crate::lex::location::Location { start: 0, end: 0 },
+                        error: ConvertingErrorType::FieldNotFound {
+                            field_name: field_name.clone(),
+                            struct_name: struct_def_name.clone(),
+                        },
+                        location: crate::lex::location::Location {
+                            start: start_location,
+                            end: end_location,
+                        },
                     })?;
 
                 Ok(field.type_.clone())
             } else {
                 Err(ConvertingError {
-                    error: ConvertingErrorType::StructNotFound,
-                    location: crate::lex::location::Location { start: 0, end: 0 },
+                    error: ConvertingErrorType::StructNotDefined {
+                        struct_name: struct_def_name.clone(),
+                    },
+                    location: crate::lex::location::Location {
+                        start: start_location,
+                        end: end_location,
+                    },
                 })
             }
         } else {
             Err(ConvertingError {
-                error: ConvertingErrorType::StructNotFound,
-                location: crate::lex::location::Location { start: 0, end: 0 },
+                error: ConvertingErrorType::TypeMismatch {
+                    expected: Type::Custom {
+                        name: "struct_name".into(),
+                    },
+                    found: self
+                        .program_state
+                        .get_variable_type(struct_variable_name)
+                        .unwrap()
+                        .clone(),
+                },
+                location: crate::lex::location::Location {
+                    start: start_location,
+                    end: end_location,
+                },
             })
         }
     }
@@ -892,8 +1020,10 @@ impl TypeAnalyzer {
             self.program_state
                 .get_function(function_name)
                 .ok_or(ConvertingError {
-                    error: ConvertingErrorType::UndefinedFunction,
-                    location: crate::lex::location::Location {
+                    error: ConvertingErrorType::FunctionNotDefined {
+                        function_name: function_name.clone(),
+                    },
+                    location: Location {
                         start: start_location,
                         end: end_location,
                     },
@@ -904,13 +1034,20 @@ impl TypeAnalyzer {
     fn resolve_variable_type(
         &mut self,
         variable_name: &EcoString,
+        start_location: u32,
+        end_location: u32,
     ) -> Result<Type, ConvertingError> {
         let variable_type =
             self.program_state
                 .get_variable_type(variable_name)
                 .ok_or(ConvertingError {
-                    error: ConvertingErrorType::UnsupportedType,
-                    location: crate::lex::location::Location { start: 0, end: 0 },
+                    error: ConvertingErrorType::VariableNotDefined {
+                        variable_name: variable_name.clone(),
+                    },
+                    location: crate::lex::location::Location {
+                        start: start_location,
+                        end: end_location,
+                    },
                 })?;
         Ok(variable_type.clone())
     }
@@ -1105,7 +1242,9 @@ impl TypeAnalyzer {
                     .functions
                     .get(function_name)
                     .ok_or(ConvertingError {
-                        error: ConvertingErrorType::UndefinedFunction,
+                        error: ConvertingErrorType::FunctionNotDefined {
+                            function_name: function_name.clone(),
+                        },
                         location: Location {
                             start: location.start,
                             end: location.end,
@@ -1162,7 +1301,9 @@ impl TypeAnalyzer {
             UntypedType::Custom { name } => {
                 if self.program_state.get_struct(name).is_none() {
                     return Err(ConvertingError {
-                        error: ConvertingErrorType::StructNotFound,
+                        error: ConvertingErrorType::StructNotDefined {
+                            struct_name: name.clone(),
+                        },
                         location: Location {
                             start: start_location,
                             end: end_location,
