@@ -1,0 +1,55 @@
+struct Node {
+    node Node
+}
+
+func waste_memory() {
+    var array_0 []string = []string{"first", "second", "third", "fourth", "fifth"}
+    var array_1 []string = []string{"first", "second", "third", "fourth", "fifth"}
+    var array_2 []string = []string{"first", "second", "third", "fourth", "fifth"}
+    var array_3 []string = []string{"first", "second", "third", "fourth", "fifth"}
+    var array_4 []string = []string{"first", "second", "third", "fourth", "fifth"}
+    var array_5 []string = []string{"first", "second", "third", "fourth", "fifth"}
+    var array_6 []string = []string{"first", "second", "third", "fourth", "fifth"}
+    var array_7 []string = []string{"first", "second", "third", "fourth", "fifth"}
+    var array_8 []string = []string{"first", "second", "third", "fourth", "fifth"}
+    var array_9 []string = []string{"first", "second", "third", "fourth", "fifth"}
+
+    var array_10 [][]string = [][]string{
+        array_0,
+        array_1,
+        array_2,
+        array_3,
+        array_4,
+        array_5,
+        array_6,
+        array_7,
+        array_8,
+        array_9
+    }
+
+    var first_node Node = Node{}
+    var second_node Node = Node{node: first_node}
+    first_node.node = second_node
+
+    var list_node Node = Node{
+        node: Node{
+            node: Node{
+                node: Node{
+                    node: Node{
+                        node: Node{}
+                    }
+                }
+            }
+        }
+    }
+}
+
+func main() {
+    loop {
+        waste_memory()
+
+        var first_node Node = Node{}
+        var second_node Node = Node{node: first_node}
+        first_node.node = second_node
+    }
+}

@@ -1,79 +1,81 @@
 func merge(l int, m int, r int, array []int) {
-  var n1 int = m - l + 1
+    var n1 int = m - l + 1
     var n2 int = r - m
 
     var leftArr []int = []int{}
-  var rightArr []int = []int{}
+    var rightArr []int = []int{}
 
-  var x int = 0
+    var x int = 0
     loop {
-      if (x >= n1) {
+        if (x >= n1) {
         break
-      }
-      append(leftArr, array[l + x])
+    }
+        append(leftArr, array[l + x])
         x = x + 1
     }
 
-  var y int = 0
+    var y int = 0
     loop {
-      if (y >= n2) {
-        break
-      }
-      append(rightArr, array[m + 1 + y])
+        if (y >= n2) {
+            break
+        }
+
+        append(rightArr, array[m + 1 + y])
         y = y + 1
     }
 
-  var i int = 0
+    var i int = 0
     var j int = 0
     var k int = l
 
     loop {
-      if (i >= n1) {
-        break
-      }
-      if (j >= n2) {
-        break
-      }
-      if (leftArr[i] <= rightArr[j]) {
+        if (i >= n1) {
+            break
+        }
+        if (j >= n2) {
+            break
+        }
+        if (leftArr[i] <= rightArr[j]) {
+            array[k] = leftArr[i]
+            i = i + 1
+        } else {
+            array[k] = rightArr[j]
+            j = j + 1
+        }
+
+        k = k + 1
+    }
+
+    loop {
+        if (i >= n1) {
+          break
+        }
+
         array[k] = leftArr[i]
-          i = i + 1
-      } else {
+        i = i + 1
+        k = k + 1
+    }
+
+    loop {
+        if (j >= n2) {
+            break
+        }
+
         array[k] = rightArr[j]
-          j = j + 1
-      }
-      k = k + 1
+        j = j + 1
+        k = k + 1
     }
-
-  loop {
-    if (i >= n1) {
-      break
-    }
-    array[k] = leftArr[i]
-      i = i + 1
-      k = k + 1
-  }
-
-  loop {
-    if (j >= n2) {
-      break
-    }
-    array[k] = rightArr[j]
-      j = j + 1
-      k = k + 1
-  }
-
-  return 
 }
 
 func mergesort(l int, r int, array []int) {
-  if (l < r) {
-    var m int = (l + r) / 2
+    if (l < r) {
+        var m int = (l + r) / 2
 
-      mergesort(l, m, array)
-      mergesort(m + 1, r, array)
-      merge(l, m, r, array)
-  }
-  return 
+        mergesort(l, m, array)
+        mergesort(m + 1, r, array)
+
+        merge(l, m, r, array)
+    }
 }
 
 func main() {
@@ -82,10 +84,12 @@ func main() {
     var array []int = []int{}
 
     var lengthCopy int = length
+
     loop {
         if (lengthCopy == 0) {
             break
         }
+
         append(array, lengthCopy)
         lengthCopy = lengthCopy - 1
     }
