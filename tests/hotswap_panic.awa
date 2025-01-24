@@ -1,8 +1,8 @@
 func panicFunc() int {
-  var array []int = []int{1, 2, 3}
-  return array[3]
+    var array []int = []int{1, 2, 3}
+    return array[3]
 }
 
 func main() {
- println(panicFunc())
+    println(panicFunc())
 }

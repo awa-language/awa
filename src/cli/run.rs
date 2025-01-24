@@ -42,7 +42,11 @@ pub fn handle(filename: Option<Utf8PathBuf>) {
     loop {
         if let Ok(command) = backwards_reciever.try_recv() {
             match command {
-                BackwardsCommunication::Hotswapped => unreachable!(),
+                BackwardsCommunication::Hotswapped => {
+                    if require_hotswap {
+                        require_hotswap = false;
+                    }
+                }
                 BackwardsCommunication::RequireHotswap => {
                     require_hotswap = true;
                 }
@@ -50,8 +54,8 @@ pub fn handle(filename: Option<Utf8PathBuf>) {
             }
         }
 
-        if !require_hotswap && term.read_char().is_err() {
-            // NOTE: only happends when there is no terminal, i.e. in CI
+        if term.read_char().is_err() {
+            // NOTE: only happens when there is no terminal, i.e. in CI
             let confirmation = backwards_reciever.recv().unwrap();
             match confirmation {
                 BackwardsCommunication::Hotswapped => {
@@ -62,7 +66,10 @@ pub fn handle(filename: Option<Utf8PathBuf>) {
             }
         }
 
-        let () = input_sender.send(Command::OpenMenu).unwrap();
+        if !require_hotswap {
+            let () = input_sender.send(Command::OpenMenu).unwrap();
+        }
+
         let confirmation = backwards_reciever.recv().unwrap();
         match confirmation {
             BackwardsCommunication::Hotswapped => {

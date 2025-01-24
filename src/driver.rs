@@ -43,12 +43,17 @@ pub fn run(
                     match decision {
                         MenuAction::PerformHotswap => {
                             let user_input = cli::input::get_user_input();
+
                             let module = analyzer.handle_hotswap(&user_input);
                             let module = match module {
                                 Ok(module) => module,
                                 Err(err) => {
                                     let description = err.get_description();
                                     println!("{description}");
+
+                                    if awaiting_hotswap {
+                                        awaiting_hotswap = false;
+                                    }
 
                                     let () = backwards_sender
                                         .send(BackwardsCommunication::Hotswapped)
