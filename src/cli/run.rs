@@ -53,10 +53,15 @@ pub fn handle(filename: Option<Utf8PathBuf>) {
             }
         }
 
-        if !require_hotswap {
-            if let Err(_) = term.read_char() {
-                // NOTE: only happends when there is no terminal, i.e. in CI
-                loop {}
+        if !require_hotswap && term.read_char().is_err() {
+            // NOTE: only happends when there is no terminal, i.e. in CI
+            let confirmation = backwards_reciever.recv().unwrap();
+            match confirmation {
+                BackwardsCommunication::Hotswapped => {
+                    unreachable!();
+                }
+                BackwardsCommunication::RequireHotswap => unreachable!(),
+                BackwardsCommunication::Finished => return,
             }
         }
 
