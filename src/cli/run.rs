@@ -13,7 +13,10 @@ pub fn handle(filename: Option<Utf8PathBuf>) {
     let _input = std::fs::read_to_string(filename);
     let _input = match _input {
         Ok(input) => input,
-        Err(_err) => todo!(),
+        Err(_err) => {
+            dbg!(_err);
+            todo!();
+        }
     };
 
     let module = driver::build_ast(&_input);

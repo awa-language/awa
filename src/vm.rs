@@ -48,8 +48,6 @@ impl VM {
     /// Will panic if the provided bytecode does not contain `main()` function.
     #[must_use]
     pub fn new(input: Vec<Instruction>) -> Self {
-        dbg!(input.clone());
-
         let mut vm = Self {
             input,
             program_counter: 0,
@@ -92,7 +90,6 @@ impl VM {
         }
 
         let instruction = self.input[self.program_counter].clone();
-        dbg!(instruction.clone());
 
         match instruction {
             Instruction::PushInt(int) => {
@@ -439,9 +436,8 @@ impl VM {
                 panic!("Field encountered in `main()` body");
             }
             Instruction::SetField(field_name) => {
-                let struct_value = self.stack.pop().expect("stack underflow");
                 let value = self.stack.pop().expect("stack underflow");
-
+                let struct_value = self.stack.pop().expect("stack underflow");
                 if let Value::Ref(handle) = struct_value {
                     if let Object::Struct { fields, .. } = self.gc.get_mut(handle) {
                         if fields.contains_key(&field_name) {
@@ -459,19 +455,32 @@ impl VM {
             }
             Instruction::GetField(field_name) => {
                 let struct_value = self.stack.pop().expect("stack underflow");
-
-                if let Value::Ref(handle) = struct_value {
-                    if let Object::Struct { fields, .. } = self.gc.get(handle) {
-                        if let Some(value) = fields.get(&field_name) {
-                            self.stack.push(value.clone());
+                match struct_value {
+                    Value::Ref(handle) => {
+                        if let Object::Struct { fields, .. } = self.gc.get(handle) {
+                            if let Some(value) = fields.get(&field_name) {
+                                self.stack.push(value.clone());
+                            } else {
+                                panic!("no such field: `{}`", field_name);
+                            }
                         } else {
-                            panic!("no such field: `{field_name}`");
+                            panic!("GetField on non-struct Ref");
                         }
-                    } else {
-                        panic!("GetField on non-struct");
                     }
-                } else {
-                    panic!("GetField expects struct ref");
+                    Value::Struct { name, .. } => {
+                        if let Some(fields) = self.structures.get(&name) {
+                            if let Some(value) = fields.get(&field_name) {
+                                self.stack.push(value.clone());
+                            } else {
+                                panic!("no such field: `{}`", field_name);
+                            }
+                        } else {
+                            panic!("struct `{}` not found in structures map", name);
+                        }
+                    }
+                    _ => {
+                        panic!("GetField expects a Struct or Struct Ref");
+                    }
                 }
             }
             Instruction::Print => {
@@ -592,7 +601,7 @@ impl VM {
     fn maybe_run_gc(&mut self) {
         if self.gc.alloc_count > self.gc.threshold {
             self.gc
-                .collect_garbage(&self.stack, &self.environments_stack);
+                .collect_garbage(&mut self.stack, &mut self.environments_stack);
         }
     }
 

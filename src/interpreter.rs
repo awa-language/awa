@@ -16,6 +16,7 @@ pub struct Interpreter {
     current_func: Option<EcoString>,
     loop_end_stack: Vec<usize>,
     loop_start_stack: Vec<usize>,
+    loop_break_stack: Vec<usize>,
 }
 
 impl Default for Interpreter {
@@ -32,6 +33,7 @@ impl Interpreter {
             current_func: None,
             loop_end_stack: Vec::new(),
             loop_start_stack: Vec::new(),
+            loop_break_stack: Vec::new(),
         }
     }
 
@@ -113,9 +115,9 @@ impl Interpreter {
                     field_name,
                     ..
                 } => {
-                    self.interpret_expression(&reassign.new_value);
                     self.bytecode
                         .push(Instruction::LoadToStack(struct_name.clone()));
+                    self.interpret_expression(&reassign.new_value);
                     self.bytecode
                         .push(Instruction::SetField(field_name.clone()));
                     self.bytecode
@@ -128,8 +130,8 @@ impl Interpreter {
                 } => {
                     self.bytecode
                         .push(Instruction::LoadToStack(array_name.clone()));
-                    self.interpret_expression(index_expression);
                     self.interpret_expression(&reassign.new_value);
+                    self.interpret_expression(index_expression);
                     self.bytecode.push(Instruction::SetByIndex);
                     self.bytecode
                         .push(Instruction::StoreInMap(array_name.clone()));
@@ -148,11 +150,14 @@ impl Interpreter {
                 self.bytecode.push(Instruction::Jump(loop_start));
                 let loop_end = self.bytecode.len();
                 self.loop_end_stack.push(loop_end);
+
+                if let Some(break_end) = self.loop_break_stack.pop() {
+                    self.bytecode[break_end] = Instruction::Jump(loop_end)
+                }
             }
             TypedStatement::Break { .. } => {
-                if let Some(end) = self.loop_end_stack.last() {
-                    self.bytecode.push(Instruction::Jump(*end));
-                }
+                self.loop_break_stack.push(self.bytecode.len());
+                self.bytecode.push(Instruction::Jump(0)); // Placeholder
             }
             TypedStatement::Return { value, .. } => {
                 if let Some(expression) = value {
@@ -178,8 +183,12 @@ impl Interpreter {
                 }
 
                 let jump_to_end = self.bytecode.len();
-                self.bytecode.push(Instruction::Jump(0)); // Placeholder
 
+                if let Some(vec) = else_body {
+                    if !vec.is_empty() {
+                        self.bytecode.push(Instruction::Jump(0)); // Placeholder
+                    }
+                }
                 let else_start = self.bytecode.len();
                 if let Some(statements) = else_body {
                     for statement in statements {
@@ -193,8 +202,12 @@ impl Interpreter {
                 if let Instruction::JumpIfFalse(address) = &mut self.bytecode[jump_if_false] {
                     *address = else_start;
                 }
-                if let Instruction::Jump(address) = &mut self.bytecode[jump_to_end] {
-                    *address = end;
+                if let Some(vec) = else_body {
+                    if !vec.is_empty() {
+                        if let Instruction::Jump(address) = &mut self.bytecode[jump_to_end] {
+                            *address = end;
+                        }
+                    }
                 }
             }
             TypedStatement::Todo { .. }

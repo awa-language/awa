@@ -408,7 +408,7 @@ fn test_gc_local_alloc_print() {
         println!("  [{i}] {obj:?}");
     }
 
-    vm.gc.collect_garbage(&vm.stack, &vm.environments_stack);
+    vm.gc.collect_garbage(&mut vm.stack, &mut vm.environments_stack);
 
     println!("Heap after manual GC:");
     for (i, obj) in vm.gc.heap.iter().enumerate() {
