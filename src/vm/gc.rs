@@ -6,7 +6,7 @@ use ecow::EcoString;
 #[derive(Debug)]
 pub enum Object {
     String(EcoString),
-    Slice(Vec<Value>),
+    Array(Vec<Value>),
     Struct {
         name: EcoString,
         fields: HashMap<EcoString, Value>,
@@ -19,7 +19,7 @@ pub struct GC {
     pub alloc_count: usize,
     pub threshold: usize,
     object_pool: ObjectPool,
-    mark_stack: Vec<Handle>, // Добавляем стек для маркировки
+    mark_stack: Vec<Handle>,
 }
 
 struct ObjectPool {
@@ -31,22 +31,26 @@ struct ObjectPool {
 impl ObjectPool {
     fn new() -> Self {
         Self {
-            strings: Vec::new(),
-            slices: Vec::new(),
-            structs: Vec::new(),
+            strings: Vec::with_capacity(100),
+            slices: Vec::with_capacity(100),
+            structs: Vec::with_capacity(100),
         }
     }
 
     fn get_string(&mut self) -> EcoString {
-        self.strings.pop().unwrap_or_else(EcoString::new)
+        self.strings
+            .pop()
+            .unwrap_or_else(|| EcoString::with_capacity(10))
     }
 
     fn get_slice(&mut self) -> Vec<Value> {
-        self.slices.pop().unwrap_or_else(Vec::new)
+        self.slices.pop().unwrap_or_else(|| Vec::with_capacity(10))
     }
 
     fn get_struct(&mut self) -> HashMap<EcoString, Value> {
-        self.structs.pop().unwrap_or_default()
+        self.structs
+            .pop()
+            .unwrap_or_else(|| HashMap::with_capacity(5))
     }
 }
 
@@ -75,17 +79,19 @@ impl GC {
         }
 
         let reused_object = match object {
-            Object::String(s) => {
+            Object::String(string) => {
                 let mut pooled = self.object_pool.get_string();
                 pooled.clear();
-                pooled.push_str(&s);
+                pooled.push_str(&string);
+
                 Object::String(pooled)
             }
-            Object::Slice(v) => {
+            Object::Array(value) => {
                 let mut pooled = self.object_pool.get_slice();
                 pooled.clear();
-                pooled.extend(v);
-                Object::Slice(pooled)
+                pooled.extend(value);
+
+                Object::Array(pooled)
             }
             Object::Struct { name, fields } => {
                 let mut pooled = self.object_pool.get_struct();
@@ -101,6 +107,7 @@ impl GC {
         self.heap.push(reused_object);
         self.marked.push(false);
         self.alloc_count += 1;
+
         Handle(index)
     }
 
@@ -117,7 +124,7 @@ impl GC {
         stack: &mut [Value],
         environments_stack: &mut [HashMap<EcoString, Value>],
     ) {
-        self.threshold += self.threshold / 2; // Более умеренный рост порога
+        self.threshold += self.threshold / 2;
 
         self.marked.clear();
         self.marked.resize(self.heap.len(), false);
@@ -179,7 +186,7 @@ impl GC {
 
             match &self.heap[index] {
                 Object::String(_) => {}
-                Object::Slice(elements) => {
+                Object::Array(elements) => {
                     for value in elements {
                         Self::collect_children(value, &mut self.mark_stack);
                     }
@@ -220,13 +227,14 @@ impl GC {
         for (i, marked) in self.marked.iter().enumerate() {
             if *marked {
                 remap[i] = Some(new_heap.len());
-                let mut object = std::mem::replace(&mut self.heap[i], Object::Slice(Vec::new()));
+                let mut object =
+                    std::mem::replace(&mut self.heap[i], Object::Array(Vec::with_capacity(100)));
 
                 match &mut object {
                     Object::String(s) if s.is_empty() => {
                         self.object_pool.strings.push(std::mem::take(s));
                     }
-                    Object::Slice(v) if v.is_empty() => {
+                    Object::Array(v) if v.is_empty() => {
                         self.object_pool.slices.push(std::mem::take(v));
                     }
                     Object::Struct { fields, .. } if fields.is_empty() => {
@@ -250,7 +258,7 @@ impl GC {
     fn update_object_handles(obj: &mut Object, remap: &[Option<usize>]) {
         match obj {
             Object::String(_) => {}
-            Object::Slice(elements) => {
+            Object::Array(elements) => {
                 for value in elements {
                     Self::update_value_handles(value, remap);
                 }
