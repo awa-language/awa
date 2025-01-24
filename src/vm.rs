@@ -222,6 +222,20 @@ impl VM {
                     panic!("Append expects Ref");
                 }
             }
+            Instruction::Pop => {
+                let array = self.stack.pop().expect("stack underflow");
+
+                if let Value::Ref(handle) = array {
+                    if let Object::Slice(ref mut slice) = self.gc.get_mut(handle) {
+                        slice.pop();
+                    } else {
+                        panic!("Append to non-slice");
+                    }
+                    self.stack.push(Value::Ref(handle));
+                } else {
+                    panic!("Append expects Ref");
+                }
+            }
             Instruction::GetByIndex => {
                 let index = self.stack.pop().expect("stack underflow");
                 let index = VM::get_int(&index);
