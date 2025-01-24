@@ -13,7 +13,10 @@ pub fn handle(filename: Option<Utf8PathBuf>) {
     let _input = std::fs::read_to_string(filename);
     let _input = match _input {
         Ok(input) => input,
-        Err(_err) => todo!(),
+        Err(_err) => {
+            dbg!(_err);
+            todo!();
+        }
     };
 
     let module = driver::build_ast(&_input);
@@ -28,7 +31,7 @@ pub fn handle(filename: Option<Utf8PathBuf>) {
     ) = channel();
 
     let _ = std::thread::spawn(move || {
-        driver::run(module, &input_reciever, &backwards_sender);
+        driver::run(&module, &input_reciever, &backwards_sender);
     });
 
     let term = console::Term::stdout();

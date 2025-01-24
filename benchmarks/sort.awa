@@ -1,80 +1,3 @@
-func mergeSort(items []int, length int) []int {
-    if (length <= 1) {
-        return items
-    }
-
-    var mid int = length / 2
-
-    var first []int = slice(items, 0, mid)
-    var second []int = slice(items, mid, length)
-
-    first = mergeSort(first, mid)
-    second = mergeSort(second, length - mid)
-
-    return merge(first, mid, second, length - mid)
-}
-
-func slice(arr []int, start int, end int) []int {
-    var result []int = []int{}
-    var i int = start
-
-    loop {
-        if (i >= end) {
-            break
-        }
-
-        append(result, arr[i])
-        i = i + 1
-    }
-
-    return result
-}
-
-func merge(a []int, aLen int, b []int, bLen int) []int {
-    var final []int = []int{}
-
-    var i int = 0
-    var j int = 0
-
-    loop {
-        if (i >= aLen) {
-            loop {
-                if (j >= bLen) {
-                    break
-                }
-
-                append(final, b[j])
-                j = j + 1
-            }
-
-            break
-        }
-
-        if (j >= bLen) {
-            loop {
-                if (i >= aLen) {
-                    break
-                }
-
-                append(final, a[i])
-                i = i + 1
-            }
-
-            break
-        }
-
-        if (a[i] <= b[j]) {
-            append(final, a[i])
-            i = i + 1
-        } else {
-            append(final, b[j])
-            j = j + 1
-        }
-    }
-
-    return final
-}
-
 func main() {
     var length int = 10000
     var lengthCopy int = length
@@ -90,7 +13,29 @@ func main() {
         lengthCopy = lengthCopy - 1
     }
 
-    var sortedArray []int = mergeSort(array, length)
+    var i int = 0
+    loop {
+      var swapped int = 0
+      var j int = 0
+      loop {
+        if (array[j+1] > array[i] - 1) {
+          var tmp int = array[j+1]
+          array[j+1] = array[i]
+          array[i] = tmp
+          swapped = 1
+        }
 
-    print(sortedArray)
+        j = j + 1
+        if (j >= length - i - 1) {
+          break
+        }
+      }
+
+      i = i + 1
+      if ((swapped == 0) || (i >= length - 1)) {
+        break
+      }
+    }
+
+    print(array)
 }

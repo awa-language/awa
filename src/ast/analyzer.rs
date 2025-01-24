@@ -315,19 +315,8 @@ impl TypeAnalyzer {
                         struct_name,
                         field_name,
                     } => {
-                        let struct_def_name =
-                            match self.program_state.get_variable_type(struct_name) {
-                                Some(Type::Custom { name }) => Ok(name),
-                                _ => Err(ConvertingError {
-                                    error: ConvertingErrorType::UnsupportedType,
-                                    location: crate::lex::location::Location {
-                                        start: location.start,
-                                        end: location.end,
-                                    },
-                                }),
-                            };
                         let field_type =
-                            self.resolve_struct_field_type(struct_def_name.unwrap(), field_name)?;
+                            self.resolve_struct_field_access_type(struct_name, field_name)?;
                         TypedReassignmentTarget::FieldAccess {
                             location: *location,
                             struct_name: struct_name.clone(),
@@ -642,7 +631,7 @@ impl TypeAnalyzer {
                 struct_name,
                 field_name,
             } => {
-                let field_type = self.resolve_struct_field_type(struct_name, field_name)?;
+                let field_type = self.resolve_struct_field_access_type(struct_name, field_name)?;
                 Ok(TypedExpression::StructFieldAccess {
                     location: *location,
                     struct_name: struct_name.clone(),
@@ -740,7 +729,7 @@ impl TypeAnalyzer {
                     end_expression_location,
                 )?;
 
-                let Type::Custom { name: type_name } = &resolved_type else {
+                let Type::Custom { name: struct_name } = &resolved_type else {
                     return Err(ConvertingError {
                         error: ConvertingErrorType::UnsupportedType,
                         location: crate::lex::location::Location {
@@ -753,9 +742,9 @@ impl TypeAnalyzer {
                 let typed_fields = fields
                     .as_ref()
                     .map(|fields| {
-                        fields
-                            .clone()
-                            .try_mapped(|field| self.convert_struct_field_value(&field, type_name))
+                        fields.clone().try_mapped(|field| {
+                            self.convert_struct_field_value(&field, struct_name)
+                        })
                     })
                     .transpose()?;
 
@@ -832,12 +821,73 @@ impl TypeAnalyzer {
         }
     }
 
+    fn resolve_struct_field_access_type(
+        &self,
+        struct_variable_name: &EcoString,
+        field_name: &EcoString,
+    ) -> Result<Type, ConvertingError> {
+        if let Type::Custom {
+            name: struct_def_name,
+        } = self
+            .program_state
+            .get_variable_type(struct_variable_name)
+            .ok_or(ConvertingError {
+                error: ConvertingErrorType::StructNotFound,
+                location: crate::lex::location::Location { start: 0, end: 0 },
+            })?
+        {
+            let struct_def =
+                self.program_state
+                    .get_struct(struct_def_name)
+                    .ok_or(ConvertingError {
+                        error: ConvertingErrorType::StructNotFound,
+                        location: crate::lex::location::Location { start: 0, end: 0 },
+                    })?;
+
+            if let DefinitionTyped::Struct { fields, .. } = struct_def {
+                let fields = fields.as_ref().ok_or(ConvertingError {
+                    error: ConvertingErrorType::EmptyStruct,
+                    location: crate::lex::location::Location { start: 0, end: 0 },
+                })?;
+
+                let field = fields
+                    .iter()
+                    .find(|field| field.name == *field_name)
+                    .ok_or(ConvertingError {
+                        error: ConvertingErrorType::FieldNotFound,
+                        location: crate::lex::location::Location { start: 0, end: 0 },
+                    })?;
+
+                Ok(field.type_.clone())
+            } else {
+                Err(ConvertingError {
+                    error: ConvertingErrorType::StructNotFound,
+                    location: crate::lex::location::Location { start: 0, end: 0 },
+                })
+            }
+        } else {
+            Err(ConvertingError {
+                error: ConvertingErrorType::StructNotFound,
+                location: crate::lex::location::Location { start: 0, end: 0 },
+            })
+        }
+    }
+
     fn resolve_function_return_type(
         &mut self,
         function_name: &EcoString,
         start_location: u32,
         end_location: u32,
     ) -> Result<Type, ConvertingError> {
+        let function_name_str = function_name.as_str();
+
+        if function_name_str == "print"
+            || function_name_str == "println"
+            || function_name_str == "append"
+        {
+            return Ok(Type::Void);
+        }
+
         let function_def =
             self.program_state
                 .get_function(function_name)
@@ -983,7 +1033,7 @@ impl TypeAnalyzer {
 
             if matches!(typed_argument.get_type(), Type::Void) {
                 return Err(ConvertingError {
-                    error: ConvertingErrorType::BuildInFunctionMismatchType { found: Type::Void },
+                    error: ConvertingErrorType::BuiltInFunctionMismatchType { found: Type::Void },
                     location: Location {
                         start: location.start,
                         end: location.end,
@@ -1019,34 +1069,33 @@ impl TypeAnalyzer {
 
             if i == 1 {
                 if let Some(args) = arguments.as_ref() {
-                    if let first_arg = args.first() {
-                        if let Type::Array {
-                            type_: element_type,
-                        } = self
-                            .convert_expression_to_typed(&first_arg.value)?
-                            .get_type()
-                        {
-                            if **element_type != *typed_argument.get_type() {
-                                return Err(ConvertingError {
-                                    error: ConvertingErrorType::TypeMismatch {
-                                        expected: *element_type.clone(),
-                                        found: typed_argument.get_type().clone(),
-                                    },
-                                    location: Location {
-                                        start: location.start,
-                                        end: location.end,
-                                    },
-                                });
-                            }
-                        } else {
+                    let first_arg = args.first();
+                    if let Type::Array {
+                        type_: element_type,
+                    } = self
+                        .convert_expression_to_typed(&first_arg.value)?
+                        .get_type()
+                    {
+                        if **element_type != *typed_argument.get_type() {
                             return Err(ConvertingError {
-                                error: ConvertingErrorType::UnsupportedType,
+                                error: ConvertingErrorType::TypeMismatch {
+                                    expected: *element_type.clone(),
+                                    found: typed_argument.get_type().clone(),
+                                },
                                 location: Location {
                                     start: location.start,
                                     end: location.end,
                                 },
                             });
                         }
+                    } else {
+                        return Err(ConvertingError {
+                            error: ConvertingErrorType::UnsupportedType,
+                            location: Location {
+                                start: location.start,
+                                end: location.end,
+                            },
+                        });
                     }
                 }
             }
@@ -1183,8 +1232,49 @@ impl ProgramState {
         }
     }
 
-    fn get_function(&self, name: &EcoString) -> Option<&DefinitionTyped> {
-        self.functions.get(name)
+    fn get_function(&self, name: &EcoString) -> Option<DefinitionTyped> {
+        if name == "print" || name == "println" {
+            let function = DefinitionTyped::Function {
+                name: name.clone(),
+                location: ast::location::Location { start: 0, end: 0 },
+                arguments: Some(
+                    Vec1::try_from(vec![ArgumentTyped {
+                        name: Default::default(),
+                        location: ast::location::Location { start: 0, end: 0 },
+                        type_: Type::Int,
+                    }])
+                    .unwrap(),
+                ),
+                body: None,
+                return_type: Type::Void,
+            };
+            return Some(function);
+        }
+        if name == "append" {
+            let function = DefinitionTyped::Function {
+                name: name.clone(),
+                location: ast::location::Location { start: 0, end: 0 },
+                arguments: Some(
+                    Vec1::try_from(vec![
+                        ArgumentTyped {
+                            name: Default::default(),
+                            location: ast::location::Location { start: 0, end: 0 },
+                            type_: Type::Int,
+                        },
+                        ArgumentTyped {
+                            name: Default::default(),
+                            location: ast::location::Location { start: 0, end: 0 },
+                            type_: Type::Int,
+                        },
+                    ])
+                    .unwrap(),
+                ),
+                body: None,
+                return_type: Type::Void,
+            };
+            return Some(function);
+        }
+        self.functions.get(name).cloned()
     }
 
     fn add_struct(&mut self, name: EcoString, definition: DefinitionTyped) {

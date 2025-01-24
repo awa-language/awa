@@ -6,15 +6,17 @@ struct treeNode {
 }
 
 func itemCheck(t treeNode) int {
-  var something treeNode = t.left
-
-  if (something.isInitialise != 1) {
+  var left treeNode = t.left
+  var right treeNode = t.right
+  var isLeftInitialise int = left.isInitialise
+  if (isLeftInitialise == 0) {
     return t.item
   }
 
-  var right treeNode = t.right
-
-  return t.item + itemCheck(t.left) - itemCheck(right)
+  var leftCheck int = itemCheck(left)
+  var rightCheck int = itemCheck(right)
+  var item int = t.item
+  return item + leftCheck - rightCheck
 }
 
 func bottomUpTree(item int, depth int) treeNode {
@@ -47,8 +49,9 @@ func pow(n int) int {
     if (i >= n) {
       break
     }
-  
+    
     result = result * 2
+    i = i + 1
   }
 
   return result
@@ -70,7 +73,7 @@ func main() {
     var check int = itemCheck(bottomUpTree(0, stretchDepth))
 
     var longLivedTree treeNode = bottomUpTree(0, maxDepth)
-
+    var depth int = minDepth
     loop {
       if (depth > maxDepth) {
         break
@@ -79,7 +82,7 @@ func main() {
       var exponent int = maxDepth - depth + minDepth
       var iterations int = pow(exponent)
 
-      var check int = 0
+      check = 0
       var i int = 0
 
       loop {
@@ -89,9 +92,16 @@ func main() {
 
         check = check + itemCheck(bottomUpTree(i, depth))
         check = check + itemCheck(bottomUpTree(0 - i, depth))
+
+        i = i + 1
       }
+
+      depth = depth + 2
     }
 
     ret = ret + itemCheck(longLivedTree)
+    n = n + 1
   }
+
+  println(ret)
 }
