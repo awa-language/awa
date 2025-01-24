@@ -69,32 +69,20 @@ impl TypeAnalyzer {
         &mut self,
         untyped_ast: &Module<DefinitionUntyped>,
     ) -> Result<Module<DefinitionTyped>, ConvertingError> {
-        let mut typed_definitions = None;
-
         if let Some(definitions) = &untyped_ast.definitions {
             for definition in definitions {
-                self.program_state.clear_variables();
-                let typed_definition = match definition {
+                match definition {
                     DefinitionUntyped::Function {
                         location,
                         name,
                         arguments,
-                        body,
                         return_type_annotation,
+                        ..
                     } => {
-                        self.program_state.set_current_function_name(name);
-
                         let typed_args = arguments
                             .as_ref()
                             .map(|args| args.clone().try_mapped(|arg| self.convert_argument(&arg)))
                             .transpose()?;
-
-                        if let Some(args) = typed_args.as_ref() {
-                            for arg in args {
-                                self.program_state
-                                    .add_variable(arg.name.clone(), arg.type_.clone());
-                            }
-                        }
 
                         let return_type = return_type_annotation
                             .as_ref()
@@ -107,13 +95,44 @@ impl TypeAnalyzer {
                         let typed_function_without_body = DefinitionTyped::Function {
                             name: name.clone(),
                             location: *location,
-                            arguments: typed_args.clone(),
+                            arguments: typed_args,
                             body: None,
-                            return_type: return_type.clone(),
+                            return_type,
                         };
 
                         self.program_state
-                            .add_function(name.clone(), typed_function_without_body.clone());
+                            .add_function(name.clone(), typed_function_without_body);
+                    }
+                    DefinitionUntyped::Struct { location, name, .. } => {
+                        let typed_struct_without_fields = DefinitionTyped::Struct {
+                            location: *location,
+                            name: name.clone(),
+                            fields: None,
+                        };
+
+                        self.program_state
+                            .add_struct(name.clone(), typed_struct_without_fields);
+                    }
+                }
+            }
+        }
+
+        let mut typed_definitions = None;
+
+        if let Some(definitions) = &untyped_ast.definitions {
+            for definition in definitions {
+                self.program_state.clear_variables();
+                let typed_definition = match definition {
+                    DefinitionUntyped::Function {
+                        location,
+                        name,
+                        body,
+                        ..
+                    } => {
+                        self.program_state.set_current_function_name(name);
+
+                        let typed_function_definition =
+                            self.program_state.get_function(&name.clone()).unwrap();
 
                         let typed_body = body
                             .as_ref()
@@ -124,28 +143,26 @@ impl TypeAnalyzer {
                             })
                             .transpose()?;
 
-                        DefinitionTyped::Function {
+                        let typed_function_definition_with_body = DefinitionTyped::Function {
                             name: name.clone(),
                             location: *location,
-                            arguments: typed_args,
+                            arguments: typed_function_definition.get_arguments()?,
                             body: typed_body,
-                            return_type,
-                        }
+                            return_type: typed_function_definition.get_return_type()?,
+                        };
+
+                        self.program_state.add_function(
+                            name.clone(),
+                            typed_function_definition_with_body.clone(),
+                        );
+
+                        typed_function_definition_with_body
                     }
                     DefinitionUntyped::Struct {
                         location,
                         name,
                         fields,
                     } => {
-                        let typed_struct_without_fields = DefinitionTyped::Struct {
-                            location: *location,
-                            name: name.clone(),
-                            fields: None,
-                        };
-
-                        self.program_state
-                            .add_struct(name.clone(), typed_struct_without_fields.clone());
-
                         let typed_fields = fields
                             .as_ref()
                             .map(|fields| {
@@ -619,7 +636,8 @@ impl TypeAnalyzer {
                             },
                         })?;
 
-                if let (Some(expected_args), Some(args)) = (function_def.get_arguments(), arguments)
+                if let (Some(expected_args), Some(args)) =
+                    (function_def.get_arguments()?, arguments)
                 {
                     if args.len() > expected_args.len() {
                         return Err(ConvertingError {
@@ -1251,7 +1269,7 @@ impl TypeAnalyzer {
                         },
                     })?;
 
-            if let Some(expected_args) = function_def.get_arguments() {
+            if let Some(expected_args) = function_def.get_arguments()? {
                 if expected_args.len() <= i {
                     return Err(ConvertingError {
                         error: ConvertingErrorType::NotTheRightAmountOfArguments {
