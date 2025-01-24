@@ -60,6 +60,10 @@ impl TypeAnalyzer {
 
     /// Converts AST to typed AST
     ///
+    /// # Panics
+    ///
+    /// Will panic in case of unexpected state
+    ///
     /// # Errors
     /// Returns `ConvertingError` if:
     /// - Type checking fails
@@ -1398,7 +1402,7 @@ impl ProgramState {
                 location: ast::location::Location { start: 0, end: 0 },
                 arguments: Some(
                     Vec1::try_from(vec![ArgumentTyped {
-                        name: Default::default(),
+                        name: EcoString::default(),
                         location: ast::location::Location { start: 0, end: 0 },
                         type_: Type::Int,
                     }])
@@ -1416,12 +1420,12 @@ impl ProgramState {
                 arguments: Some(
                     Vec1::try_from(vec![
                         ArgumentTyped {
-                            name: Default::default(),
+                            name: EcoString::default(),
                             location: ast::location::Location { start: 0, end: 0 },
                             type_: Type::Int,
                         },
                         ArgumentTyped {
-                            name: Default::default(),
+                            name: EcoString::default(),
                             location: ast::location::Location { start: 0, end: 0 },
                             type_: Type::Int,
                         },

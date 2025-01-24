@@ -13,7 +13,13 @@ impl std::fmt::Display for MenuAction {
     }
 }
 
-#[must_use] pub fn get_user_menu_decision() -> MenuAction {
+/// Will prompt user with selection menu, getting action to perform
+///
+/// # Panics
+///
+/// Will panic if failed to prompt
+#[must_use]
+pub fn get_user_menu_decision() -> MenuAction {
     let decision = inquire::Select::new(
         "Select one of the following:",
         <MenuAction as strum::IntoEnumIterator>::iter().collect(),
@@ -25,7 +31,13 @@ impl std::fmt::Display for MenuAction {
     decision
 }
 
-#[must_use] pub fn get_user_input() -> String {
+/// Will prompt user with editor to get raw text input
+///
+/// # Panics
+///
+/// Will panic if failed to prompt
+#[must_use]
+pub fn get_user_input() -> String {
     let input = inquire::Editor::new("Input:")
         .with_render_config(description_render_config())
         .prompt()
