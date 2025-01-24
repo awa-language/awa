@@ -1,41 +1,75 @@
+func merge(left []int, leftLength int, right []int, rightLength int) []int {
+    var result []int = []int{}
+    var i int = 0
+    var j int = 0
+
+    loop {
+        if (i >= leftLength) {
+            loop {
+                if (j >= rightLength) {
+                    break
+                }
+                append(result, right[j])
+                j = j + 1
+            }
+            break
+        }
+
+        if (j >= rightLength) {
+            loop {
+                if (i >= leftLength) {
+                    break
+                }
+                append(result, left[i])
+                i = i + 1
+            }
+            break
+        }
+
+        if (left[i] <= right[j]) {
+            append(result, left[i])
+            i = i + 1
+        } else {
+            append(result, right[j])
+            j = j + 1
+        }
+    }
+
+    return result
+}
+
+func mergeSort(arr []int, start int, end int) []int {
+    if (end - start <= 1) {
+        var result []int = []int{}
+        append(result, arr[start])
+        return result
+    }
+
+    var mid int = start + (end - start) / 2
+    var leftLength int = mid - start
+    var rightLength int = end - mid
+
+    var left []int = mergeSort(arr, start, mid)
+    var right []int = mergeSort(arr, mid, end)
+
+    return merge(left, leftLength, right, rightLength)
+}
+
 func main() {
     var length int = 10000
-    var lengthCopy int = length
-
     var array []int = []int{}
 
+    var lengthCopy int = length
     loop {
         if (lengthCopy == 0) {
             break
         }
-
         append(array, lengthCopy)
         lengthCopy = lengthCopy - 1
     }
 
-    var i int = 0
-    loop {
-      var swapped int = 0
-      var j int = 0
-      loop {
-        if (array[j+1] > array[i] - 1) {
-          var tmp int = array[j+1]
-          array[j+1] = array[i]
-          array[i] = tmp
-          swapped = 1
-        }
-
-        j = j + 1
-        if (j >= length - i - 1) {
-          break
-        }
-      }
-
-      i = i + 1
-      if ((swapped == 0) || (i >= length - 1)) {
-        break
-      }
-    }
+    array = mergeSort(array, 0, length)
 
     print(array)
 }
+
