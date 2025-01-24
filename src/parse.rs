@@ -328,15 +328,20 @@ impl<T: Iterator<Item = LexResult>> Parser<T> {
                             Token::LeftBrace => {
                                 let _ = self.advance_token();
                                 let _ = self.advance_token();
-                                let fields = self.parse_series(
-                                    &Self::parse_struct_field_value,
-                                    Some(&Token::Comma),
-                                )?;
-                                let fields = match Vec1::try_from_vec(fields) {
-                                    Ok(fields) => Some(fields),
-                                    Err(_) => None,
+                                let (fields, right_brace_span) = if let Some(token_span) =
+                                    self.maybe_token(&Token::RightBrace)
+                                {
+                                    (None, token_span)
+                                } else {
+                                    let fields = self.parse_series(
+                                        &Self::parse_struct_field_value,
+                                        Some(&Token::Comma),
+                                    )?;
+                                    let fields = Vec1::try_from_vec(fields).ok();
+                                    let span = self.expect_token(&Token::RightBrace)?;
+                                    (fields, span)
                                 };
-                                let right_brace_span = self.expect_token(&Token::RightBrace)?;
+
                                 expression::UntypedExpression::StructInitialization {
                                     location: AstLocation {
                                         start: start_location,
