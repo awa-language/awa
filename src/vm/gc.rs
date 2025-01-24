@@ -118,8 +118,7 @@ impl GC {
             self.marked[index] = true;
 
             match &self.heap[index] {
-                Object::String(_) => {
-                }
+                Object::String(_) => {}
                 Object::Slice(elements) => {
                     for value in elements {
                         Self::collect_children(value, &mut stack);
