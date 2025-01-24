@@ -1483,7 +1483,7 @@ impl ProgramState {
                 location: ast::location::Location { start: 0, end: 0 },
                 arguments: Some(
                     Vec1::try_from(vec![ArgumentTyped {
-                        name: Default::default(),
+                        name: EcoString::default(),
                         location: ast::location::Location { start: 0, end: 0 },
                         type_: Type::Int,
                     }])
