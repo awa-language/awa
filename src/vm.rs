@@ -51,11 +51,11 @@ impl VM {
         let mut vm = Self {
             input,
             program_counter: 0,
-            stack: Vec::with_capacity(100000),
-            environments_stack: Vec::with_capacity(100000),
+            stack: Vec::with_capacity(100_000),
+            environments_stack: Vec::with_capacity(100_000),
             structures: HashMap::with_capacity(10),
             functions: HashMap::with_capacity(10),
-            call_stack: Vec::with_capacity(100000),
+            call_stack: Vec::with_capacity(100_000),
             gc: GC::new(),
             backup_state: None,
         };

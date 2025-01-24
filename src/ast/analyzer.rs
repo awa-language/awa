@@ -21,24 +21,6 @@ use crate::type_::{Type, UntypedType};
 use ecow::EcoString;
 use vec1::Vec1;
 
-/// Analyzes input code for type correctness.
-///
-/// # Panics
-///
-/// - When parser fails to parse input string (unwrap on `parse_module`)
-///
-/// # Errors
-///
-/// Returns `ConvertingError` if type analysis fails
-pub fn analyze_input(input: &str) -> Result<module::Typed, ConvertingError> {
-    let module = parse_module(input).unwrap();
-
-    let mut analyzer = TypeAnalyzer::new();
-    let typed_module = analyzer.convert_ast_to_tast(&module)?;
-
-    Ok(typed_module)
-}
-
 #[derive(Debug)]
 pub struct TypeAnalyzer {
     program_state: ProgramState,
@@ -58,6 +40,171 @@ impl TypeAnalyzer {
         }
     }
 
+    /// Converts code input to typed AST
+    ///
+    /// # Panics
+    ///
+    /// Will panic in case of unexpected state
+    ///
+    /// # Errors
+    /// Returns `ConvertingError` if:
+    /// - Type checking fails
+    /// - Unknown variable/function reference
+    /// - Type mismatch
+    pub fn analyze_input(&mut self, input: &str) -> Result<module::Typed, ConvertingError> {
+        let module = parse_module(input).unwrap();
+
+        let typed_module = self.convert_ast_to_tast(&module)?;
+
+        Ok(typed_module)
+    }
+
+    /// Converts hotswap function code input to typed AST
+    ///
+    /// # Panics
+    ///
+    /// Will panic in case of unexpected state
+    ///
+    /// # Errors
+    /// Returns `ConvertingError` if:
+    /// - Type checking fails
+    /// - Unknown variable/function reference
+    /// - Type mismatch
+    pub fn handle_hotswap(&mut self, input: &str) -> Result<module::Typed, ConvertingError> {
+        let module = parse_module(input).unwrap();
+
+        let function_name = match module
+            .definitions
+            .as_ref()
+            .ok_or(ConvertingError {
+                error: ConvertingErrorType::InvalidHotswapMultipleDefinitions,
+                location: Location { start: 0, end: 0 },
+            })?
+            .first()
+        {
+            DefinitionUntyped::Function { name, .. } => &name.clone(),
+            DefinitionUntyped::Struct { .. } => {
+                return Err(ConvertingError {
+                    error: ConvertingErrorType::InvalidHotswapNotFunction,
+                    location: Location { start: 0, end: 0 },
+                })
+            }
+        };
+
+        if module.definitions.as_ref().unwrap().len() != 1 {
+            return Err(ConvertingError {
+                error: ConvertingErrorType::InvalidHotswapMultipleDefinitions,
+                location: Location { start: 0, end: 0 },
+            });
+        }
+
+        let old_function =
+            self.program_state
+                .get_function(function_name)
+                .ok_or(ConvertingError {
+                    error: ConvertingErrorType::FunctionNotDefined {
+                        function_name: function_name.clone(),
+                    },
+                    location: Location { start: 0, end: 0 },
+                })?;
+
+        let typed_module = self.convert_ast_to_tast(&module)?;
+
+        let definitions = typed_module.clone().definitions.ok_or(ConvertingError {
+            error: ConvertingErrorType::InvalidHotswapMultipleDefinitions,
+            location: Location { start: 0, end: 0 },
+        })?;
+
+        if definitions.len() != 1 {
+            return Err(ConvertingError {
+                error: ConvertingErrorType::InvalidHotswapMultipleDefinitions,
+                location: Location { start: 0, end: 0 },
+            });
+        }
+
+        let definition = definitions.first();
+
+        match definition {
+            DefinitionTyped::Function {
+                location,
+                name,
+                arguments,
+                return_type,
+                ..
+            } => {
+                if name != function_name {
+                    return Err(ConvertingError {
+                        error: ConvertingErrorType::InvalidHotswapNameMismatch {
+                            expected: function_name.clone(),
+                            found: name.clone(),
+                        },
+                        location: Location {
+                            start: location.start,
+                            end: location.end,
+                        },
+                    });
+                }
+
+                if !TypeAnalyzer::compare_types(&old_function.get_return_type()?, return_type) {
+                    return Err(ConvertingError {
+                        error: ConvertingErrorType::InvalidHotswapReturnTypeMismatch {
+                            expected: old_function.get_return_type()?.clone(),
+                            found: return_type.clone(),
+                        },
+                        location: Location {
+                            start: location.start,
+                            end: location.end,
+                        },
+                    });
+                }
+
+                let old_args_count = old_function.get_arguments()?.as_ref().map_or(0, Vec1::len);
+                let new_args_count = arguments.as_ref().map_or(0, Vec1::len);
+
+                if old_args_count != new_args_count {
+                    return Err(ConvertingError {
+                        error: ConvertingErrorType::InvalidHotswapArgumentCountMismatch {
+                            expected: old_args_count,
+                            found: new_args_count,
+                        },
+                        location: Location {
+                            start: location.start,
+                            end: location.end,
+                        },
+                    });
+                }
+
+                if let (Some(old_args), Some(new_args)) =
+                    (&old_function.get_arguments()?, arguments)
+                {
+                    for (index, (old_arg, new_arg)) in
+                        old_args.iter().zip(new_args.iter()).enumerate()
+                    {
+                        if !TypeAnalyzer::compare_types(&old_arg.type_, &new_arg.type_) {
+                            return Err(ConvertingError {
+                                error: ConvertingErrorType::InvalidHotswapArgumentTypeMismatch {
+                                    argument_index: index,
+                                    expected: old_arg.type_.clone(),
+                                    found: new_arg.type_.clone(),
+                                },
+                                location: Location {
+                                    start: new_arg.location.start,
+                                    end: new_arg.location.end,
+                                },
+                            });
+                        }
+                    }
+                }
+
+                Ok(typed_module)
+            }
+            DefinitionTyped::Struct { .. } => Err(ConvertingError {
+                error: ConvertingErrorType::InvalidHotswapNotFunction,
+                location: Location { start: 0, end: 0 },
+            }),
+        }
+    }
+
     /// Converts AST to typed AST
     ///
     /// # Panics
@@ -69,7 +216,7 @@ impl TypeAnalyzer {
     /// - Type checking fails
     /// - Unknown variable/function reference
     /// - Type mismatch
-    pub fn convert_ast_to_tast(
+    fn convert_ast_to_tast(
         &mut self,
         untyped_ast: &Module<DefinitionUntyped>,
     ) -> Result<Module<DefinitionTyped>, ConvertingError> {

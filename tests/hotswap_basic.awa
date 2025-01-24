@@ -1,0 +1,13 @@
+func get_name() string {
+    return "awa"
+}
+
+func say_hello() {
+    println(get_name())
+}
+
+func main() {
+    loop {
+        say_hello()
+    }
+}

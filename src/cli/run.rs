@@ -24,28 +24,29 @@ pub fn handle(filename: Option<Utf8PathBuf>) {
         }
     };
 
-    let module = driver::build_ast(&input);
+    let (mut analyzer, module) = driver::build_ast(&input);
 
     let (input_sender, input_reciever): (Sender<Command>, Receiver<Command>) = channel();
-    // TODO: perhaps make it perform backwards communication - force hotswap on panics
-    // NOTE: could be done via other user input taking logic, to notify user what to do before
-    // opening editor
     let (backwards_sender, backwards_reciever): (
         Sender<BackwardsCommunication>,
         Receiver<BackwardsCommunication>,
     ) = channel();
 
     let _ = std::thread::spawn(move || {
-        driver::run(&module, &input_reciever, &backwards_sender);
+        driver::run(&mut analyzer, &module, &input_reciever, &backwards_sender);
     });
 
     let term = console::Term::stdout();
-
     let mut require_hotswap = false;
+
     loop {
         if let Ok(command) = backwards_reciever.try_recv() {
             match command {
-                BackwardsCommunication::Hotswapped => unreachable!(),
+                BackwardsCommunication::Hotswapped => {
+                    if require_hotswap {
+                        require_hotswap = false;
+                    }
+                }
                 BackwardsCommunication::RequireHotswap => {
                     require_hotswap = true;
                 }
@@ -53,8 +54,8 @@ pub fn handle(filename: Option<Utf8PathBuf>) {
             }
         }
 
-        if !require_hotswap && term.read_char().is_err() {
-            // NOTE: only happends when there is no terminal, i.e. in CI
+        if term.read_char().is_err() {
+            // NOTE: only happens when there is no terminal, i.e. in CI
             let confirmation = backwards_reciever.recv().unwrap();
             match confirmation {
                 BackwardsCommunication::Hotswapped => {
@@ -65,7 +66,10 @@ pub fn handle(filename: Option<Utf8PathBuf>) {
             }
         }
 
-        let () = input_sender.send(Command::OpenMenu).unwrap();
+        if !require_hotswap {
+            let () = input_sender.send(Command::OpenMenu).unwrap();
+        }
+
         let confirmation = backwards_reciever.recv().unwrap();
         match confirmation {
             BackwardsCommunication::Hotswapped => {
@@ -73,7 +77,9 @@ pub fn handle(filename: Option<Utf8PathBuf>) {
                     require_hotswap = false;
                 }
             }
-            BackwardsCommunication::RequireHotswap => unreachable!(),
+            BackwardsCommunication::RequireHotswap => {
+                require_hotswap = true;
+            }
             BackwardsCommunication::Finished => return,
         }
     }

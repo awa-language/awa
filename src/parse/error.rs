@@ -95,6 +95,28 @@ impl ConvertingError {
             ConvertingErrorType::ArrayMismatchType => {
                 "the second argument must be of the same type as the array".to_owned()
             }
+            ConvertingErrorType::InvalidHotswapMultipleDefinitions => {
+                "hotswap module must contain exactly one definition".to_owned()
+            }
+            ConvertingErrorType::InvalidHotswapNotFunction => {
+                "hotswap definition must be a function".to_owned()
+            }
+            ConvertingErrorType::InvalidHotswapNameMismatch { expected, found } => {
+                format!("hotswap function name mismatch: expected '{expected}', found '{found}'")
+            }
+            ConvertingErrorType::InvalidHotswapReturnTypeMismatch { expected, found } => {
+                format!("hotswap return type mismatch: expected {expected:?}, found {found:?}")
+            }
+            ConvertingErrorType::InvalidHotswapArgumentCountMismatch { expected, found } => {
+                format!("hotswap argument count mismatch: expected {expected}, found {found}")
+            }
+            ConvertingErrorType::InvalidHotswapArgumentTypeMismatch {
+                argument_index,
+                expected,
+                found,
+            } => {
+                format!("hotswap argument type mismatch at position {argument_index}: expected {expected:?}, found {found:?}")
+            }
         }
     }
 }
@@ -136,4 +158,23 @@ pub enum ConvertingErrorType {
         found: crate::type_::Type,
     },
     ArrayMismatchType,
+    InvalidHotswapMultipleDefinitions,
+    InvalidHotswapNotFunction,
+    InvalidHotswapNameMismatch {
+        expected: EcoString,
+        found: EcoString,
+    },
+    InvalidHotswapReturnTypeMismatch {
+        expected: crate::type_::Type,
+        found: crate::type_::Type,
+    },
+    InvalidHotswapArgumentCountMismatch {
+        expected: usize,
+        found: usize,
+    },
+    InvalidHotswapArgumentTypeMismatch {
+        argument_index: usize,
+        expected: crate::type_::Type,
+        found: crate::type_::Type,
+    },
 }
