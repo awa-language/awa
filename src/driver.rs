@@ -1,6 +1,6 @@
 use crate::{
     ast::{
-        analyzer::analyze_input,
+        analyzer::TypeAnalyzer,
         definition::DefinitionTyped,
         module::{self, Module},
     },
@@ -25,6 +25,7 @@ pub enum BackwardsCommunication {
 ///
 /// Will panic in case of failed backwards communication via mpsc
 pub fn run(
+    analyzer: &mut TypeAnalyzer,
     module: &module::Typed,
     command_receiver: &std::sync::mpsc::Receiver<Command>,
     backwards_sender: &std::sync::mpsc::Sender<BackwardsCommunication>,
@@ -42,7 +43,15 @@ pub fn run(
                     match decision {
                         MenuAction::PerformHotswap => {
                             let user_input = cli::input::get_user_input();
-                            let module = build_ast(&user_input);
+                            let module = analyzer.handle_hotswap(&user_input);
+                            let module = match module {
+                                Ok(module) => module,
+                                Err(err) => {
+                                    let description = err.get_description();
+                                    println!("{description}");
+                                    continue;
+                                }
+                            };
                             let hotswap_bytecode = make_bytecode(&module);
 
                             vm.hotswap_function(&hotswap_bytecode);
@@ -89,11 +98,12 @@ pub fn run(
 }
 
 #[must_use]
-pub fn build_ast(input: &str) -> Module<DefinitionTyped> {
-    let typed_module = analyze_input(input);
+pub fn build_ast(input: &str) -> (TypeAnalyzer, Module<DefinitionTyped>) {
+    let mut analyzer = TypeAnalyzer::new();
+    let typed_module = analyzer.analyze_input(input);
 
     match typed_module {
-        Ok(module) => module,
+        Ok(module) => (analyzer, module),
         Err(err) => {
             let description = err.get_description();
             println!("{description}");

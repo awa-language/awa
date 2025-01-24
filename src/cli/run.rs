@@ -24,24 +24,21 @@ pub fn handle(filename: Option<Utf8PathBuf>) {
         }
     };
 
-    let module = driver::build_ast(&input);
+    let (mut analyzer, module) = driver::build_ast(&input);
 
     let (input_sender, input_reciever): (Sender<Command>, Receiver<Command>) = channel();
-    // TODO: perhaps make it perform backwards communication - force hotswap on panics
-    // NOTE: could be done via other user input taking logic, to notify user what to do before
-    // opening editor
     let (backwards_sender, backwards_reciever): (
         Sender<BackwardsCommunication>,
         Receiver<BackwardsCommunication>,
     ) = channel();
 
     let _ = std::thread::spawn(move || {
-        driver::run(&module, &input_reciever, &backwards_sender);
+        driver::run(&mut analyzer, &module, &input_reciever, &backwards_sender);
     });
 
     let term = console::Term::stdout();
-
     let mut require_hotswap = false;
+
     loop {
         if let Ok(command) = backwards_reciever.try_recv() {
             match command {

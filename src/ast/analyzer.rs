@@ -21,24 +21,6 @@ use crate::type_::{Type, UntypedType};
 use ecow::EcoString;
 use vec1::Vec1;
 
-/// Analyzes input code for type correctness.
-///
-/// # Panics
-///
-/// - When parser fails to parse input string (unwrap on `parse_module`)
-///
-/// # Errors
-///
-/// Returns `ConvertingError` if type analysis fails
-pub fn analyze_input(input: &str) -> Result<module::Typed, ConvertingError> {
-    let module = parse_module(input).unwrap();
-
-    let mut analyzer = TypeAnalyzer::new();
-    let typed_module = analyzer.convert_ast_to_tast(&module)?;
-
-    Ok(typed_module)
-}
-
 #[derive(Debug)]
 pub struct TypeAnalyzer {
     program_state: ProgramState,
