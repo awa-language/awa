@@ -18,6 +18,36 @@ pub struct GC {
     pub marked: Vec<bool>,
     pub alloc_count: usize,
     pub threshold: usize,
+    object_pool: ObjectPool,
+    mark_stack: Vec<Handle>, // Добавляем стек для маркировки
+}
+
+struct ObjectPool {
+    strings: Vec<EcoString>,
+    slices: Vec<Vec<Value>>,
+    structs: Vec<HashMap<EcoString, Value>>,
+}
+
+impl ObjectPool {
+    fn new() -> Self {
+        Self {
+            strings: Vec::new(),
+            slices: Vec::new(),
+            structs: Vec::new(),
+        }
+    }
+
+    fn get_string(&mut self) -> EcoString {
+        self.strings.pop().unwrap_or_else(EcoString::new)
+    }
+
+    fn get_slice(&mut self) -> Vec<Value> {
+        self.slices.pop().unwrap_or_else(Vec::new)
+    }
+
+    fn get_struct(&mut self) -> HashMap<EcoString, Value> {
+        self.structs.pop().unwrap_or_default()
+    }
 }
 
 impl Default for GC {
@@ -33,12 +63,42 @@ impl GC {
             marked: Vec::new(),
             alloc_count: 0,
             threshold: 10,
+            object_pool: ObjectPool::new(),
+            mark_stack: Vec::new(),
         }
     }
 
     pub fn allocate(&mut self, object: Object) -> Handle {
         let index = self.heap.len();
-        self.heap.push(object);
+        if index == usize::MAX {
+            panic!("GC heap overflow");
+        }
+
+        let reused_object = match object {
+            Object::String(s) => {
+                let mut pooled = self.object_pool.get_string();
+                pooled.clear();
+                pooled.push_str(&s);
+                Object::String(pooled)
+            }
+            Object::Slice(v) => {
+                let mut pooled = self.object_pool.get_slice();
+                pooled.clear();
+                pooled.extend(v);
+                Object::Slice(pooled)
+            }
+            Object::Struct { name, fields } => {
+                let mut pooled = self.object_pool.get_struct();
+                pooled.clear();
+                pooled.extend(fields);
+                Object::Struct {
+                    name,
+                    fields: pooled,
+                }
+            }
+        };
+
+        self.heap.push(reused_object);
         self.marked.push(false);
         self.alloc_count += 1;
         Handle(index)
@@ -57,15 +117,16 @@ impl GC {
         stack: &mut [Value],
         environments_stack: &mut [HashMap<EcoString, Value>],
     ) {
-        for mark in &mut self.marked {
-            *mark = false;
-        }
+        self.threshold += self.threshold / 2; // Более умеренный рост порога
 
-        for value in stack.iter_mut() {
+        self.marked.clear();
+        self.marked.resize(self.heap.len(), false);
+
+        for value in stack.iter() {
             self.mark_value(value);
         }
 
-        for environment in environments_stack.iter_mut() {
+        for environment in environments_stack.iter() {
             for value in environment.values() {
                 self.mark_value(value);
             }
@@ -105,29 +166,27 @@ impl GC {
     }
 
     fn mark_object(&mut self, handle: Handle) {
-        let mut stack = vec![handle];
+        self.mark_stack.clear();
+        self.mark_stack.push(handle);
 
-        while let Some(handle) = stack.pop() {
+        while let Some(handle) = self.mark_stack.pop() {
             let index = handle.0;
-            if index >= self.marked.len() {
+            if index >= self.marked.len() || self.marked[index] {
                 continue;
             }
-            if self.marked[index] {
-                continue;
-            }
+
             self.marked[index] = true;
 
             match &self.heap[index] {
-                Object::String(_) => {
-                }
+                Object::String(_) => {}
                 Object::Slice(elements) => {
                     for value in elements {
-                        Self::collect_children(value, &mut stack);
+                        Self::collect_children(value, &mut self.mark_stack);
                     }
                 }
                 Object::Struct { fields, .. } => {
                     for value in fields.values() {
-                        Self::collect_children(value, &mut stack);
+                        Self::collect_children(value, &mut self.mark_stack);
                     }
                 }
             }
@@ -154,26 +213,29 @@ impl GC {
     }
 
     fn compact(&mut self) -> Vec<Option<usize>> {
-        let old_size = self.heap.len();
+        let marked_count = self.marked.iter().filter(|&&m| m).count();
+        let mut new_heap = Vec::with_capacity(marked_count);
+        let mut remap = vec![None; self.heap.len()];
 
-        let mut new_heap = Vec::with_capacity(old_size);
-        let mut new_marked = Vec::with_capacity(old_size);
+        for (i, marked) in self.marked.iter().enumerate() {
+            if *marked {
+                remap[i] = Some(new_heap.len());
+                let mut object = std::mem::replace(&mut self.heap[i], Object::Slice(Vec::new()));
 
-        let mut remap = vec![None; old_size];
+                match &mut object {
+                    Object::String(s) if s.is_empty() => {
+                        self.object_pool.strings.push(std::mem::take(s));
+                    }
+                    Object::Slice(v) if v.is_empty() => {
+                        self.object_pool.slices.push(std::mem::take(v));
+                    }
+                    Object::Struct { fields, .. } if fields.is_empty() => {
+                        self.object_pool.structs.push(std::mem::take(fields));
+                    }
+                    _ => {}
+                }
 
-        let mut new_index = 0;
-        for (i, item) in remap.iter_mut().enumerate().take(old_size) {
-            if self.marked[i] {
-                *item = Some(new_index);
-
-                let object = std::mem::replace(&mut self.heap[i], Object::String("".into()));
                 new_heap.push(object);
-
-                new_marked.push(false);
-
-                new_index += 1;
-            } else {
-                *item = None;
             }
         }
 
@@ -182,8 +244,6 @@ impl GC {
         }
 
         self.heap = new_heap;
-        self.marked = new_marked;
-
         remap
     }
 
