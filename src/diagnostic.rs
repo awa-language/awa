@@ -3,7 +3,6 @@ use std::collections::HashMap;
 use camino::Utf8PathBuf;
 use codespan_reporting::diagnostic::Severity;
 use ecow::EcoString;
-use std::io::Write;
 use termcolor::Buffer;
 
 use crate::ast::location::Location as AstLocation;
@@ -24,10 +23,6 @@ pub struct Diagnostic {
 impl Diagnostic {
     pub fn write(&self, buffer: &mut Buffer) {
         self.write_location(buffer);
-
-        if !self.text.is_empty() {
-            writeln!(buffer, "{}", self.text).unwrap();
-        }
     }
 
     fn write_location(&self, buffer: &mut Buffer) {

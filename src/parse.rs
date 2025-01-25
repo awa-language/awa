@@ -647,7 +647,9 @@ impl<T: Iterator<Item = LexResult>> Parser<T> {
             return Err(ParsingError {
                 error: error::Type::UnexpectedToken {
                     token: self.current_token.clone().unwrap().token,
-                    expected: "function call argument expression".to_string().into(),
+                    expected: "function call argument expression. perhaps, extra trailing comma?"
+                        .to_string()
+                        .into(),
                 },
                 location: LexLocation {
                     start: self.current_token.clone().unwrap().start,
