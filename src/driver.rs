@@ -32,7 +32,7 @@ pub fn run(
     module: &module::Typed,
     command_receiver: &std::sync::mpsc::Receiver<Command>,
     backwards_sender: &std::sync::mpsc::Sender<BackwardsCommunication>,
-) {
+) -> i32 {
     let bytecode = make_bytecode(module);
     let mut vm = vm::VM::new(bytecode);
     let mut awaiting_hotswap = false;
@@ -101,7 +101,7 @@ pub fn run(
                         let () = backwards_sender
                             .send(BackwardsCommunication::Finished)
                             .unwrap();
-                        std::process::exit(0); // TODO: FIXME
+                        return 0;
                     }
                 }
             }
@@ -110,15 +110,15 @@ pub fn run(
 }
 
 #[must_use]
-pub fn build_ast(input: &str) -> (TypeAnalyzer, Module<DefinitionTyped>) {
+pub fn build_ast(input: &str) -> Result<(TypeAnalyzer, Module<DefinitionTyped>), ()> {
     let mut analyzer = TypeAnalyzer::new();
     let typed_module = analyzer.analyze_input(input);
 
     match typed_module {
-        Ok(module) => (analyzer, module),
+        Ok(module) => Ok((analyzer, module)),
         Err(err) => {
             print_diagnostics(input.into(), &err);
-            std::process::exit(1); // TODO: FIXME
+            return Err(());
         }
     }
 }
