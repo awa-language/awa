@@ -8,11 +8,14 @@ pub fn handle(filename: Option<Utf8PathBuf>) {
         None => "main.awa".into(),
     };
 
-    let input = std::fs::read_to_string(filename);
+    let input = std::fs::read_to_string(filename.clone());
     let input = match input {
         Ok(input) => input,
-        Err(_err) => todo!(),
+        Err(err) => {
+            println!("{err}");
+            return;
+        }
     };
 
-    let _ = driver::build_ast(&input);
+    let _ = driver::build_ast(filename, &input);
 }

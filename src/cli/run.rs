@@ -1,6 +1,6 @@
-use std::sync::mpsc::{channel, Receiver, Sender};
-
 use camino::Utf8PathBuf;
+use std::sync::mpsc::{channel, Receiver, Sender};
+use termion::input::TermRead;
 
 use crate::driver::{self, BackwardsCommunication, Command};
 
@@ -15,7 +15,7 @@ pub fn handle(filename: Option<Utf8PathBuf>) {
         None => "main.awa".into(),
     };
 
-    let input = std::fs::read_to_string(filename);
+    let input = std::fs::read_to_string(filename.clone());
     let input = match input {
         Ok(input) => input,
         Err(err) => {
@@ -24,24 +24,68 @@ pub fn handle(filename: Option<Utf8PathBuf>) {
         }
     };
 
-    let (mut analyzer, module) = driver::build_ast(&input);
+    let Some((mut analyzer, module)) = driver::build_ast(filename, &input) else {
+        return;
+    };
 
-    let (input_sender, input_reciever): (Sender<Command>, Receiver<Command>) = channel();
-    let (backwards_sender, backwards_reciever): (
+    let (driver_sender, driver_reciever): (Sender<Command>, Receiver<Command>) = channel();
+    let (driver_backwards_sender, driver_backwards_reciever): (
         Sender<BackwardsCommunication>,
         Receiver<BackwardsCommunication>,
     ) = channel();
 
     let _ = std::thread::spawn(move || {
-        driver::run(&mut analyzer, &module, &input_reciever, &backwards_sender);
+        driver::run(
+            &mut analyzer,
+            &module,
+            &driver_reciever,
+            &driver_backwards_sender,
+        );
     });
 
-    let term = console::Term::stdout();
     let mut require_hotswap = false;
 
+    let (keypress_sender, keypress_reciever) = channel();
+    let (keypress_backwards_sender, keypress_backwards_reciever) = channel();
+
+    std::thread::spawn(move || {
+        let stdin = std::io::stdin();
+        let mut keys = stdin.keys();
+
+        // NOTE: it is blocking, sleeping won't optimize CPU usage
+        loop {
+            if let Some(Ok(_key)) = keys.next() {
+                let _ = keypress_sender.send(Some(()));
+            }
+
+            if keypress_backwards_reciever.recv().is_err() {
+                return;
+            }
+        }
+    });
+
     loop {
-        if let Ok(command) = backwards_reciever.try_recv() {
+        std::thread::sleep(std::time::Duration::from_millis(10));
+
+        if let Ok(command) = driver_backwards_reciever.try_recv() {
             match command {
+                BackwardsCommunication::Hotswapped
+                | BackwardsCommunication::ReturnedToExecution => {
+                    unreachable!()
+                }
+                BackwardsCommunication::RequireHotswap => {
+                    require_hotswap = true;
+                }
+                BackwardsCommunication::Finished => return,
+            }
+        }
+
+        if let Ok(Some(())) = keypress_reciever.try_recv() {
+            driver_sender.send(Command::OpenMenu).unwrap();
+
+            let confirmation = driver_backwards_reciever.recv().unwrap();
+
+            match confirmation {
                 BackwardsCommunication::Hotswapped => {
                     if require_hotswap {
                         require_hotswap = false;
@@ -51,36 +95,10 @@ pub fn handle(filename: Option<Utf8PathBuf>) {
                     require_hotswap = true;
                 }
                 BackwardsCommunication::Finished => return,
+                BackwardsCommunication::ReturnedToExecution => {}
             }
-        }
 
-        if term.read_char().is_err() {
-            // NOTE: only happens when there is no terminal, i.e. in CI
-            let confirmation = backwards_reciever.recv().unwrap();
-            match confirmation {
-                BackwardsCommunication::Hotswapped => {
-                    unreachable!();
-                }
-                BackwardsCommunication::RequireHotswap => unreachable!(),
-                BackwardsCommunication::Finished => return,
-            }
-        }
-
-        if !require_hotswap {
-            let () = input_sender.send(Command::OpenMenu).unwrap();
-        }
-
-        let confirmation = backwards_reciever.recv().unwrap();
-        match confirmation {
-            BackwardsCommunication::Hotswapped => {
-                if require_hotswap {
-                    require_hotswap = false;
-                }
-            }
-            BackwardsCommunication::RequireHotswap => {
-                require_hotswap = true;
-            }
-            BackwardsCommunication::Finished => return,
+            keypress_backwards_sender.send(()).unwrap();
         }
     }
 }

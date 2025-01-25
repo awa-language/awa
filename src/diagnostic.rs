@@ -3,7 +3,6 @@ use std::collections::HashMap;
 use camino::Utf8PathBuf;
 use codespan_reporting::diagnostic::Severity;
 use ecow::EcoString;
-use std::io::Write;
 use termcolor::Buffer;
 
 use crate::ast::location::Location as AstLocation;
@@ -24,10 +23,6 @@ pub struct Diagnostic {
 impl Diagnostic {
     pub fn write(&self, buffer: &mut Buffer) {
         self.write_location(buffer);
-
-        if !self.text.is_empty() {
-            writeln!(buffer, "{}", self.text).unwrap();
-        }
     }
 
     fn write_location(&self, buffer: &mut Buffer) {
@@ -40,7 +35,15 @@ impl Diagnostic {
         let main_file_id = files.add(main_location_path, main_location_src);
         let _ = file_map.insert(main_location_path, main_file_id);
 
-        let diagnostic = codespan_reporting::diagnostic::Diagnostic::new(Severity::Warning)
+        let labels = vec![codespan_reporting::diagnostic::Label {
+            style: codespan_reporting::diagnostic::LabelStyle::Primary,
+            file_id: main_file_id,
+            range: (self.location.location.start as usize)..(self.location.location.end as usize),
+            message: self.text.clone(),
+        }];
+
+        let diagnostic = codespan_reporting::diagnostic::Diagnostic::new(Severity::Error)
+            .with_labels(labels)
             .with_message(&self.text);
         let config = codespan_reporting::term::Config::default();
 

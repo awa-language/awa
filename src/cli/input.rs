@@ -1,7 +1,8 @@
-#[derive(Debug, strum::EnumIter)]
+#[derive(Debug)]
 pub enum MenuAction {
     PerformHotswap,
-    ReturnToExecution, // Do nothing
+    ReturnToExecution,
+    CtrlC,
 }
 
 impl std::fmt::Display for MenuAction {
@@ -9,6 +10,7 @@ impl std::fmt::Display for MenuAction {
         match self {
             MenuAction::PerformHotswap => write!(formatter, "Perform HotSwap"),
             MenuAction::ReturnToExecution => write!(formatter, "ReturnToExecution"),
+            MenuAction::CtrlC => unreachable!(),
         }
     }
 }
@@ -22,10 +24,10 @@ impl std::fmt::Display for MenuAction {
 pub fn get_user_menu_decision() -> MenuAction {
     let decision = inquire::Select::new(
         "Select one of the following:",
-        <MenuAction as strum::IntoEnumIterator>::iter().collect(),
+        vec![MenuAction::PerformHotswap, MenuAction::ReturnToExecution],
     )
     .prompt()
-    .unwrap();
+    .unwrap_or(MenuAction::CtrlC);
 
     decision
 }

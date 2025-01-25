@@ -1,0 +1,12 @@
+func say_hello(name string) {
+    if (name == "") {
+        name = "世界"
+    }
+
+    println("Hello, " <> name <> "!")
+}
+
+func main() {
+    var name string = "awa"
+    say_hello(name)
+}

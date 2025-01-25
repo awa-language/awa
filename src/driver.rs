@@ -1,3 +1,5 @@
+use camino::Utf8PathBuf;
+
 use crate::{
     ast::{
         analyzer::TypeAnalyzer,
@@ -5,7 +7,10 @@ use crate::{
         module::{self, Module},
     },
     cli::{self, input::MenuAction},
-    interpreter, vm,
+    error::Error,
+    interpreter,
+    parse::error::ConvertingErrorType::ParsingError,
+    vm,
 };
 
 #[derive(Debug)]
@@ -15,6 +20,7 @@ pub enum Command {
 
 pub enum BackwardsCommunication {
     Hotswapped,
+    ReturnedToExecution,
     RequireHotswap,
     Finished,
 }
@@ -48,8 +54,11 @@ pub fn run(
                             let module = match module {
                                 Ok(module) => module,
                                 Err(err) => {
-                                    let description = err.get_description();
-                                    println!("{description}");
+                                    print_diagnostics(
+                                        "hotswap.awa".into(),
+                                        user_input.into(),
+                                        &err,
+                                    );
 
                                     if awaiting_hotswap {
                                         awaiting_hotswap = false;
@@ -62,6 +71,7 @@ pub fn run(
                                     continue;
                                 }
                             };
+
                             let hotswap_bytecode = make_bytecode(&module);
 
                             vm.hotswap_function(&hotswap_bytecode);
@@ -69,13 +79,25 @@ pub fn run(
                             if awaiting_hotswap {
                                 awaiting_hotswap = false;
                             }
-                        }
-                        MenuAction::ReturnToExecution => {}
-                    }
 
-                    let () = backwards_sender
-                        .send(BackwardsCommunication::Hotswapped)
-                        .unwrap();
+                            let () = backwards_sender
+                                .send(BackwardsCommunication::Hotswapped)
+                                .unwrap();
+                        }
+                        MenuAction::ReturnToExecution => {
+                            let () = backwards_sender
+                                .send(BackwardsCommunication::ReturnedToExecution)
+                                .unwrap();
+                        }
+                        MenuAction::CtrlC => {
+                            let () = backwards_sender
+                                .send(BackwardsCommunication::Finished)
+                                .unwrap();
+                            println!("recieved SIGINT");
+
+                            return;
+                        }
+                    }
                 }
             }
         }
@@ -99,7 +121,7 @@ pub fn run(
                         let () = backwards_sender
                             .send(BackwardsCommunication::Finished)
                             .unwrap();
-                        std::process::exit(0); // TODO: FIXME
+                        return;
                     }
                 }
             }
@@ -108,16 +130,18 @@ pub fn run(
 }
 
 #[must_use]
-pub fn build_ast(input: &str) -> (TypeAnalyzer, Module<DefinitionTyped>) {
+pub fn build_ast(
+    path: Utf8PathBuf,
+    input: &str,
+) -> Option<(TypeAnalyzer, Module<DefinitionTyped>)> {
     let mut analyzer = TypeAnalyzer::new();
     let typed_module = analyzer.analyze_input(input);
 
     match typed_module {
-        Ok(module) => (analyzer, module),
+        Ok(module) => Some((analyzer, module)),
         Err(err) => {
-            let description = err.get_description();
-            println!("{description}");
-            std::process::exit(1); // TODO: FIXME
+            print_diagnostics(path, input.into(), &err);
+            None
         }
     }
 }
@@ -127,4 +151,34 @@ pub fn make_bytecode(module: &Module<DefinitionTyped>) -> Vec<vm::instruction::I
     let interpreter = interpreter::Interpreter::new();
 
     interpreter.interpret_module(module)
+}
+
+fn print_diagnostics(
+    path: Utf8PathBuf,
+    src: ecow::EcoString,
+    converting_error: &crate::parse::error::ConvertingError,
+) {
+    let error = match converting_error.error {
+        ParsingError { ref error } => Error::Parsing {
+            path,
+            src,
+            error: error.clone(),
+        },
+        _ => Error::Ast {
+            path,
+            src,
+            error: converting_error.clone(),
+        },
+    };
+
+    let buffer_writer = termcolor::BufferWriter::stderr(termcolor::ColorChoice::Auto);
+    let mut buffer = buffer_writer.buffer();
+
+    let diagnostics = error.to_diagnostics();
+
+    for diagnostic in diagnostics {
+        diagnostic.write(&mut buffer);
+    }
+
+    buffer_writer.print(&buffer).unwrap();
 }

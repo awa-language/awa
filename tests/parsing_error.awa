@@ -1,0 +1,8 @@
+func awa main() {
+    var a int = 1
+    var b int = 2
+
+    if (a == b) {
+        println("awa is cool!")
+    }
+}

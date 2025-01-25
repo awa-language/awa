@@ -52,7 +52,18 @@ impl TypeAnalyzer {
     /// - Unknown variable/function reference
     /// - Type mismatch
     pub fn analyze_input(&mut self, input: &str) -> Result<module::Typed, ConvertingError> {
-        let module = parse_module(input).unwrap();
+        let module = parse_module(input);
+        let module = match module {
+            Ok(module) => module,
+            Err(parsing_error) => {
+                return Err(ConvertingError {
+                    error: ConvertingErrorType::ParsingError {
+                        error: parsing_error.clone(),
+                    },
+                    location: parsing_error.location,
+                });
+            }
+        };
 
         let typed_module = self.convert_ast_to_tast(&module)?;
 
@@ -71,7 +82,18 @@ impl TypeAnalyzer {
     /// - Unknown variable/function reference
     /// - Type mismatch
     pub fn handle_hotswap(&mut self, input: &str) -> Result<module::Typed, ConvertingError> {
-        let module = parse_module(input).unwrap();
+        let module = parse_module(input);
+        let module = match module {
+            Ok(module) => module,
+            Err(parsing_error) => {
+                return Err(ConvertingError {
+                    error: ConvertingErrorType::ParsingError {
+                        error: parsing_error.clone(),
+                    },
+                    location: parsing_error.location,
+                });
+            }
+        };
 
         let function_name = match module
             .definitions
@@ -805,7 +827,7 @@ impl TypeAnalyzer {
                 {
                     if args.len() > expected_args.len() {
                         return Err(ConvertingError {
-                            error: ConvertingErrorType::NotTheRightAmountOfArguments {
+                            error: ConvertingErrorType::InvalidArgumentsAmount {
                                 expected: expected_args.len(),
                                 found: args.len(),
                             },
@@ -1340,7 +1362,7 @@ impl TypeAnalyzer {
         if function_name_str == "print" || function_name_str == "println" {
             if arguments.as_ref().map_or(true, |args| args.len() != 1) {
                 return Err(ConvertingError {
-                    error: ConvertingErrorType::NotTheRightAmountOfArguments {
+                    error: ConvertingErrorType::InvalidArgumentsAmount {
                         expected: 1,
                         found: arguments.as_ref().map_or(0, vec1::Vec1::len),
                     },
@@ -1363,7 +1385,7 @@ impl TypeAnalyzer {
         } else if function_name_str == "append" {
             if arguments.as_ref().map_or(true, |args| args.len() != 2) {
                 return Err(ConvertingError {
-                    error: ConvertingErrorType::NotTheRightAmountOfArguments {
+                    error: ConvertingErrorType::InvalidArgumentsAmount {
                         expected: 2,
                         found: arguments.as_ref().map_or(0, vec1::Vec1::len),
                     },
@@ -1422,7 +1444,7 @@ impl TypeAnalyzer {
         } else if function_name_str == "pop" {
             if arguments.as_ref().map_or(true, |args| args.len() != 1) {
                 return Err(ConvertingError {
-                    error: ConvertingErrorType::NotTheRightAmountOfArguments {
+                    error: ConvertingErrorType::InvalidArgumentsAmount {
                         expected: 1,
                         found: arguments.as_ref().map_or(0, vec1::Vec1::len),
                     },
@@ -1463,7 +1485,7 @@ impl TypeAnalyzer {
             if let Some(expected_args) = function_def.get_arguments()? {
                 if expected_args.len() <= i {
                     return Err(ConvertingError {
-                        error: ConvertingErrorType::NotTheRightAmountOfArguments {
+                        error: ConvertingErrorType::InvalidArgumentsAmount {
                             expected: expected_args.len(),
                             found: i + 1,
                         },
@@ -1486,6 +1508,17 @@ impl TypeAnalyzer {
                         },
                     });
                 }
+            } else {
+                return Err(ConvertingError {
+                    error: ConvertingErrorType::InvalidArgumentsAmount {
+                        expected: 0,
+                        found: i + 1,
+                    },
+                    location: Location {
+                        start: location.start,
+                        end: location.end,
+                    },
+                });
             }
         }
 

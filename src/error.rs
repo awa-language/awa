@@ -5,7 +5,7 @@ use termcolor::Buffer;
 
 use crate::{
     diagnostic::{Diagnostic, Location},
-    parse::error::ParsingError,
+    parse::error::{ConvertingError, ParsingError},
 };
 
 pub enum Error {
@@ -13,6 +13,11 @@ pub enum Error {
         src: EcoString,
         path: Utf8PathBuf,
         error: ParsingError,
+    },
+    Ast {
+        src: EcoString,
+        path: Utf8PathBuf,
+        error: ConvertingError,
     },
 }
 
@@ -40,6 +45,19 @@ impl Error {
     pub fn to_diagnostics(&self) -> Vec<Diagnostic> {
         match self {
             Error::Parsing { src, path, error } => {
+                vec![Diagnostic {
+                    text: error.get_description(),
+                    location: Location {
+                        src: src.clone(),
+                        path: path.clone(),
+                        location: crate::ast::location::Location {
+                            start: error.location.start,
+                            end: error.location.end,
+                        },
+                    },
+                }]
+            }
+            Error::Ast { src, path, error } => {
                 vec![Diagnostic {
                     text: error.get_description(),
                     location: Location {

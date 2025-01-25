@@ -55,6 +55,7 @@ impl DefinitionTyped {
     /// Returns the arguments of a definition
     ///
     /// # Errors
+    ///
     /// Returns `ConvertingError` if definition is a struct (only functions have arguments)
     pub fn get_arguments(&self) -> Result<Option<Vec1<argument::ArgumentTyped>>, ConvertingError> {
         match self {
@@ -69,6 +70,7 @@ impl DefinitionTyped {
     /// Returns the return type of a definition
     ///
     /// # Errors
+    ///
     /// Returns `ConvertingError` if definition is a struct (only functions have return types)
     pub fn get_return_type(&self) -> Result<Type, ConvertingError> {
         match self {
