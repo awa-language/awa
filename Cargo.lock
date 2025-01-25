@@ -64,7 +64,6 @@ version = "0.1.0"
 dependencies = [
  "camino",
  "clap",
- "clap_derive",
  "codespan-reporting",
  "ecow",
  "inquire",
