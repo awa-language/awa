@@ -253,7 +253,6 @@ where
 
         loop {
             match self.current_char {
-                // TODO: forbid multiple `-`
                 Some(ch) if ch.is_ascii_digit() || ch == '-' => {
                     let _ = self.advance_char();
                     number.push(ch);

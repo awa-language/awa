@@ -1242,7 +1242,7 @@ impl<T: Iterator<Item = LexResult>> Parser<T> {
     fn peek_token(&mut self) -> Option<TokenSpan> {
         match self.input_tokens.peek_nth(0) {
             Some(Ok(token)) => Some(token.clone()),
-            // TODO: it may insert the same lexical error twice, need tests
+            // NOTE: it may insert the same lexical error twice, need tests
             Some(Err(lexical_error)) => {
                 self.lexical_errors.push(*lexical_error);
                 None
@@ -1284,7 +1284,6 @@ fn token_to_binary_operator(token: &Token) -> Option<BinaryOperator> {
         Token::NotEqual => Some(BinaryOperator::NotEqual),
         Token::PipePipe => Some(BinaryOperator::Or),
         Token::AmpersandAmpersand => Some(BinaryOperator::And),
-        // TODO: add others if needed
         _ => None,
     }
 }
