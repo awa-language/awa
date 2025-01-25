@@ -24,9 +24,8 @@ pub fn handle(filename: Option<Utf8PathBuf>) {
         }
     };
 
-    let (mut analyzer, module) = match driver::build_ast(&input) {
-        Ok((analyzer, module)) => (analyzer, module),
-        Err(_) => return,
+    let Some((mut analyzer, module)) = driver::build_ast(&input) else {
+        return;
     };
 
     let (input_sender, input_reciever): (Sender<Command>, Receiver<Command>) = channel();

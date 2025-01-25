@@ -110,15 +110,15 @@ pub fn run(
 }
 
 #[must_use]
-pub fn build_ast(input: &str) -> Result<(TypeAnalyzer, Module<DefinitionTyped>), ()> {
+pub fn build_ast(input: &str) -> Option<(TypeAnalyzer, Module<DefinitionTyped>)> {
     let mut analyzer = TypeAnalyzer::new();
     let typed_module = analyzer.analyze_input(input);
 
     match typed_module {
-        Ok(module) => Ok((analyzer, module)),
+        Ok(module) => Some((analyzer, module)),
         Err(err) => {
             print_diagnostics(input.into(), &err);
-            return Err(());
+            None
         }
     }
 }
