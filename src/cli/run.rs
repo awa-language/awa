@@ -15,7 +15,7 @@ pub fn handle(filename: Option<Utf8PathBuf>) {
         None => "main.awa".into(),
     };
 
-    let input = std::fs::read_to_string(filename);
+    let input = std::fs::read_to_string(filename.clone());
     let input = match input {
         Ok(input) => input,
         Err(err) => {
@@ -24,7 +24,7 @@ pub fn handle(filename: Option<Utf8PathBuf>) {
         }
     };
 
-    let Some((mut analyzer, module)) = driver::build_ast(&input) else {
+    let Some((mut analyzer, module)) = driver::build_ast(filename, &input) else {
         return;
     };
 

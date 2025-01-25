@@ -1,3 +1,5 @@
+use camino::Utf8PathBuf;
+
 use crate::{
     ast::{
         analyzer::TypeAnalyzer,
@@ -51,7 +53,11 @@ pub fn run(
                             let module = match module {
                                 Ok(module) => module,
                                 Err(err) => {
-                                    print_diagnostics(user_input.into(), &err);
+                                    print_diagnostics(
+                                        "hotswap.awa".into(),
+                                        user_input.into(),
+                                        &err,
+                                    );
 
                                     if awaiting_hotswap {
                                         awaiting_hotswap = false;
@@ -110,14 +116,17 @@ pub fn run(
 }
 
 #[must_use]
-pub fn build_ast(input: &str) -> Option<(TypeAnalyzer, Module<DefinitionTyped>)> {
+pub fn build_ast(
+    path: Utf8PathBuf,
+    input: &str,
+) -> Option<(TypeAnalyzer, Module<DefinitionTyped>)> {
     let mut analyzer = TypeAnalyzer::new();
     let typed_module = analyzer.analyze_input(input);
 
     match typed_module {
         Ok(module) => Some((analyzer, module)),
         Err(err) => {
-            print_diagnostics(input.into(), &err);
+            print_diagnostics(path, input.into(), &err);
             None
         }
     }
@@ -131,24 +140,21 @@ pub fn make_bytecode(module: &Module<DefinitionTyped>) -> Vec<vm::instruction::I
 }
 
 fn print_diagnostics(
+    path: Utf8PathBuf,
     src: ecow::EcoString,
     converting_error: &crate::parse::error::ConvertingError,
 ) {
     let error = match converting_error.error {
-        ParsingError { ref error } => {
-            Error::Parsing {
-                path: "tests/invalid_syntax.awa".into(), // TODO: FIXME
-                src,
-                error: error.clone(),
-            }
-        }
-        _ => {
-            Error::Ast {
-                path: "tests/invalid_syntax.awa".into(), // TODO: FIXME
-                src,
-                error: converting_error.clone(),
-            }
-        }
+        ParsingError { ref error } => Error::Parsing {
+            path,
+            src,
+            error: error.clone(),
+        },
+        _ => Error::Ast {
+            path,
+            src,
+            error: converting_error.clone(),
+        },
     };
 
     let buffer_writer = termcolor::BufferWriter::stderr(termcolor::ColorChoice::Auto);
