@@ -20,6 +20,7 @@ pub enum Command {
 
 pub enum BackwardsCommunication {
     Hotswapped,
+    ReturnedToExecution,
     RequireHotswap,
     Finished,
 }
@@ -70,6 +71,7 @@ pub fn run(
                                     continue;
                                 }
                             };
+
                             let hotswap_bytecode = make_bytecode(&module);
 
                             vm.hotswap_function(&hotswap_bytecode);
@@ -77,13 +79,17 @@ pub fn run(
                             if awaiting_hotswap {
                                 awaiting_hotswap = false;
                             }
-                        }
-                        MenuAction::ReturnToExecution => {}
-                    }
 
-                    let () = backwards_sender
-                        .send(BackwardsCommunication::Hotswapped)
-                        .unwrap();
+                            let () = backwards_sender
+                                .send(BackwardsCommunication::Hotswapped)
+                                .unwrap();
+                        }
+                        MenuAction::ReturnToExecution => {
+                            let () = backwards_sender
+                                .send(BackwardsCommunication::ReturnedToExecution)
+                                .unwrap();
+                        }
+                    }
                 }
             }
         }

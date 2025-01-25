@@ -28,52 +28,66 @@ pub fn handle(filename: Option<Utf8PathBuf>) {
         return;
     };
 
-    let (input_sender, input_reciever): (Sender<Command>, Receiver<Command>) = channel();
-    let (backwards_sender, backwards_reciever): (
+    let (driver_sender, driver_reciever): (Sender<Command>, Receiver<Command>) = channel();
+    let (driver_backwards_sender, driver_backwards_reciever): (
         Sender<BackwardsCommunication>,
         Receiver<BackwardsCommunication>,
     ) = channel();
 
     let _ = std::thread::spawn(move || {
-        driver::run(&mut analyzer, &module, &input_reciever, &backwards_sender);
+        driver::run(
+            &mut analyzer,
+            &module,
+            &driver_reciever,
+            &driver_backwards_sender,
+        );
     });
 
-    let term = console::Term::stdout();
+    // TODO: remove `console`
+    // let term = console::Term::stdout();
     let mut require_hotswap = false;
 
     let (keypress_sender, keypress_reciever) = channel();
-    let term_clone = term.clone();
+    let (keypress_backwards_sender, keypress_backwards_reciever) = channel();
 
-    std::thread::spawn(move || loop {
-        if term_clone.read_char().is_ok() {
-            let _ = keypress_sender.send(Some(()));
-        } else {
-            let _ = keypress_sender.send(None);
+    std::thread::spawn(move || {
+        let stdin = std::io::stdin();
+        use termion::input::TermRead;
+        let mut keys = stdin.keys();
+
+        loop {
+            if let Some(Ok(_key)) = keys.next() {
+                let _ = keypress_sender.send(Some(()));
+            }
+
+            keypress_backwards_reciever.recv().unwrap();
         }
     });
 
     loop {
-        if let Ok(command) = backwards_reciever.try_recv() {
+        if let Ok(command) = driver_backwards_reciever.try_recv() {
             match command {
                 BackwardsCommunication::Hotswapped => {
-                    if require_hotswap {
-                        require_hotswap = false;
-                    }
+                    unreachable!()
                 }
                 BackwardsCommunication::RequireHotswap => {
                     require_hotswap = true;
                 }
                 BackwardsCommunication::Finished => return,
+                BackwardsCommunication::ReturnedToExecution => {
+                    unreachable!()
+                }
             }
         }
 
         if let Ok(keypress) = keypress_reciever.try_recv() {
             if let Some(()) = keypress {
                 if !require_hotswap {
-                    let () = input_sender.send(Command::OpenMenu).unwrap();
+                    driver_sender.send(Command::OpenMenu).unwrap();
                 }
 
-                let confirmation = backwards_reciever.recv().unwrap();
+                let confirmation = driver_backwards_reciever.recv().unwrap();
+
                 match confirmation {
                     BackwardsCommunication::Hotswapped => {
                         if require_hotswap {
@@ -84,17 +98,10 @@ pub fn handle(filename: Option<Utf8PathBuf>) {
                         require_hotswap = true;
                     }
                     BackwardsCommunication::Finished => return,
+                    BackwardsCommunication::ReturnedToExecution => {}
                 }
-            } else {
-                // NOTE: only happens when there is no terminal, i.e. in CI
-                let confirmation = backwards_reciever.recv().unwrap();
-                match confirmation {
-                    BackwardsCommunication::Hotswapped => {
-                        unreachable!();
-                    }
-                    BackwardsCommunication::RequireHotswap => unreachable!(),
-                    BackwardsCommunication::Finished => return,
-                }
+
+                keypress_backwards_sender.send(()).unwrap();
             }
         }
     }
