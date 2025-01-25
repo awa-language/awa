@@ -54,3 +54,4 @@ jobs:
           cargo run --release --quiet -- run tests/parsing_error.awa
           cargo run --release --quiet -- run tests/type_mismatch_error.awa
           cargo run --release --quiet -- run tests/utf8.awa
+          cargo run --release --quiet -- run tests/example.awa
