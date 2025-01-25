@@ -64,7 +64,7 @@ fn test_string_literals() {
         }
     );
     assert_error!(
-        "\"\\a\"",
+        "\"\\h\"",
         ParsingError {
             error: crate::parse::error::Type::LexicalError {
                 error: LexicalError {
@@ -76,7 +76,7 @@ fn test_string_literals() {
         }
     );
     assert_error!(
-        "\"\\a",
+        "\"\\h",
         ParsingError {
             error: crate::parse::error::Type::LexicalError {
                 error: LexicalError {
