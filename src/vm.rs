@@ -1,4 +1,3 @@
-use core::f64;
 use std::collections::HashMap;
 
 use ecow::EcoString;
@@ -10,6 +9,8 @@ pub mod tests;
 
 use gc::{Object, GC};
 use instruction::{Bytecode, Instruction, Value};
+
+use crate::compiler::Compiler;
 
 pub struct VM {
     pub(crate) input: Bytecode,
@@ -26,12 +27,85 @@ pub struct VM {
     pub(crate) gc: GC,
 
     backup_state: Option<State>,
+    execution_stats: ExecutionStats,
+    optimization_threshold: u32,
 }
 
 #[derive(Debug)]
 struct State {
     stack: Vec<Value>,
     program_counter: usize,
+}
+
+#[derive(Default)]
+struct ExecutionStats {
+    function_executions: HashMap<EcoString, u32>,
+    loop_iterations: HashMap<usize, u32>,
+    function_last_optimization: HashMap<EcoString, u32>,
+    loop_last_optimization: HashMap<usize, u32>,
+    current_execution_time: u32,
+}
+
+impl ExecutionStats {
+    fn new() -> Self {
+        Self {
+            function_executions: HashMap::new(),
+            loop_iterations: HashMap::new(),
+            function_last_optimization: HashMap::new(),
+            loop_last_optimization: HashMap::new(),
+            current_execution_time: 0,
+        }
+    }
+
+    fn record_function_execution(&mut self, name: &EcoString) {
+        *self.function_executions.entry(name.clone()).or_insert(0) += 1;
+    }
+
+    fn record_loop_iteration(&mut self, start_pc: usize) {
+        *self.loop_iterations.entry(start_pc).or_insert(0) += 1;
+    }
+
+    fn should_optimize_function(&self, name: &EcoString, threshold: u32) -> bool {
+        if let Some(&count) = self.function_executions.get(name) {
+            if count > threshold {
+                return self
+                    .function_last_optimization
+                    .get(name)
+                    .map_or(true, |&last_time| {
+                        self.current_execution_time - last_time > threshold
+                    });
+            }
+        }
+        false
+    }
+
+    fn should_optimize_loop(&self, start_pc: usize, threshold: u32) -> bool {
+        if let Some(&count) = self.loop_iterations.get(&start_pc) {
+            if count > threshold {
+                return self
+                    .loop_last_optimization
+                    .get(&start_pc)
+                    .map_or(true, |&last_time| {
+                        self.current_execution_time - last_time > threshold
+                    });
+            }
+        }
+        false
+    }
+
+    fn record_function_optimization(&mut self, name: &EcoString) {
+        self.function_last_optimization
+            .insert(name.clone(), self.current_execution_time);
+    }
+
+    fn record_loop_optimization(&mut self, start_pc: usize) {
+        self.loop_last_optimization
+            .insert(start_pc, self.current_execution_time);
+    }
+
+    fn tick(&mut self) {
+        self.current_execution_time += 1;
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -58,6 +132,8 @@ impl VM {
             call_stack: Vec::with_capacity(100_000),
             gc: GC::new(),
             backup_state: None,
+            execution_stats: ExecutionStats::new(),
+            optimization_threshold: 10000,
         };
 
         vm.environments_stack.push(HashMap::with_capacity(50));
@@ -89,6 +165,7 @@ impl VM {
             return Some(RunCommunication::Finished);
         }
 
+        self.execution_stats.tick();
         let instruction = self.input[self.program_counter].clone();
 
         match instruction {
@@ -373,6 +450,17 @@ impl VM {
                 self.maybe_run_gc();
             }
             Instruction::Jump(address) => {
+                if address <= self.program_counter {
+                    self.execution_stats.record_loop_iteration(address);
+
+                    if self
+                        .execution_stats
+                        .should_optimize_loop(address, self.optimization_threshold)
+                    {
+                        self.optimize_loop(address, self.program_counter);
+                        self.execution_stats.record_loop_optimization(address);
+                    }
+                }
                 assert!(address < self.input.len(), "jump out of range");
                 self.program_counter = address;
 
@@ -398,6 +486,15 @@ impl VM {
                 }
             }
             Instruction::Call(name) => {
+                self.execution_stats.record_function_execution(&name);
+
+                if self
+                    .execution_stats
+                    .should_optimize_function(&name, self.optimization_threshold)
+                {
+                    self.optimize_function(&name);
+                    self.execution_stats.record_function_optimization(&name);
+                }
                 if let Some(&address) = self.functions.get(&name) {
                     self.backup_state = Some(State {
                         stack: self.stack.clone(),
@@ -578,6 +675,76 @@ impl VM {
 
             i += 1;
         }
+    }
+
+    fn optimize_function(&mut self, name: &EcoString) {
+        if let Some(&start) = self.functions.get(name) {
+            let mut end = start;
+            while end < self.input.len() {
+                if matches!(self.input[end], Instruction::EndFunc) {
+                    break;
+                }
+                end += 1;
+            }
+
+            let code_to_optimize = self.input[start..=end].to_vec();
+            let mut optimizer = Compiler::new(code_to_optimize);
+            let optimized_code = optimizer.optimize();
+
+            self.replace_code_region(start, end, optimized_code);
+        }
+    }
+
+    fn optimize_loop(&mut self, start: usize, end: usize) {
+        let code_to_optimize = self.input[start..=end].to_vec();
+        let mut optimizer = Compiler::new(code_to_optimize);
+        let optimized_code = optimizer.optimize();
+
+        self.replace_code_region(start, end, optimized_code);
+    }
+
+    fn replace_code_region(&mut self, start: usize, end: usize, new_code: Vec<Instruction>) {
+        let old_size = end - start + 1;
+        let new_size = new_code.len();
+        let size_diff = new_size as isize - old_size as isize;
+
+        //dbg!(&self.input);
+        //dbg!(&self.functions);
+        self.input.splice(start..=end, new_code);
+
+        if self.program_counter > end {
+            self.program_counter = (self.program_counter as isize + size_diff) as usize;
+        }
+
+        // Обновляем стек вызовов
+        for address in &mut self.call_stack {
+            if *address > end {
+                *address = (*address as isize + size_diff) as usize;
+            }
+        }
+
+        for i in 0..self.input.len() {
+            match &mut self.input[i] {
+                Instruction::Jump(target)
+                | Instruction::JumpIfTrue(target)
+                | Instruction::JumpIfFalse(target) => {
+                    if *target > end {
+                        *target = (*target as isize + size_diff) as usize;
+                    }
+                }
+                _ => {}
+            }
+        }
+
+        for address in self.functions.values_mut() {
+            if *address > end {
+                *address = (*address as isize + size_diff) as usize;
+            }
+        }
+        //dbg!(&self.input);
+        //dbg!(&self.functions);
+        //dbg!(self.program_counter);
+        //thread::sleep(time::Duration::from_secs(10000000000));
     }
 
     fn perform_backoff(&mut self, reason: &str) -> EcoString {
