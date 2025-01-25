@@ -81,9 +81,7 @@ pub fn handle(filename: Option<Utf8PathBuf>) {
         }
 
         if let Ok(Some(())) = keypress_reciever.try_recv() {
-            if !require_hotswap {
-                driver_sender.send(Command::OpenMenu).unwrap();
-            }
+            driver_sender.send(Command::OpenMenu).unwrap();
 
             let confirmation = driver_backwards_reciever.recv().unwrap();
 
