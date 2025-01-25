@@ -34,7 +34,7 @@ struct State {
     program_counter: usize,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum RunCommunication {
     RequireHotswap(EcoString),
     Finished,

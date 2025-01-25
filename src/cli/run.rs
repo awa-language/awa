@@ -35,11 +35,23 @@ pub fn handle(filename: Option<Utf8PathBuf>) {
     ) = channel();
 
     let _ = std::thread::spawn(move || {
-        driver::run(&mut analyzer, &module, &input_reciever, &backwards_sender);
+        let _ = driver::run(&mut analyzer, &module, &input_reciever, &backwards_sender);
+        return;
     });
 
     let term = console::Term::stdout();
     let mut require_hotswap = false;
+
+    let (keypress_sender, keypress_reciever) = channel();
+    let term_clone = term.clone();
+
+    std::thread::spawn(move || loop {
+        if let Ok(_) = term_clone.read_char() {
+            let _ = keypress_sender.send(Some(()));
+        } else {
+            let _ = keypress_sender.send(None);
+        }
+    });
 
     loop {
         if let Ok(command) = backwards_reciever.try_recv() {
@@ -56,33 +68,38 @@ pub fn handle(filename: Option<Utf8PathBuf>) {
             }
         }
 
-        if term.read_char().is_err() {
-            // NOTE: only happens when there is no terminal, i.e. in CI
-            let confirmation = backwards_reciever.recv().unwrap();
-            match confirmation {
-                BackwardsCommunication::Hotswapped => {
-                    unreachable!();
-                }
-                BackwardsCommunication::RequireHotswap => unreachable!(),
-                BackwardsCommunication::Finished => return,
-            }
-        }
+        if let Ok(keypress) = keypress_reciever.try_recv() {
+            match keypress {
+                Some(_) => {
+                    if !require_hotswap {
+                        let () = input_sender.send(Command::OpenMenu).unwrap();
+                    }
 
-        if !require_hotswap {
-            let () = input_sender.send(Command::OpenMenu).unwrap();
-        }
-
-        let confirmation = backwards_reciever.recv().unwrap();
-        match confirmation {
-            BackwardsCommunication::Hotswapped => {
-                if require_hotswap {
-                    require_hotswap = false;
+                    let confirmation = backwards_reciever.recv().unwrap();
+                    match confirmation {
+                        BackwardsCommunication::Hotswapped => {
+                            if require_hotswap {
+                                require_hotswap = false;
+                            }
+                        }
+                        BackwardsCommunication::RequireHotswap => {
+                            require_hotswap = true;
+                        }
+                        BackwardsCommunication::Finished => return,
+                    }
+                }
+                None => {
+                    // NOTE: only happens when there is no terminal, i.e. in CI
+                    let confirmation = backwards_reciever.recv().unwrap();
+                    match confirmation {
+                        BackwardsCommunication::Hotswapped => {
+                            unreachable!();
+                        }
+                        BackwardsCommunication::RequireHotswap => unreachable!(),
+                        BackwardsCommunication::Finished => return,
+                    }
                 }
             }
-            BackwardsCommunication::RequireHotswap => {
-                require_hotswap = true;
-            }
-            BackwardsCommunication::Finished => return,
         }
     }
 }

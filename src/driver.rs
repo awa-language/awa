@@ -32,7 +32,7 @@ pub fn run(
     module: &module::Typed,
     command_receiver: &std::sync::mpsc::Receiver<Command>,
     backwards_sender: &std::sync::mpsc::Sender<BackwardsCommunication>,
-) -> i32 {
+) {
     let bytecode = make_bytecode(module);
     let mut vm = vm::VM::new(bytecode);
     let mut awaiting_hotswap = false;
@@ -101,7 +101,7 @@ pub fn run(
                         let () = backwards_sender
                             .send(BackwardsCommunication::Finished)
                             .unwrap();
-                        return 0;
+                        return;
                     }
                 }
             }
