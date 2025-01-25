@@ -52,6 +52,7 @@ pub fn handle(filename: Option<Utf8PathBuf>) {
         let stdin = std::io::stdin();
         let mut keys = stdin.keys();
 
+        // NOTE: it is blocking, sleeping won't optimize CPU usage
         loop {
             if let Some(Ok(_key)) = keys.next() {
                 let _ = keypress_sender.send(Some(()));
@@ -64,6 +65,8 @@ pub fn handle(filename: Option<Utf8PathBuf>) {
     });
 
     loop {
+        std::thread::sleep(std::time::Duration::from_millis(10));
+
         if let Ok(command) = driver_backwards_reciever.try_recv() {
             match command {
                 BackwardsCommunication::Hotswapped
