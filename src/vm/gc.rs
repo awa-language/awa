@@ -32,7 +32,7 @@ impl ObjectPool {
     fn new() -> Self {
         Self {
             strings: Vec::with_capacity(100),
-            slices: Vec::with_capacity(100),
+            slices: Vec::with_capacity(1000),
             structs: Vec::with_capacity(100),
         }
     }
@@ -40,11 +40,11 @@ impl ObjectPool {
     fn get_string(&mut self) -> EcoString {
         self.strings
             .pop()
-            .unwrap_or_else(|| EcoString::with_capacity(10))
+            .unwrap_or_else(|| EcoString::with_capacity(5))
     }
 
     fn get_slice(&mut self) -> Vec<Value> {
-        self.slices.pop().unwrap_or_else(|| Vec::with_capacity(10))
+        self.slices.pop().unwrap_or_else(|| Vec::with_capacity(5))
     }
 
     fn get_struct(&mut self) -> HashMap<EcoString, Value> {
@@ -224,7 +224,7 @@ impl GC {
             if *marked {
                 remap[i] = Some(new_heap.len());
                 let mut object =
-                    std::mem::replace(&mut self.heap[i], Object::Array(Vec::with_capacity(100)));
+                    std::mem::replace(&mut self.heap[i], Object::Array(Vec::with_capacity(5)));
 
                 match &mut object {
                     Object::String(string) if string.is_empty() => {
