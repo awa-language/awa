@@ -40,7 +40,15 @@ impl Diagnostic {
         let main_file_id = files.add(main_location_path, main_location_src);
         let _ = file_map.insert(main_location_path, main_file_id);
 
-        let diagnostic = codespan_reporting::diagnostic::Diagnostic::new(Severity::Warning)
+        let labels = vec![codespan_reporting::diagnostic::Label {
+            style: codespan_reporting::diagnostic::LabelStyle::Primary,
+            file_id: main_file_id,
+            range: (self.location.location.start as usize)..(self.location.location.end as usize),
+            message: self.text.clone(),
+        }];
+
+        let diagnostic = codespan_reporting::diagnostic::Diagnostic::new(Severity::Error)
+            .with_labels(labels)
             .with_message(&self.text);
         let config = codespan_reporting::term::Config::default();
 

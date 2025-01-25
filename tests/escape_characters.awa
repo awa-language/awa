@@ -1,0 +1,14 @@
+func main() {
+    println("quotation mark: a\"b")
+    println("backslash: a\\b")
+
+    println("newline: a\nb")
+    println("page breaker: a\fb")
+    println("carriage return: a\rb")
+    println("horizontal tab: a\tb")
+    println("vertical tab: a\vb")
+    println("null: a\0b")
+    println("bell: a\ab")
+    println("backspace: a\bb")
+    println("unicode: a\u{1234}b")
+}

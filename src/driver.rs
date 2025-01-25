@@ -5,7 +5,10 @@ use crate::{
         module::{self, Module},
     },
     cli::{self, input::MenuAction},
-    interpreter, vm,
+    error::Error,
+    interpreter,
+    parse::error::ConvertingErrorType::ParsingError,
+    vm,
 };
 
 #[derive(Debug)]
@@ -48,8 +51,7 @@ pub fn run(
                             let module = match module {
                                 Ok(module) => module,
                                 Err(err) => {
-                                    let description = err.get_description();
-                                    println!("{description}");
+                                    print_diagnostics(user_input.into(), err.clone());
 
                                     if awaiting_hotswap {
                                         awaiting_hotswap = false;
@@ -115,8 +117,7 @@ pub fn build_ast(input: &str) -> (TypeAnalyzer, Module<DefinitionTyped>) {
     match typed_module {
         Ok(module) => (analyzer, module),
         Err(err) => {
-            let description = err.get_description();
-            println!("{description}");
+            print_diagnostics(input.into(), err.clone());
             std::process::exit(1); // TODO: FIXME
         }
     }
@@ -127,4 +128,34 @@ pub fn make_bytecode(module: &Module<DefinitionTyped>) -> Vec<vm::instruction::I
     let interpreter = interpreter::Interpreter::new();
 
     interpreter.interpret_module(module)
+}
+
+fn print_diagnostics(src: ecow::EcoString, converting_error: crate::parse::error::ConvertingError) {
+    let error = match converting_error.error {
+        ParsingError { ref error } => {
+            Error::Parsing {
+                path: "tests/invalid_syntax.awa".into(), // TODO: FIXME
+                src,
+                error: error.clone(),
+            }
+        }
+        _ => {
+            Error::Ast {
+                path: "tests/invalid_syntax.awa".into(), // TODO: FIXME
+                src,
+                error: converting_error.clone(),
+            }
+        }
+    };
+
+    let buffer_writer = termcolor::BufferWriter::stderr(termcolor::ColorChoice::Auto);
+    let mut buffer = buffer_writer.buffer();
+
+    let diagnostics = error.to_diagnostics();
+
+    for diagnostic in diagnostics {
+        diagnostic.write(&mut buffer);
+    }
+
+    buffer_writer.print(&buffer).unwrap();
 }

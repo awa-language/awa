@@ -68,25 +68,25 @@ impl ConvertingError {
             }
             ConvertingErrorType::UnsupportedType => "unsupported type".to_owned(),
             ConvertingErrorType::FunctionNotDefined { function_name } => {
-                format!("function '{function_name:?}' is not defined")
+                format!("function `{function_name:?}` is not defined")
             }
             ConvertingErrorType::StructNotDefined { struct_name } => {
-                format!("struct '{struct_name:?}' is not defined")
+                format!("struct `{struct_name:?}` is not defined")
             }
             ConvertingErrorType::VariableNotDefined { variable_name } => {
-                format!("variable '{variable_name:?}' is not defined")
+                format!("variable `{variable_name:?}` is not defined")
             }
             ConvertingErrorType::FieldNotFound {
                 field_name,
                 struct_name,
             } => {
-                format!("field '{field_name:?}' not found in struct '{struct_name:?}'")
+                format!("field `{field_name:?}` not found in struct `{struct_name:?}`")
             }
             ConvertingErrorType::TypeMismatch { expected, found } => {
                 format!("type mismatch: expected {expected:?}, found {found:?}")
             }
             ConvertingErrorType::EmptyStruct => "empty struct".to_owned(),
-            ConvertingErrorType::NotTheRightAmountOfArguments { expected, found } => {
+            ConvertingErrorType::InvalidArgumentsAmount { expected, found } => {
                 format!("amount arguments mismatch: expected {expected:?}, found {found:?}")
             }
             ConvertingErrorType::BuiltInFunctionMismatchType { found } => {
@@ -102,7 +102,7 @@ impl ConvertingError {
                 "hotswap definition must be a function".to_owned()
             }
             ConvertingErrorType::InvalidHotswapNameMismatch { expected, found } => {
-                format!("hotswap function name mismatch: expected '{expected}', found '{found}'")
+                format!("hotswap function name mismatch: expected `{expected}`, found `{found}`")
             }
             ConvertingErrorType::InvalidHotswapReturnTypeMismatch { expected, found } => {
                 format!("hotswap return type mismatch: expected {expected:?}, found {found:?}")
@@ -157,7 +157,7 @@ pub enum ConvertingErrorType {
         found: crate::type_::Type,
     },
     EmptyStruct,
-    NotTheRightAmountOfArguments {
+    InvalidArgumentsAmount {
         expected: usize,
         found: usize,
     },

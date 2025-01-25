@@ -1,0 +1,4 @@
+func main() {
+    println("Hello, 世界")
+    println("\u{9078}\u{629e}")
+}

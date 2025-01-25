@@ -411,10 +411,21 @@ where
         if let Some(ch) = self.current_char {
             let end_location = self.current_location;
             match ch {
-                'f' | 'n' | 'r' | 't' | '"' | '\\' => {
+                'f' | 'n' | 'r' | 't' | '"' | 'v' | 'a' | 'b' | '0' | '\\' => {
                     let _ = self.advance_char();
-                    string.push('\\');
-                    string.push(ch);
+                    match ch {
+                        'f' => string.push('\x0c'),
+                        'n' => string.push('\n'),
+                        'r' => string.push('\r'),
+                        't' => string.push('\t'),
+                        'v' => string.push('\x0b'),
+                        'a' => string.push('\x07'),
+                        'b' => string.push('\x08'),
+                        '0' => string.push('\0'),
+                        _ => {
+                            string.push(ch);
+                        }
+                    }
                 }
                 'u' => self.lex_unicode_escape(string)?,
                 _ => {
@@ -498,9 +509,9 @@ where
             });
         }
 
-        string.push_str("\\u{");
-        string.push_str(&hex_digits);
-        string.push('}');
+        let unicode_char =
+            std::char::from_u32(0x2520 + u32::from_str_radix(&hex_digits, 16).unwrap()).unwrap();
+        string.push(unicode_char);
 
         Ok(())
     }

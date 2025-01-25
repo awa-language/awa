@@ -1,0 +1,9 @@
+func say_hello() {
+    println("Hello!")
+}
+
+func main() {
+    var name string = "awa"
+
+    say_hello(name)
+}
