@@ -51,7 +51,7 @@ pub fn run(
                             let module = match module {
                                 Ok(module) => module,
                                 Err(err) => {
-                                    print_diagnostics(user_input.into(), err.clone());
+                                    print_diagnostics(user_input.into(), &err);
 
                                     if awaiting_hotswap {
                                         awaiting_hotswap = false;
@@ -117,7 +117,7 @@ pub fn build_ast(input: &str) -> (TypeAnalyzer, Module<DefinitionTyped>) {
     match typed_module {
         Ok(module) => (analyzer, module),
         Err(err) => {
-            print_diagnostics(input.into(), err.clone());
+            print_diagnostics(input.into(), &err);
             std::process::exit(1); // TODO: FIXME
         }
     }
@@ -130,7 +130,10 @@ pub fn make_bytecode(module: &Module<DefinitionTyped>) -> Vec<vm::instruction::I
     interpreter.interpret_module(module)
 }
 
-fn print_diagnostics(src: ecow::EcoString, converting_error: crate::parse::error::ConvertingError) {
+fn print_diagnostics(
+    src: ecow::EcoString,
+    converting_error: &crate::parse::error::ConvertingError,
+) {
     let error = match converting_error.error {
         ParsingError { ref error } => {
             Error::Parsing {
