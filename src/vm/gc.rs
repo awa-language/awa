@@ -63,12 +63,12 @@ impl Default for GC {
 impl GC {
     pub fn new() -> Self {
         Self {
-            heap: Vec::with_capacity(100_000),
-            marked: Vec::with_capacity(100_000),
+            heap: Vec::with_capacity(1000),
+            marked: Vec::with_capacity(1000),
             alloc_count: 0,
             threshold: 10,
             object_pool: ObjectPool::new(),
-            mark_stack: Vec::with_capacity(100_000),
+            mark_stack: Vec::with_capacity(1000),
         }
     }
 
@@ -122,8 +122,6 @@ impl GC {
         stack: &mut [Value],
         environments_stack: &mut [HashMap<EcoString, Value>],
     ) {
-        self.threshold += self.threshold / 2;
-
         self.marked.clear();
         self.marked.resize(self.heap.len(), false);
 
@@ -226,7 +224,7 @@ impl GC {
             if *marked {
                 remap[i] = Some(new_heap.len());
                 let mut object =
-                    std::mem::replace(&mut self.heap[i], Object::Array(Vec::with_capacity(100)));
+                    std::mem::replace(&mut self.heap[i], Object::Array(Vec::with_capacity(10)));
 
                 match &mut object {
                     Object::String(string) if string.is_empty() => {
