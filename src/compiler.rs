@@ -21,7 +21,7 @@ impl Compiler {
         self.bytecode.clone()
     }
 
-    /*
+
     fn constant_folding(&mut self) {
         let mut i = 0;
         while i < self.bytecode.len() {
@@ -31,7 +31,7 @@ impl Compiler {
 
             while j < self.bytecode.len() {
                 match &self.bytecode[j] {
-                    // Остановиться на управляющих конструкциях
+
                     Instruction::JumpIfTrue(_)
                     | Instruction::JumpIfFalse(_)
                     | Instruction::Jump(_)
@@ -39,12 +39,10 @@ impl Compiler {
                     | Instruction::Return
                     | Instruction::EndFunc => break,
 
-                    // Сохранить константы
                     Instruction::PushInt(n) => {
                         constants.push(*n);
                     }
 
-                    // Если встречается инструкция, зависящая от времени выполнения, остановиться
                     Instruction::Call(_)
                     | Instruction::GetField(_)
                     | Instruction::GetByIndex
@@ -53,76 +51,51 @@ impl Compiler {
                         break;
                     }
 
-                    // Арифметика
-                    Instruction::AddInt => {
-                        if constants.len() >= 2 {
-                            let b = constants.pop().unwrap();
-                            let a = constants.pop().unwrap();
-                            constants.push(a + b);
-                        } else {
+                    Instruction::AddInt | Instruction::SubInt | Instruction::MulInt | Instruction::DivInt => {
+                        if constants.len() < 2 {
                             can_fold = false;
                             break;
                         }
-                    }
-                    Instruction::SubInt => {
-                        if constants.len() >= 2 {
-                            let b = constants.pop().unwrap();
-                            let a = constants.pop().unwrap();
-                            constants.push(a - b);
-                        } else {
-                            can_fold = false;
-                            break;
-                        }
-                    }
-                    Instruction::MulInt => {
-                        if constants.len() >= 2 {
-                            let b = constants.pop().unwrap();
-                            let a = constants.pop().unwrap();
-                            constants.push(a * b);
-                        } else {
-                            can_fold = false;
-                            break;
-                        }
-                    }
-                    Instruction::DivInt => {
-                        if constants.len() >= 2 {
-                            let b = constants.pop().unwrap();
-                            let a = constants.pop().unwrap();
-                            if b != 0 {
-                                constants.push(a / b);
-                            } else {
-                                can_fold = false;
-                                break;
+
+                        let b = constants.pop().unwrap();
+                        let a = constants.pop().unwrap();
+
+                        let result = match &self.bytecode[j] {
+                            Instruction::AddInt => a + b,
+                            Instruction::SubInt => a - b,
+                            Instruction::MulInt => a * b,
+                            Instruction::DivInt => {
+                                if b == 0 {
+                                    can_fold = false;
+                                    break;
+                                }
+                                a / b
                             }
-                        } else {
-                            can_fold = false;
-                            break;
-                        }
+                            _ => unreachable!(),
+                        };
+
+                        constants.push(result);
                     }
 
                     _ => break,
                 }
+
                 j += 1;
             }
 
-            // Если есть что оптимизировать и все инструкции были константными
-            if constants.len() > 0 && can_fold && j > i {
-                // Вычисленное значение
+            if can_fold && !constants.is_empty() && j > i {
                 let folded_value = constants.pop().unwrap();
 
-                // Удаляем инструкции от i до j
                 self.bytecode.drain(i..j);
-
-                // Вставляем одну инструкцию PushInt
                 self.bytecode.insert(i, Instruction::PushInt(folded_value));
 
-                // Продолжаем с позиции после вставленной инструкции
                 i += 1;
             } else {
                 i += 1;
             }
         }
-    } */
+    }
+
 
     fn peephole_optimization(&mut self) {
         let mut i = 0;
