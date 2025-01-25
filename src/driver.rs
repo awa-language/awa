@@ -89,6 +89,14 @@ pub fn run(
                                 .send(BackwardsCommunication::ReturnedToExecution)
                                 .unwrap();
                         }
+                        MenuAction::CtrlC => {
+                            let () = backwards_sender
+                                .send(BackwardsCommunication::Finished)
+                                .unwrap();
+                            println!("recieved SIGINT");
+
+                            return;
+                        }
                     }
                 }
             }

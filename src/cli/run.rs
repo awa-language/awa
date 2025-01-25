@@ -57,7 +57,9 @@ pub fn handle(filename: Option<Utf8PathBuf>) {
                 let _ = keypress_sender.send(Some(()));
             }
 
-            keypress_backwards_reciever.recv().unwrap();
+            if keypress_backwards_reciever.recv().is_err() {
+                return;
+            }
         }
     });
 
