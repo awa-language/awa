@@ -49,6 +49,7 @@ impl Compiler {
             self.peephole_optimization();
             self.dead_code_elimination();
             self.removing_empty_conditionals();
+            self.constant_folding();
             changed = self.bytecode.len() != len_before;
         }
 
@@ -98,7 +99,8 @@ impl Compiler {
                     | Instruction::GetByIndex
                     | Instruction::PushArray(_)
                     | Instruction::Append
-                    | Instruction::LoadToStack(_) => {
+                    | Instruction::LoadToStack(_)
+                    | Instruction::SetByIndex => {
                         can_fold = false;
                         break;
                     }
@@ -396,7 +398,8 @@ impl Compiler {
                                 | Instruction::GreaterFloat
                                 | Instruction::GreaterEqualFloat
                                 | Instruction::Concat
-                                | Instruction::GetByIndex => {
+                                | Instruction::GetByIndex
+                                | Instruction::SetField(_) => {
                                     stack_balance -= 1;
                                     start -= 1;
                                 }

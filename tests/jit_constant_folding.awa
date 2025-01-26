@@ -10,13 +10,11 @@ func factorial(n int) int {
 
     var vasya person = person{ age: 10/2, income: 66.2 /. 2.0 }
 
-    factorial(n - 1)
-    var arr []int = []int{1,2,3}
-    println("lol")
+    var petya int = ( 5 - 2 + 10 - 321  + 13 - 123 + 22 + 6 ) / 2 * -1
 
-    return ( 5 - 2 + 10 - 321 + arr[1] + 13 + vasya.age - 123 - arr[1] + 22 + 6 ) / 2
+    return factorial(n - 1)
 }
 
 func main() {
-    println(factorial(20000))
+    println(factorial(400000))
 }
