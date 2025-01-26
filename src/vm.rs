@@ -74,7 +74,7 @@ impl ExecutionStats {
 
         self.function_executions
             .get(name)
-            .map_or(false, |&count| count > threshold)
+            .is_some_and(|&count| count > threshold)
     }
 
     fn should_optimize_loop(&self, start_pc: usize, threshold: u32) -> bool {
@@ -84,7 +84,7 @@ impl ExecutionStats {
 
         self.loop_iterations
             .get(&start_pc)
-            .map_or(false, |&count| count > threshold)
+            .is_some_and(|&count| count > threshold)
     }
 
     fn record_function_optimization(&mut self, name: &EcoString) {
