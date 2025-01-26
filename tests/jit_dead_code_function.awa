@@ -1,20 +1,22 @@
+struct person {
+  age int
+  income float
+}
+
 func factorial(n int) int {
-    var x int = 5 + 234 / 123
-    var o int = 23
     if (n <= 1) {
         return 1
-    } else {
-        var a int = 232 - x
-        o = a + 2
     }
 
-    x = 2 + x
+    var vasya person = person{ age: 10/2, income: 66.2 /. 2.0 }
 
-    factorial(n - 1)
+    var lyosha []int = []int{1,2,3}
 
-    return 3
+    var petya int = ( 5 - 2 + 10 - 321  + 13 - 123 + 22 + 6 ) / 2 * -1
+
+    return factorial(n - 1)
 }
 
 func main() {
-    println(factorial(2000000))
+    println(factorial(400000))
 }

@@ -399,7 +399,8 @@ impl Compiler {
                                 | Instruction::GreaterEqualFloat
                                 | Instruction::Concat
                                 | Instruction::GetByIndex
-                                | Instruction::SetField(_) => {
+                                | Instruction::SetField(_)
+                                | Instruction::Append => {
                                     stack_balance -= 1;
                                     start -= 1;
                                 }
