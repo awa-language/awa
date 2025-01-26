@@ -935,6 +935,20 @@ impl VM {
     pub fn hotswap_function(&mut self, new_code: &[Instruction]) {
         let (function_name, body) = VM::extract_func_block(new_code);
         let offset = self.input.len();
+        let binding = self.functions.clone();
+        let function_start = binding.get(&function_name).expect("No function found");
+        let mut function_end = function_start.clone();
+
+        while function_end > self.input.len() {
+            match self.input[function_end] {
+                Instruction::EndFunc => {
+                    break;
+                }
+                _ => {
+                    function_end += 1;
+                }
+            }
+        }
 
         let body_fixed = VM::adjust_jumps(body, offset);
 
@@ -946,7 +960,13 @@ impl VM {
         }
 
         self.input.push(Instruction::EndFunc);
-        self.functions.insert(function_name, start_address);
+        self.functions.insert(function_name.clone(), start_address);
+        self.execution_stats
+            .function_last_optimization
+            .remove(&function_name);
+        self.execution_stats
+            .loop_last_optimization
+            .retain(|&addr, _| addr < function_end && addr > function_start.clone());
     }
 
     fn extract_func_block(code: &[Instruction]) -> (EcoString, Vec<Instruction>) {
