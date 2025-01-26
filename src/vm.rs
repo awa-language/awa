@@ -1,4 +1,3 @@
-use core::f64;
 use std::collections::HashMap;
 
 use ecow::EcoString;
@@ -11,12 +10,14 @@ pub mod tests;
 use gc::{Object, GC};
 use instruction::{Bytecode, Instruction, Value};
 
+use crate::optimizer::Optimizer;
+
 pub struct VM {
     pub(crate) input: Bytecode,
     pub(crate) program_counter: usize,
     pub(crate) stack: Vec<Value>,
 
-    /// Environment stack for local variables (each Func call -> push, Return -> pop).
+    /// Environments stack for local variables (each Func call -> push, Return -> pop).
     pub(crate) environments_stack: Vec<HashMap<EcoString, Value>>,
 
     pub(crate) structures: HashMap<EcoString, HashMap<EcoString, Value>>,
@@ -26,12 +27,75 @@ pub struct VM {
     pub(crate) gc: GC,
 
     backup_state: Option<State>,
+    execution_stats: ExecutionStats,
+    optimization_threshold: u32,
+
+    should_perform_optimizations: bool,
 }
 
 #[derive(Debug)]
 struct State {
     stack: Vec<Value>,
     program_counter: usize,
+}
+
+#[derive(Default)]
+struct ExecutionStats {
+    function_executions: HashMap<EcoString, u32>,
+    loop_iterations: HashMap<usize, u32>,
+    optimized_functions: HashMap<EcoString, u32>,
+    loop_last_optimization: HashMap<usize, u32>,
+    current_execution_time: u32,
+}
+
+impl ExecutionStats {
+    fn new(functions_count: usize) -> Self {
+        Self {
+            function_executions: HashMap::with_capacity(functions_count),
+            loop_iterations: HashMap::with_capacity(functions_count), // whatever
+            optimized_functions: HashMap::with_capacity(functions_count),
+            loop_last_optimization: HashMap::with_capacity(functions_count), // whatever
+            current_execution_time: 0,
+        }
+    }
+
+    fn record_function_execution(&mut self, name: &EcoString) {
+        *self.function_executions.entry(name.clone()).or_insert(0) += 1;
+    }
+
+    fn record_loop_iteration(&mut self, start_pc: usize) {
+        *self.loop_iterations.entry(start_pc).or_insert(0) += 1;
+    }
+
+    fn should_optimize_function(&self, name: &EcoString, threshold: u32) -> bool {
+        if self.optimized_functions.contains_key(name) {
+            return false;
+        }
+
+        self.function_executions
+            .get(name)
+            .is_some_and(|&count| count > threshold)
+    }
+
+    fn should_optimize_loop(&self, start_pc: usize, threshold: u32) -> bool {
+        if self.loop_last_optimization.contains_key(&start_pc) {
+            return false;
+        }
+
+        self.loop_iterations
+            .get(&start_pc)
+            .is_some_and(|&count| count > threshold)
+    }
+
+    fn record_function_optimization(&mut self, name: &EcoString) {
+        self.optimized_functions
+            .insert(name.clone(), self.current_execution_time);
+    }
+
+    fn record_loop_optimization(&mut self, start_pc: usize) {
+        self.loop_last_optimization
+            .insert(start_pc, self.current_execution_time);
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -47,7 +111,7 @@ impl VM {
     ///
     /// Will panic if the provided bytecode does not contain `main()` function.
     #[must_use]
-    pub fn new(input: Vec<Instruction>) -> Self {
+    pub fn new(input: Vec<Instruction>, should_perform_optimizations: bool) -> Self {
         let mut vm = Self {
             input,
             program_counter: 0,
@@ -58,10 +122,15 @@ impl VM {
             call_stack: Vec::with_capacity(100_000),
             gc: GC::new(),
             backup_state: None,
+            execution_stats: ExecutionStats::new(0),
+            optimization_threshold: 10000,
+            should_perform_optimizations,
         };
 
         vm.environments_stack.push(HashMap::with_capacity(50));
-        vm.preprocess_bytecode();
+
+        let functions_count = vm.preprocess_bytecode();
+        vm.execution_stats = ExecutionStats::new(functions_count);
 
         if let Some(&main_address) = vm.functions.get("main") {
             vm.program_counter = main_address;
@@ -373,6 +442,18 @@ impl VM {
                 self.maybe_run_gc();
             }
             Instruction::Jump(address) => {
+                if self.should_perform_optimizations && address <= self.program_counter {
+                    self.execution_stats.record_loop_iteration(address);
+
+                    if self
+                        .execution_stats
+                        .should_optimize_loop(address, self.optimization_threshold)
+                    {
+                        self.optimize_loop(address, self.program_counter);
+                        self.execution_stats.record_loop_optimization(address);
+                    }
+                }
+
                 assert!(address < self.input.len(), "jump out of range");
                 self.program_counter = address;
 
@@ -398,6 +479,18 @@ impl VM {
                 }
             }
             Instruction::Call(name) => {
+                if self.should_perform_optimizations {
+                    self.execution_stats.record_function_execution(&name);
+
+                    if self
+                        .execution_stats
+                        .should_optimize_function(&name, self.optimization_threshold)
+                    {
+                        self.optimize_function(&name);
+                        self.execution_stats.record_function_optimization(&name);
+                    }
+                }
+
                 if let Some(&address) = self.functions.get(&name) {
                     self.backup_state = Some(State {
                         stack: self.stack.clone(),
@@ -525,12 +618,16 @@ impl VM {
         None
     }
 
-    fn preprocess_bytecode(&mut self) {
+    fn preprocess_bytecode(&mut self) -> usize {
         let mut i = 0;
+
+        let mut functions_count = 0;
 
         while i < self.input.len() {
             match &self.input[i] {
                 Instruction::Func(name) => {
+                    functions_count += 1;
+
                     let start = i + 1;
                     let mut end = None;
                     let mut j = start;
@@ -550,6 +647,7 @@ impl VM {
 
                         continue;
                     }
+
                     panic!("Func without EndFunc");
                 }
                 Instruction::Struct(struct_name) => {
@@ -573,10 +671,96 @@ impl VM {
                     assert!(i < self.input.len(), "Struct without EndStruct");
                     self.structures.insert(struct_name.clone(), fields);
                 }
+
                 _ => {}
             }
 
             i += 1;
+        }
+
+        functions_count
+    }
+
+    fn optimize_function(&mut self, name: &EcoString) {
+        if let Some(&start) = self.functions.get(name) {
+            let mut end = start;
+            while end < self.input.len() {
+                if matches!(self.input[end], Instruction::EndFunc) {
+                    break;
+                }
+                end += 1;
+            }
+
+            let code_to_optimize = self.input[start..end].to_vec();
+            let optimized_code = Optimizer::optimize_function(code_to_optimize.clone(), start);
+
+            self.replace_code_region(start, end - 1, optimized_code);
+        }
+    }
+
+    fn optimize_loop(&mut self, start: usize, end: usize) {
+        let mut func_start = start;
+        while func_start > 0 {
+            if let Instruction::Func(_) = &self.input[func_start - 1] {
+                break;
+            }
+            func_start -= 1;
+        }
+
+        let mut func_end = end;
+        while func_end < self.input.len() {
+            if let Instruction::EndFunc = &self.input[func_end] {
+                break;
+            }
+            func_end += 1;
+        }
+
+        let function_code = self.input[func_start..func_end].to_vec();
+        let loop_start = start - func_start;
+        let loop_end = end - func_start;
+
+        let optimized_loop =
+            Optimizer::optimize_loop(function_code, loop_start, loop_end, func_start);
+        self.replace_code_region(start, end, optimized_loop);
+    }
+
+    fn replace_code_region(&mut self, start: usize, end: usize, new_code: Vec<Instruction>) {
+        let old_size = end - start + 1;
+        let new_size = new_code.len();
+        let size_diff = isize::try_from(new_size).unwrap() - isize::try_from(old_size).unwrap();
+
+        self.input.splice(start..=end, new_code);
+
+        if self.program_counter > start {
+            self.program_counter =
+                usize::try_from(isize::try_from(self.program_counter).unwrap() + size_diff)
+                    .unwrap();
+        }
+
+        for address in &mut self.call_stack {
+            if *address > start {
+                *address = usize::try_from(isize::try_from(*address).unwrap() + size_diff).unwrap();
+            }
+        }
+
+        for i in 0..self.input.len() {
+            match &mut self.input[i] {
+                Instruction::Jump(target)
+                | Instruction::JumpIfTrue(target)
+                | Instruction::JumpIfFalse(target) => {
+                    if *target > end {
+                        *target =
+                            usize::try_from(isize::try_from(*target).unwrap() + size_diff).unwrap();
+                    }
+                }
+                _ => {}
+            }
+        }
+
+        for address in self.functions.values_mut() {
+            if *address > start {
+                *address = usize::try_from(isize::try_from(*address).unwrap() + size_diff).unwrap();
+            }
         }
     }
 
@@ -759,6 +943,12 @@ impl VM {
         }
     }
 
+    /// Perform function hotswap
+    ///
+    /// # Panics
+    ///
+    /// Will panic if the function to be swapped out is not present in the code
+    ///
     /// 1. Finds `Func(name)` ... `EndFunc` in the new fragment.
     /// 2. Adjusts `Jump`/`JumpIfTrue`/`JumpIfFalse` by an offset equal to the current length of `self.input`.
     /// 3. Adds to `self.input`: `Func(name)`, [body], `EndFunc`.
@@ -766,18 +956,38 @@ impl VM {
     pub fn hotswap_function(&mut self, new_code: &[Instruction]) {
         let (function_name, body) = VM::extract_func_block(new_code);
         let offset = self.input.len();
+        let binding = self.functions.clone();
+        let function_start = binding.get(&function_name).expect("no function found");
+        let mut function_end = *function_start;
+
+        while function_end > self.input.len() {
+            match self.input.get(function_end) {
+                Some(Instruction::EndFunc) => {
+                    break;
+                }
+                _ => {
+                    function_end += 1;
+                }
+            }
+        }
 
         let body_fixed = VM::adjust_jumps(body, offset);
 
         self.input.push(Instruction::Func(function_name.clone()));
         let start_address = self.input.len();
 
-        for instr in body_fixed {
-            self.input.push(instr);
+        for instruction in body_fixed {
+            self.input.push(instruction);
         }
 
         self.input.push(Instruction::EndFunc);
-        self.functions.insert(function_name, start_address);
+        self.functions.insert(function_name.clone(), start_address);
+        self.execution_stats
+            .optimized_functions
+            .remove(&function_name);
+        self.execution_stats
+            .loop_last_optimization
+            .retain(|&address, _| address < function_end && address > *function_start);
     }
 
     fn extract_func_block(code: &[Instruction]) -> (EcoString, Vec<Instruction>) {
@@ -801,8 +1011,8 @@ impl VM {
             }
         }
 
-        let start = start.expect("No Func(...) in new_code");
-        let end = end.expect("No EndFunc after Func(...)");
+        let start = start.expect("no Func(...) in new_code");
+        let end = end.expect("no EndFunc after Func(...)");
 
         let body = code[start + 1..end].to_vec();
 

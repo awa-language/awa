@@ -9,7 +9,7 @@ use crate::driver::{self, BackwardsCommunication, Command};
 /// # Panics
 ///
 /// Will panic if file does not exist, or in case of unexpected internal errors
-pub fn handle(filename: Option<Utf8PathBuf>) {
+pub fn handle(filename: Option<Utf8PathBuf>, unoptimized: bool) {
     let filename = match filename {
         Some(filename) => filename,
         None => "main.awa".into(),
@@ -38,6 +38,7 @@ pub fn handle(filename: Option<Utf8PathBuf>) {
         driver::run(
             &mut analyzer,
             &module,
+            unoptimized,
             &driver_reciever,
             &driver_backwards_sender,
         );

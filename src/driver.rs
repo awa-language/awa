@@ -33,11 +33,12 @@ pub enum BackwardsCommunication {
 pub fn run(
     analyzer: &mut TypeAnalyzer,
     module: &module::Typed,
+    unoptimized: bool,
     command_receiver: &std::sync::mpsc::Receiver<Command>,
     backwards_sender: &std::sync::mpsc::Sender<BackwardsCommunication>,
 ) {
     let bytecode = make_bytecode(module);
-    let mut vm = vm::VM::new(bytecode);
+    let mut vm = vm::VM::new(bytecode, !unoptimized);
     let mut awaiting_hotswap = false;
 
     loop {

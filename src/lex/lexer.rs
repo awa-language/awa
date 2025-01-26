@@ -17,7 +17,7 @@ pub fn lex(input: &str) -> impl Iterator<Item = LexResult> + '_ {
     let chars = input
         .char_indices()
         .map(|(byte_index, char)| {
-            let index = u32::try_from(byte_index).expect("Lex input string is too long");
+            let index = u32::try_from(byte_index).expect("lex input string is too long");
             (index, char)
         })
         .collect::<Vec<_>>();
@@ -493,7 +493,7 @@ where
 
         if char::from_u32(
             u32::from_str_radix(&hex_digits, 16)
-                .expect("Cannot parse codepoint number in Unicode escape"),
+                .expect("cannot parse codepoint number in Unicode escape"),
         )
         .is_none()
         {

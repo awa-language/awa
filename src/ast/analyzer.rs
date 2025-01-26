@@ -451,8 +451,8 @@ impl TypeAnalyzer {
 
     /// Converts untyped statement to typed statement
     ///
-    /// # Panics
     /// # Errors
+    ///
     /// Returns `ConvertingError` if:
     /// - Type mismatch between variable declaration and value
     /// - Unknown variable reference in reassignment
@@ -849,7 +849,7 @@ impl TypeAnalyzer {
                                 self.convert_call_argument_to_typed(
                                     function_name,
                                     arg,
-                                    arguments,
+                                    arguments.as_ref(),
                                     *location,
                                     i,
                                 )
@@ -1351,7 +1351,7 @@ impl TypeAnalyzer {
         &mut self,
         function_name: &EcoString,
         argument: &CallArgumentUntyped,
-        arguments: &Option<Vec1<CallArgumentUntyped>>,
+        arguments: Option<&Vec1<CallArgumentUntyped>>,
         location: ast::location::Location,
         i: usize,
     ) -> Result<CallArgumentTyped, ConvertingError> {
@@ -1364,7 +1364,7 @@ impl TypeAnalyzer {
                 return Err(ConvertingError {
                     error: ConvertingErrorType::InvalidArgumentsAmount {
                         expected: 1,
-                        found: arguments.as_ref().map_or(0, vec1::Vec1::len),
+                        found: arguments.map_or(0, vec1::Vec1::len),
                     },
                     location: Location {
                         start: location.start,
@@ -1387,7 +1387,7 @@ impl TypeAnalyzer {
                 return Err(ConvertingError {
                     error: ConvertingErrorType::InvalidArgumentsAmount {
                         expected: 2,
-                        found: arguments.as_ref().map_or(0, vec1::Vec1::len),
+                        found: arguments.map_or(0, vec1::Vec1::len),
                     },
                     location: Location {
                         start: location.start,
@@ -1446,7 +1446,7 @@ impl TypeAnalyzer {
                 return Err(ConvertingError {
                     error: ConvertingErrorType::InvalidArgumentsAmount {
                         expected: 1,
-                        found: arguments.as_ref().map_or(0, vec1::Vec1::len),
+                        found: arguments.map_or(0, vec1::Vec1::len),
                     },
                     location: Location {
                         start: location.start,

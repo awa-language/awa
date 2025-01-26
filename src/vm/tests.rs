@@ -14,7 +14,7 @@ fn test_push_load_store() {
         Instruction::EndFunc,
     ];
 
-    let mut vm = VM::new(bytecode.clone());
+    let mut vm = VM::new(bytecode.clone(), false);
     for _i in bytecode {
         let _ = vm.run();
     }
@@ -44,7 +44,7 @@ fn test_arithmetic_int() {
         Instruction::EndFunc,
     ];
 
-    let mut vm = VM::new(bytecode.clone());
+    let mut vm = VM::new(bytecode.clone(), false);
     for _i in bytecode {
         let _ = vm.run();
     }
@@ -71,7 +71,7 @@ fn test_arithmetic_float() {
         Instruction::EndFunc,
     ];
 
-    let mut vm = VM::new(bytecode.clone());
+    let mut vm = VM::new(bytecode.clone(), false);
     for _i in bytecode {
         let _ = vm.run();
     }
@@ -113,7 +113,7 @@ fn test_comparisons() {
         Instruction::EndFunc,
     ];
 
-    let mut vm = VM::new(bytecode.clone());
+    let mut vm = VM::new(bytecode.clone(), false);
     for _i in 1..1000 {
         let _ = vm.run();
     }
@@ -136,7 +136,7 @@ fn test_jumps() {
         Instruction::EndFunc,
     ];
 
-    let mut vm = VM::new(bytecode.clone());
+    let mut vm = VM::new(bytecode.clone(), false);
     for _i in bytecode {
         let _ = vm.run();
     }
@@ -167,7 +167,7 @@ fn test_if_else() {
         Instruction::EndFunc,
     ];
 
-    let mut vm = VM::new(bytecode.clone());
+    let mut vm = VM::new(bytecode.clone(), false);
     for _i in bytecode {
         let _ = vm.run();
     }
@@ -195,7 +195,7 @@ fn test_functions() {
         Instruction::EndFunc,
     ];
 
-    let mut vm = VM::new(bytecode.clone());
+    let mut vm = VM::new(bytecode.clone(), false);
     for _i in bytecode {
         let _ = vm.run();
     }
@@ -225,7 +225,7 @@ fn test_structs() {
         Instruction::EndFunc,
     ];
 
-    let mut vm = VM::new(bytecode.clone());
+    let mut vm = VM::new(bytecode.clone(), false);
     for _i in bytecode {
         let _ = vm.run();
     }
@@ -242,7 +242,7 @@ fn test_concat() {
         Instruction::Halt,
         Instruction::EndFunc,
     ];
-    let mut vm = VM::new(bytecode.clone());
+    let mut vm = VM::new(bytecode.clone(), false);
     for _i in bytecode {
         let _ = vm.run();
     }
@@ -270,7 +270,7 @@ fn test_slice_1d() {
         Instruction::EndFunc,
     ];
 
-    let mut vm = VM::new(bytecode.clone());
+    let mut vm = VM::new(bytecode.clone(), false);
     for _i in bytecode {
         let _ = vm.run();
     }
@@ -315,7 +315,7 @@ fn test_complex() {
         Instruction::EndFunc,
     ];
 
-    let mut vm = VM::new(bytecode.clone());
+    let mut vm = VM::new(bytecode.clone(), false);
     for _i in bytecode {
         let _ = vm.run();
     }
@@ -347,7 +347,7 @@ fn test_recursion() {
         Instruction::Halt,
         Instruction::EndFunc,
     ];
-    let mut vm = VM::new(bytecode.clone());
+    let mut vm = VM::new(bytecode.clone(), false);
     for _i in 1..1000 {
         let _ = vm.run();
     }
@@ -398,7 +398,7 @@ fn test_gc_local_alloc_print() {
         Instruction::EndFunc,
     ];
 
-    let mut vm = VM::new(bytecode.clone());
+    let mut vm = VM::new(bytecode.clone(), false);
     for _i in bytecode {
         let _ = vm.run();
     }
@@ -433,7 +433,7 @@ fn test_gc_auto_trigger() {
         Instruction::EndFunc,
     ];
 
-    let mut vm = VM::new(bytecode.clone());
+    let mut vm = VM::new(bytecode.clone(), false);
     vm.gc.threshold = 2;
 
     for _i in bytecode {
@@ -513,7 +513,7 @@ fn test_hotswap() {
         Instruction::EndFunc,
     ];
 
-    let mut vm = VM::new(code);
+    let mut vm = VM::new(code, false);
 
     for _i in 1..=100 {
         let _ = vm.run();
@@ -559,7 +559,7 @@ fn test_slice_2d() {
         Instruction::Halt,
         Instruction::EndFunc,
     ];
-    let mut vm = VM::new(bytecode.clone());
+    let mut vm = VM::new(bytecode.clone(), false);
     for _i in bytecode {
         let _ = vm.run();
     }
