@@ -9,9 +9,9 @@ pub struct Optimizer {
     ///
     /// for cycle optimization is the whole function
     bytecode: Bytecode,
-    /// for function optimization is None
+    /// for function optimization is `None`
     ///
-    /// for cycle optimization is Some((cycle_start, cycle_end))
+    /// for cycle optimization is `Some((cycle_start, cycle_end))`
     hot_region: Option<(usize, usize)>,
     shift: usize,
 }
