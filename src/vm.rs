@@ -66,31 +66,23 @@ impl ExecutionStats {
     }
 
     fn should_optimize_function(&self, name: &EcoString, threshold: u32) -> bool {
-        if let Some(&count) = self.function_executions.get(name) {
-            if count > threshold {
-                return self
-                    .function_last_optimization
-                    .get(name)
-                    .map_or(true, |&last_time| {
-                        self.current_execution_time - last_time > threshold
-                    });
-            }
+        if self.function_last_optimization.contains_key(name) {
+            return false;
         }
-        false
+
+        self.function_executions
+            .get(name)
+            .map_or(false, |&count| count > threshold)
     }
 
     fn should_optimize_loop(&self, start_pc: usize, threshold: u32) -> bool {
-        if let Some(&count) = self.loop_iterations.get(&start_pc) {
-            if count > threshold {
-                return self
-                    .loop_last_optimization
-                    .get(&start_pc)
-                    .map_or(true, |&last_time| {
-                        self.current_execution_time - last_time > threshold
-                    });
-            }
+        if self.loop_last_optimization.contains_key(&start_pc) {
+            return false;
         }
-        false
+
+        self.loop_iterations
+            .get(&start_pc)
+            .map_or(false, |&count| count > threshold)
     }
 
     fn record_function_optimization(&mut self, name: &EcoString) {
@@ -687,20 +679,37 @@ impl VM {
                 end += 1;
             }
 
-            let code_to_optimize = self.input[start..=end].to_vec();
-            let mut optimizer = Compiler::new(code_to_optimize);
-            let optimized_code = optimizer.optimize();
+            let code_to_optimize = self.input[start..end].to_vec();
+            let optimized_code = Compiler::optimize_function(code_to_optimize.clone(), start);
 
-            self.replace_code_region(start, end, optimized_code);
+            self.replace_code_region(start, end - 1, optimized_code);
         }
     }
 
     fn optimize_loop(&mut self, start: usize, end: usize) {
-        let code_to_optimize = self.input[start..=end].to_vec();
-        let mut optimizer = Compiler::new(code_to_optimize);
-        let optimized_code = optimizer.optimize();
+        let mut func_start = start;
+        while func_start > 0 {
+            if let Instruction::Func(_) = &self.input[func_start - 1] {
+                break;
+            }
+            func_start -= 1;
+        }
 
-        self.replace_code_region(start, end, optimized_code);
+        let mut func_end = end;
+        while func_end < self.input.len() {
+            if let Instruction::EndFunc = &self.input[func_end] {
+                break;
+            }
+            func_end += 1;
+        }
+
+        let function_code = self.input[func_start..func_end].to_vec();
+        let loop_start = start - func_start;
+        let loop_end = end - func_start;
+
+        let optimized_loop =
+            Compiler::optimize_loop(function_code, loop_start, loop_end, func_start);
+        self.replace_code_region(start, end, optimized_loop);
     }
 
     fn replace_code_region(&mut self, start: usize, end: usize, new_code: Vec<Instruction>) {
@@ -708,17 +717,14 @@ impl VM {
         let new_size = new_code.len();
         let size_diff = new_size as isize - old_size as isize;
 
-        //dbg!(&self.input);
-        //dbg!(&self.functions);
         self.input.splice(start..=end, new_code);
 
-        if self.program_counter > end {
+        if self.program_counter > start {
             self.program_counter = (self.program_counter as isize + size_diff) as usize;
         }
 
-        // Обновляем стек вызовов
         for address in &mut self.call_stack {
-            if *address > end {
+            if *address > start {
                 *address = (*address as isize + size_diff) as usize;
             }
         }
@@ -737,14 +743,10 @@ impl VM {
         }
 
         for address in self.functions.values_mut() {
-            if *address > end {
+            if *address > start {
                 *address = (*address as isize + size_diff) as usize;
             }
         }
-        //dbg!(&self.input);
-        //dbg!(&self.functions);
-        //dbg!(self.program_counter);
-        //thread::sleep(time::Duration::from_secs(10000000000));
     }
 
     fn perform_backoff(&mut self, reason: &str) -> EcoString {
