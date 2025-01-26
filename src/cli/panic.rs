@@ -1,15 +1,15 @@
 #![allow(clippy::unwrap_used)]
 use std::io::Write;
-use std::panic::PanicInfo;
+use std::panic::PanicHookInfo;
 use termcolor::{Color, ColorSpec, WriteColor};
 
 pub fn add_handler() {
-    std::panic::set_hook(Box::new(move |info: &PanicInfo<'_>| {
+    std::panic::set_hook(Box::new(move |info: &PanicHookInfo<'_>| {
         print_wrapped_panic(info);
     }));
 }
 
-fn print_wrapped_panic(info: &PanicInfo<'_>) {
+fn print_wrapped_panic(info: &PanicHookInfo<'_>) {
     let message = match (
         info.payload().downcast_ref::<&str>(),
         info.payload().downcast_ref::<String>(),
