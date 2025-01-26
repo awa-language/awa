@@ -17,7 +17,7 @@ pub struct VM {
     pub(crate) program_counter: usize,
     pub(crate) stack: Vec<Value>,
 
-    /// Environment stack for local variables (each Func call -> push, Return -> pop).
+    /// Environments stack for local variables (each Func call -> push, Return -> pop).
     pub(crate) environments_stack: Vec<HashMap<EcoString, Value>>,
 
     pub(crate) structures: HashMap<EcoString, HashMap<EcoString, Value>>,
@@ -29,6 +29,8 @@ pub struct VM {
     backup_state: Option<State>,
     execution_stats: ExecutionStats,
     optimization_threshold: u32,
+
+    should_perform_optimizations: bool,
 }
 
 #[derive(Debug)]
@@ -109,7 +111,7 @@ impl VM {
     ///
     /// Will panic if the provided bytecode does not contain `main()` function.
     #[must_use]
-    pub fn new(input: Vec<Instruction>) -> Self {
+    pub fn new(input: Vec<Instruction>, should_perform_optimizations: bool) -> Self {
         let mut vm = Self {
             input,
             program_counter: 0,
@@ -122,6 +124,7 @@ impl VM {
             backup_state: None,
             execution_stats: ExecutionStats::new(0),
             optimization_threshold: 10000,
+            should_perform_optimizations,
         };
 
         vm.environments_stack.push(HashMap::with_capacity(50));
@@ -439,7 +442,7 @@ impl VM {
                 self.maybe_run_gc();
             }
             Instruction::Jump(address) => {
-                if address <= self.program_counter {
+                if self.should_perform_optimizations && address <= self.program_counter {
                     self.execution_stats.record_loop_iteration(address);
 
                     if self
@@ -450,6 +453,7 @@ impl VM {
                         self.execution_stats.record_loop_optimization(address);
                     }
                 }
+
                 assert!(address < self.input.len(), "jump out of range");
                 self.program_counter = address;
 
@@ -475,15 +479,18 @@ impl VM {
                 }
             }
             Instruction::Call(name) => {
-                self.execution_stats.record_function_execution(&name);
+                if self.should_perform_optimizations {
+                    self.execution_stats.record_function_execution(&name);
 
-                if self
-                    .execution_stats
-                    .should_optimize_function(&name, self.optimization_threshold)
-                {
-                    self.optimize_function(&name);
-                    self.execution_stats.record_function_optimization(&name);
+                    if self
+                        .execution_stats
+                        .should_optimize_function(&name, self.optimization_threshold)
+                    {
+                        self.optimize_function(&name);
+                        self.execution_stats.record_function_optimization(&name);
+                    }
                 }
+
                 if let Some(&address) = self.functions.get(&name) {
                     self.backup_state = Some(State {
                         stack: self.stack.clone(),

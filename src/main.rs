@@ -31,7 +31,11 @@ enum Command {
     /// Run the specified file in interactive environment.
     ///
     /// By default, runs `main.awa`
-    Run { filename: Option<Utf8PathBuf> },
+    Run {
+        filename: Option<Utf8PathBuf>,
+        #[arg(long)]
+        unoptimized: bool,
+    },
 }
 
 fn main() {
@@ -39,6 +43,9 @@ fn main() {
 
     match Command::parse() {
         Command::Check { filename } => cli::check::handle(filename),
-        Command::Run { filename } => cli::run::handle(filename),
+        Command::Run {
+            filename,
+            unoptimized,
+        } => cli::run::handle(filename, unoptimized),
     }
 }
