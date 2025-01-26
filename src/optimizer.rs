@@ -5,20 +5,20 @@ use ecow::EcoString;
 use crate::vm::instruction::{Bytecode, Instruction};
 
 pub struct Optimizer {
-    // Для оптимизации функции:
-    // bytecode = тело функции
-    // hot_region = None
-    //
-    // Для оптимизации цикла:
-    // bytecode = вся функция
-    // hot_region = Some((start, end)) границы цикла
+    /// for function optimization is function body
+    ///
+    /// for cycle optimization is the whole function
     bytecode: Bytecode,
+    /// for function optimization is None
+    ///
+    /// for cycle optimization is Some((cycle_start, cycle_end))
     hot_region: Option<(usize, usize)>,
     shift: usize,
 }
 
 impl Optimizer {
-    #[must_use] pub fn optimize_function(function_body: Bytecode, shift: usize) -> Bytecode {
+    #[must_use]
+    pub fn optimize_function(function_body: Bytecode, shift: usize) -> Bytecode {
         let mut optimizer = Self {
             bytecode: function_body,
             hot_region: None,
@@ -28,7 +28,8 @@ impl Optimizer {
         optimizer.optimize()
     }
 
-    #[must_use] pub fn optimize_loop(
+    #[must_use]
+    pub fn optimize_loop(
         function_code: Bytecode,
         loop_start: usize,
         loop_end: usize,
@@ -44,9 +45,9 @@ impl Optimizer {
     }
 
     fn optimize(&mut self) -> Bytecode {
-        let mut made_changes = true;
-        let initial_len = self.bytecode.len();
+        let initial_length = self.bytecode.len();
 
+        let mut made_changes = true;
         while made_changes {
             let len_before = self.bytecode.len();
 
@@ -60,8 +61,9 @@ impl Optimizer {
 
         match self.hot_region {
             Some((start, end)) => {
-                let removed = initial_len - self.bytecode.len();
+                let removed = initial_length - self.bytecode.len();
                 let new_end = end - removed;
+
                 let new_start = start.min(new_end);
 
                 self.bytecode[new_start..=new_end].to_vec()
@@ -251,8 +253,7 @@ impl Optimizer {
 
                 if i + 1 < self.bytecode.len() {
                     if let Instruction::Jump(second_target) = &self.bytecode[i + 1] {
-                        if *second_target == self.shift + i + 2 && *target == self.shift + i + 2
-                        {
+                        if *second_target == self.shift + i + 2 && *target == self.shift + i + 2 {
                             terminate = true;
                             end = i + 1;
                         }
@@ -334,13 +335,14 @@ impl Optimizer {
     }
 
     fn perform_dead_code_elimination(&mut self) {
-        let mut i = 0;
         let mut func_args = Vec::with_capacity(5);
         let mut used_variables = HashMap::<EcoString, bool>::with_capacity(5);
 
+        let mut i = 0;
+
         while i < self.bytecode.len() {
-            if let Instruction::StoreInMap(var_name) = &self.bytecode[i] {
-                func_args.push(var_name.clone());
+            if let Instruction::StoreInMap(variable_name) = &self.bytecode[i] {
+                func_args.push(variable_name.clone());
             } else {
                 break;
             }
@@ -351,25 +353,25 @@ impl Optimizer {
         i = 0;
 
         while i < self.bytecode.len() {
-            if let Instruction::StoreInMap(var_name) = &self.bytecode[i] {
-                if func_args.contains(var_name) {
+            if let Instruction::StoreInMap(variable_name) = &self.bytecode[i] {
+                if func_args.contains(variable_name) {
                     i += 1;
                     continue;
                 }
 
-                let is_used = self.is_variable_actually_used(var_name, i + 1);
+                let is_used = self.is_variable_actually_used(variable_name, i + 1);
 
-                if !used_variables.contains_key(var_name) {
-                    used_variables.insert(var_name.clone(), is_used);
+                if !used_variables.contains_key(variable_name) {
+                    used_variables.insert(variable_name.clone(), is_used);
                 }
 
-                if !used_variables.get(var_name).unwrap_or(&true) {
+                if !used_variables.get(variable_name).unwrap_or(&true) {
                     let mut assignments = vec![i];
                     let mut current = i + 1;
 
                     while current < self.bytecode.len() {
                         if let Instruction::StoreInMap(name) = &self.bytecode[current] {
-                            if name == var_name {
+                            if name == variable_name {
                                 assignments.push(current);
                             }
                         }
@@ -377,8 +379,8 @@ impl Optimizer {
                         current += 1;
                     }
 
-                    for &pos in assignments.iter().rev() {
-                        let mut start = pos;
+                    for &position in assignments.iter().rev() {
+                        let mut start = position;
                         let mut stack_balance = -1;
 
                         while start > 0 {
@@ -434,20 +436,21 @@ impl Optimizer {
                         }
 
                         if stack_balance == 0 {
-                            let removed_len = pos - (start - 1) + 1; // +1 так как включаем start-1 в удаление
+                            // `+ 1` is because we include `start - 1` in removal
+                            let removed_length = position - (start - 1) + 1;
 
                             for j in 0..self.bytecode.len() {
                                 if let Instruction::Jump(target)
                                 | Instruction::JumpIfTrue(target)
                                 | Instruction::JumpIfFalse(target) = &mut self.bytecode[j]
                                 {
-                                    if *target > pos {
-                                        *target = target.saturating_sub(removed_len);
+                                    if *target > position {
+                                        *target = target.saturating_sub(removed_length);
                                     }
                                 }
                             }
 
-                            self.bytecode.drain(start - 1..=pos);
+                            self.bytecode.drain(start - 1..=position);
                         }
                     }
 
@@ -459,8 +462,8 @@ impl Optimizer {
         }
     }
 
-    fn is_variable_actually_used(&self, variable_name: &str, start_pos: usize) -> bool {
-        let mut i = start_pos;
+    fn is_variable_actually_used(&self, variable_name: &str, start_position: usize) -> bool {
+        let mut i = start_position;
 
         while i < self.bytecode.len() {
             match &self.bytecode[i] {

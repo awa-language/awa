@@ -451,8 +451,8 @@ impl TypeAnalyzer {
 
     /// Converts untyped statement to typed statement
     ///
-    /// # Panics
     /// # Errors
+    ///
     /// Returns `ConvertingError` if:
     /// - Type mismatch between variable declaration and value
     /// - Unknown variable reference in reassignment

@@ -727,17 +727,19 @@ impl VM {
     fn replace_code_region(&mut self, start: usize, end: usize, new_code: Vec<Instruction>) {
         let old_size = end - start + 1;
         let new_size = new_code.len();
-        let size_diff = new_size as isize - old_size as isize;
+        let size_diff = isize::try_from(new_size).unwrap() - isize::try_from(old_size).unwrap();
 
         self.input.splice(start..=end, new_code);
 
         if self.program_counter > start {
-            self.program_counter = (self.program_counter as isize + size_diff) as usize;
+            self.program_counter =
+                usize::try_from(isize::try_from(self.program_counter).unwrap() + size_diff)
+                    .unwrap();
         }
 
         for address in &mut self.call_stack {
             if *address > start {
-                *address = (*address as isize + size_diff) as usize;
+                *address = usize::try_from(isize::try_from(*address).unwrap() + size_diff).unwrap();
             }
         }
 
@@ -747,7 +749,8 @@ impl VM {
                 | Instruction::JumpIfTrue(target)
                 | Instruction::JumpIfFalse(target) => {
                     if *target > end {
-                        *target = (*target as isize + size_diff) as usize;
+                        *target =
+                            usize::try_from(isize::try_from(*target).unwrap() + size_diff).unwrap();
                     }
                 }
                 _ => {}
@@ -756,7 +759,7 @@ impl VM {
 
         for address in self.functions.values_mut() {
             if *address > start {
-                *address = (*address as isize + size_diff) as usize;
+                *address = usize::try_from(isize::try_from(*address).unwrap() + size_diff).unwrap();
             }
         }
     }
@@ -940,6 +943,12 @@ impl VM {
         }
     }
 
+    /// Perform function hotswap
+    ///
+    /// # Panics
+    ///
+    /// Will panic if the function to be swapped out is not present in the code
+    ///
     /// 1. Finds `Func(name)` ... `EndFunc` in the new fragment.
     /// 2. Adjusts `Jump`/`JumpIfTrue`/`JumpIfFalse` by an offset equal to the current length of `self.input`.
     /// 3. Adds to `self.input`: `Func(name)`, [body], `EndFunc`.
@@ -948,12 +957,12 @@ impl VM {
         let (function_name, body) = VM::extract_func_block(new_code);
         let offset = self.input.len();
         let binding = self.functions.clone();
-        let function_start = binding.get(&function_name).expect("No function found");
+        let function_start = binding.get(&function_name).expect("no function found");
         let mut function_end = *function_start;
 
         while function_end > self.input.len() {
-            match self.input[function_end] {
-                Instruction::EndFunc => {
+            match self.input.get(function_end) {
+                Some(Instruction::EndFunc) => {
                     break;
                 }
                 _ => {
@@ -1002,8 +1011,8 @@ impl VM {
             }
         }
 
-        let start = start.expect("No Func(...) in new_code");
-        let end = end.expect("No EndFunc after Func(...)");
+        let start = start.expect("no Func(...) in new_code");
+        let end = end.expect("no EndFunc after Func(...)");
 
         let body = code[start + 1..end].to_vec();
 

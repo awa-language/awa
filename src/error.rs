@@ -25,6 +25,7 @@ impl Error {
     /// Converts the error into a human-readable string.
     ///
     /// # Panics
+    ///
     /// This function will panic if the buffer contains invalid UTF-8 bytes.
     #[must_use]
     pub fn to_pretty_string(&self) -> String {
