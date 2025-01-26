@@ -949,7 +949,7 @@ impl VM {
         let offset = self.input.len();
         let binding = self.functions.clone();
         let function_start = binding.get(&function_name).expect("No function found");
-        let mut function_end = function_start.clone();
+        let mut function_end = *function_start;
 
         while function_end > self.input.len() {
             match self.input[function_end] {
@@ -967,8 +967,8 @@ impl VM {
         self.input.push(Instruction::Func(function_name.clone()));
         let start_address = self.input.len();
 
-        for instr in body_fixed {
-            self.input.push(instr);
+        for instruction in body_fixed {
+            self.input.push(instruction);
         }
 
         self.input.push(Instruction::EndFunc);
@@ -978,7 +978,7 @@ impl VM {
             .remove(&function_name);
         self.execution_stats
             .loop_last_optimization
-            .retain(|&addr, _| addr < function_end && addr > function_start.clone());
+            .retain(|&address, _| address < function_end && address > *function_start);
     }
 
     fn extract_func_block(code: &[Instruction]) -> (EcoString, Vec<Instruction>) {

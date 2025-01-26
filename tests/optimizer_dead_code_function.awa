@@ -3,7 +3,7 @@ struct person {
   income float
 }
 
-func factorial(n int) int {
+func compute(n int) int {
     if (n <= 1) {
         return 1
     }
@@ -17,9 +17,9 @@ func factorial(n int) int {
 
     var petya int = (5 - 2 + 10 - 321  + 13 - 123 + 22 + 6) / 2 * -1
 
-    return factorial(n - 1)
+    return compute(n - 1)
 }
 
 func main() {
-    println(factorial(400000))
+    println(compute(400000))
 }

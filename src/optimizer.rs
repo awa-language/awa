@@ -18,7 +18,7 @@ pub struct Optimizer {
 }
 
 impl Optimizer {
-    pub fn optimize_function(function_body: Bytecode, shift: usize) -> Bytecode {
+    #[must_use] pub fn optimize_function(function_body: Bytecode, shift: usize) -> Bytecode {
         let mut optimizer = Self {
             bytecode: function_body,
             hot_region: None,
@@ -28,7 +28,7 @@ impl Optimizer {
         optimizer.optimize()
     }
 
-    pub fn optimize_loop(
+    #[must_use] pub fn optimize_loop(
         function_code: Bytecode,
         loop_start: usize,
         loop_end: usize,
@@ -171,7 +171,7 @@ impl Optimizer {
                         let rhs = constants.pop().unwrap().0;
                         let lhs = constants.pop().unwrap().0;
 
-                        let result = format!("{}{}", lhs, rhs);
+                        let result = format!("{lhs}{rhs}");
                         constants.push((result, "string"));
                     }
                     _ => {
@@ -241,95 +241,92 @@ impl Optimizer {
         let mut i = 0;
 
         while i < self.bytecode.len() {
-            match &self.bytecode[i] {
-                Instruction::JumpIfFalse(target) => {
-                    let mut end = i;
-                    let mut terminate = false;
+            if let Instruction::JumpIfFalse(target) = &self.bytecode[i] {
+                let mut end = i;
+                let mut terminate = false;
 
-                    if *target == self.shift + i + 1 {
-                        terminate = true
-                    }
+                if *target == self.shift + i + 1 {
+                    terminate = true;
+                }
 
-                    if i + 1 < self.bytecode.len() {
-                        if let Instruction::Jump(second_target) = &self.bytecode[i + 1] {
-                            if *second_target == self.shift + i + 2 && *target == self.shift + i + 2
-                            {
-                                terminate = true;
-                                end = i + 1;
-                            }
-                        }
-                    }
-
-                    if terminate {
-                        let mut start = i;
-                        let mut stack_balance = -1;
-
-                        while start > 0 {
-                            match &self.bytecode[start - 1] {
-                                Instruction::PushInt(_)
-                                | Instruction::PushFloat(_)
-                                | Instruction::PushString(_)
-                                | Instruction::PushChar(_)
-                                | Instruction::PushArray(_)
-                                | Instruction::LoadToStack(_)
-                                | Instruction::NewStruct(_) => {
-                                    stack_balance += 1;
-                                    if stack_balance != 0 {
-                                        start -= 1;
-                                    } else {
-                                        break;
-                                    }
-                                }
-                                Instruction::AddInt
-                                | Instruction::SubInt
-                                | Instruction::MulInt
-                                | Instruction::DivInt
-                                | Instruction::Mod
-                                | Instruction::AddFloat
-                                | Instruction::SubFloat
-                                | Instruction::MulFloat
-                                | Instruction::DivFloat
-                                | Instruction::Equal
-                                | Instruction::NotEqual
-                                | Instruction::And
-                                | Instruction::Or
-                                | Instruction::LessInt
-                                | Instruction::LessEqualInt
-                                | Instruction::GreaterInt
-                                | Instruction::GreaterEqualInt
-                                | Instruction::LessFloat
-                                | Instruction::LessEqualFloat
-                                | Instruction::GreaterFloat
-                                | Instruction::GreaterEqualFloat
-                                | Instruction::Concat
-                                | Instruction::GetByIndex => {
-                                    stack_balance -= 1;
-                                    start -= 1;
-                                }
-                                Instruction::GetField(_) => {
-                                    start -= 1;
-                                }
-                                _ => break,
-                            }
-                        }
-
-                        if stack_balance == 0 {
-                            for j in 0..self.bytecode.len() {
-                                if let Instruction::Jump(target)
-                                | Instruction::JumpIfTrue(target)
-                                | Instruction::JumpIfFalse(target) = &mut self.bytecode[j]
-                                {
-                                    if *target > start {
-                                        *target = target.saturating_sub(end - start + 2);
-                                    }
-                                }
-                            }
-
-                            self.bytecode.drain(start - 1..=end);
+                if i + 1 < self.bytecode.len() {
+                    if let Instruction::Jump(second_target) = &self.bytecode[i + 1] {
+                        if *second_target == self.shift + i + 2 && *target == self.shift + i + 2
+                        {
+                            terminate = true;
+                            end = i + 1;
                         }
                     }
                 }
-                _ => {}
+
+                if terminate {
+                    let mut start = i;
+                    let mut stack_balance = -1;
+
+                    while start > 0 {
+                        match &self.bytecode[start - 1] {
+                            Instruction::PushInt(_)
+                            | Instruction::PushFloat(_)
+                            | Instruction::PushString(_)
+                            | Instruction::PushChar(_)
+                            | Instruction::PushArray(_)
+                            | Instruction::LoadToStack(_)
+                            | Instruction::NewStruct(_) => {
+                                stack_balance += 1;
+                                if stack_balance != 0 {
+                                    start -= 1;
+                                } else {
+                                    break;
+                                }
+                            }
+                            Instruction::AddInt
+                            | Instruction::SubInt
+                            | Instruction::MulInt
+                            | Instruction::DivInt
+                            | Instruction::Mod
+                            | Instruction::AddFloat
+                            | Instruction::SubFloat
+                            | Instruction::MulFloat
+                            | Instruction::DivFloat
+                            | Instruction::Equal
+                            | Instruction::NotEqual
+                            | Instruction::And
+                            | Instruction::Or
+                            | Instruction::LessInt
+                            | Instruction::LessEqualInt
+                            | Instruction::GreaterInt
+                            | Instruction::GreaterEqualInt
+                            | Instruction::LessFloat
+                            | Instruction::LessEqualFloat
+                            | Instruction::GreaterFloat
+                            | Instruction::GreaterEqualFloat
+                            | Instruction::Concat
+                            | Instruction::GetByIndex => {
+                                stack_balance -= 1;
+                                start -= 1;
+                            }
+                            Instruction::GetField(_) => {
+                                start -= 1;
+                            }
+                            _ => break,
+                        }
+                    }
+
+                    if stack_balance == 0 {
+                        for j in 0..self.bytecode.len() {
+                            if let Instruction::Jump(target)
+                            | Instruction::JumpIfTrue(target)
+                            | Instruction::JumpIfFalse(target) = &mut self.bytecode[j]
+                            {
+                                if *target > start {
+                                    *target = target.saturating_sub(end - start + 2);
+                                }
+                            }
+                        }
+
+                        self.bytecode.drain(start - 1..=end);
+                    }
+                }
             }
 
             i += 1;
@@ -355,12 +352,12 @@ impl Optimizer {
 
         while i < self.bytecode.len() {
             if let Instruction::StoreInMap(var_name) = &self.bytecode[i] {
-                if func_args.contains(&var_name) {
+                if func_args.contains(var_name) {
                     i += 1;
                     continue;
                 }
 
-                let is_used = self.is_variable_actually_used(&var_name, i + 1);
+                let is_used = self.is_variable_actually_used(var_name, i + 1);
 
                 if !used_variables.contains_key(var_name) {
                     used_variables.insert(var_name.clone(), is_used);

@@ -24,7 +24,7 @@ func compute(n int) int {
 
     sth(vasya, lyosha, petya)
 
-    return factorial(n - 1)
+    return compute(n - 1)
 }
 
 func main() {
