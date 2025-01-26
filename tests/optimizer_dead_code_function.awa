@@ -8,11 +8,14 @@ func factorial(n int) int {
         return 1
     }
 
-    var vasya person = person{ age: 10/2, income: 66.2 /. 2.0 }
+    var vasya person = person{
+        age: 10 / 2,
+        income: 66.2 /. 2.0
+    }
 
-    var lyosha []int = []int{1,2,3}
+    var lyosha []int = []int{1, 2, 3}
 
-    var petya int = ( 5 - 2 + 10 - 321  + 13 - 123 + 22 + 6 ) / 2 * -1
+    var petya int = (5 - 2 + 10 - 321  + 13 - 123 + 22 + 6) / 2 * -1
 
     return factorial(n - 1)
 }

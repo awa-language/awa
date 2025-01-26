@@ -10,7 +10,7 @@ pub mod tests;
 use gc::{Object, GC};
 use instruction::{Bytecode, Instruction, Value};
 
-use crate::compiler::Compiler;
+use crate::optimizer::Optimizer;
 
 pub struct VM {
     pub(crate) input: Bytecode,
@@ -41,18 +41,18 @@ struct State {
 struct ExecutionStats {
     function_executions: HashMap<EcoString, u32>,
     loop_iterations: HashMap<usize, u32>,
-    function_last_optimization: HashMap<EcoString, u32>,
+    optimized_functions: HashMap<EcoString, u32>,
     loop_last_optimization: HashMap<usize, u32>,
     current_execution_time: u32,
 }
 
 impl ExecutionStats {
-    fn new() -> Self {
+    fn new(functions_count: usize) -> Self {
         Self {
-            function_executions: HashMap::new(),
-            loop_iterations: HashMap::new(),
-            function_last_optimization: HashMap::new(),
-            loop_last_optimization: HashMap::new(),
+            function_executions: HashMap::with_capacity(functions_count),
+            loop_iterations: HashMap::with_capacity(functions_count), // whatever
+            optimized_functions: HashMap::with_capacity(functions_count),
+            loop_last_optimization: HashMap::with_capacity(functions_count), // whatever
             current_execution_time: 0,
         }
     }
@@ -66,7 +66,7 @@ impl ExecutionStats {
     }
 
     fn should_optimize_function(&self, name: &EcoString, threshold: u32) -> bool {
-        if self.function_last_optimization.contains_key(name) {
+        if self.optimized_functions.contains_key(name) {
             return false;
         }
 
@@ -86,17 +86,13 @@ impl ExecutionStats {
     }
 
     fn record_function_optimization(&mut self, name: &EcoString) {
-        self.function_last_optimization
+        self.optimized_functions
             .insert(name.clone(), self.current_execution_time);
     }
 
     fn record_loop_optimization(&mut self, start_pc: usize) {
         self.loop_last_optimization
             .insert(start_pc, self.current_execution_time);
-    }
-
-    fn tick(&mut self) {
-        self.current_execution_time += 1;
     }
 }
 
@@ -124,12 +120,14 @@ impl VM {
             call_stack: Vec::with_capacity(100_000),
             gc: GC::new(),
             backup_state: None,
-            execution_stats: ExecutionStats::new(),
+            execution_stats: ExecutionStats::new(0),
             optimization_threshold: 10000,
         };
 
         vm.environments_stack.push(HashMap::with_capacity(50));
-        vm.preprocess_bytecode();
+
+        let functions_count = vm.preprocess_bytecode();
+        vm.execution_stats = ExecutionStats::new(functions_count);
 
         if let Some(&main_address) = vm.functions.get("main") {
             vm.program_counter = main_address;
@@ -157,7 +155,6 @@ impl VM {
             return Some(RunCommunication::Finished);
         }
 
-        self.execution_stats.tick();
         let instruction = self.input[self.program_counter].clone();
 
         match instruction {
@@ -614,12 +611,16 @@ impl VM {
         None
     }
 
-    fn preprocess_bytecode(&mut self) {
+    fn preprocess_bytecode(&mut self) -> usize {
         let mut i = 0;
+
+        let mut functions_count = 0;
 
         while i < self.input.len() {
             match &self.input[i] {
                 Instruction::Func(name) => {
+                    functions_count += 1;
+
                     let start = i + 1;
                     let mut end = None;
                     let mut j = start;
@@ -639,6 +640,7 @@ impl VM {
 
                         continue;
                     }
+
                     panic!("Func without EndFunc");
                 }
                 Instruction::Struct(struct_name) => {
@@ -662,11 +664,14 @@ impl VM {
                     assert!(i < self.input.len(), "Struct without EndStruct");
                     self.structures.insert(struct_name.clone(), fields);
                 }
+
                 _ => {}
             }
 
             i += 1;
         }
+
+        functions_count
     }
 
     fn optimize_function(&mut self, name: &EcoString) {
@@ -680,7 +685,7 @@ impl VM {
             }
 
             let code_to_optimize = self.input[start..end].to_vec();
-            let optimized_code = Compiler::optimize_function(code_to_optimize.clone(), start);
+            let optimized_code = Optimizer::optimize_function(code_to_optimize.clone(), start);
 
             self.replace_code_region(start, end - 1, optimized_code);
         }
@@ -708,7 +713,7 @@ impl VM {
         let loop_end = end - func_start;
 
         let optimized_loop =
-            Compiler::optimize_loop(function_code, loop_start, loop_end, func_start);
+            Optimizer::optimize_loop(function_code, loop_start, loop_end, func_start);
         self.replace_code_region(start, end, optimized_loop);
     }
 
@@ -962,7 +967,7 @@ impl VM {
         self.input.push(Instruction::EndFunc);
         self.functions.insert(function_name.clone(), start_address);
         self.execution_stats
-            .function_last_optimization
+            .optimized_functions
             .remove(&function_name);
         self.execution_stats
             .loop_last_optimization
