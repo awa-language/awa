@@ -69,6 +69,7 @@ impl Compiler {
             let mut constants = Vec::new();
             let mut j = i;
             let mut can_fold = true;
+            let mut last_type = None;
 
             while j < self.bytecode.len() {
                 match &self.bytecode[j] {
@@ -80,12 +81,23 @@ impl Compiler {
                     | Instruction::EndFunc => break,
 
                     Instruction::PushInt(n) => {
-                        constants.push(*n);
+                        constants.push((n.to_string(), "int"));
+                        last_type = Some("int");
+                    }
+                    Instruction::PushFloat(f) => {
+                        constants.push((f.to_string(), "float"));
+                        last_type = Some("float");
+                    }
+                    Instruction::PushString(s) => {
+                        constants.push((s.clone().to_string(), "string"));
+                        last_type = Some("string");
                     }
 
                     Instruction::Call(_)
                     | Instruction::GetField(_)
                     | Instruction::GetByIndex
+                    | Instruction::PushArray(_)
+                    | Instruction::Append
                     | Instruction::LoadToStack(_) => {
                         can_fold = false;
                         break;
@@ -94,14 +106,11 @@ impl Compiler {
                     Instruction::AddInt
                     | Instruction::SubInt
                     | Instruction::MulInt
-                    | Instruction::DivInt => {
-                        if constants.len() < 2 {
-                            can_fold = false;
-                            break;
-                        }
-
-                        let b = constants.pop().unwrap();
-                        let a = constants.pop().unwrap();
+                    | Instruction::DivInt
+                        if last_type == Some("int") && constants.len() >= 2 =>
+                    {
+                        let b = constants.pop().unwrap().0.parse::<i64>().unwrap();
+                        let a = constants.pop().unwrap().0.parse::<i64>().unwrap();
 
                         let result = match &self.bytecode[j] {
                             Instruction::AddInt => a + b,
@@ -114,23 +123,73 @@ impl Compiler {
                                 }
                                 a / b
                             }
-                            _ => unreachable!(),
+                            _ => {
+                                can_fold = false;
+                                break;
+                            }
                         };
 
-                        constants.push(result);
+                        constants.push((result.to_string(), "int"));
                     }
 
-                    _ => break,
-                }
+                    Instruction::AddFloat
+                    | Instruction::SubFloat
+                    | Instruction::MulFloat
+                    | Instruction::DivFloat
+                        if last_type == Some("float") && constants.len() >= 2 =>
+                    {
+                        let b = constants.pop().unwrap().0.parse::<f64>().unwrap();
+                        let a = constants.pop().unwrap().0.parse::<f64>().unwrap();
 
+                        let result = match &self.bytecode[j] {
+                            Instruction::AddFloat => a + b,
+                            Instruction::SubFloat => a - b,
+                            Instruction::MulFloat => a * b,
+                            Instruction::DivFloat => {
+                                if b == 0.0 {
+                                    can_fold = false;
+                                    break;
+                                }
+                                a / b
+                            }
+                            _ => {
+                                can_fold = false;
+                                break;
+                            }
+                        };
+
+                        constants.push((result.to_string(), "float"));
+                    }
+
+                    Instruction::Concat if last_type == Some("string") && constants.len() >= 2 => {
+                        let b = constants.pop().unwrap().0;
+                        let a = constants.pop().unwrap().0;
+
+                        let result = format!("{}{}", a, b);
+                        constants.push((result, "string"));
+                    }
+
+                    _ => {
+                        break;
+                    }
+                }
                 j += 1;
             }
 
             if can_fold && !constants.is_empty() && j > i {
-                let folded_value = constants.pop().unwrap();
-
                 self.bytecode.drain(i..j);
-                self.bytecode.insert(i, Instruction::PushInt(folded_value));
+
+                let (folded_value, value_type) = constants.pop().unwrap();
+                if value_type == "int" {
+                    self.bytecode
+                        .insert(i, Instruction::PushInt(folded_value.parse().unwrap()));
+                } else if value_type == "float" {
+                    self.bytecode
+                        .insert(i, Instruction::PushFloat(folded_value.parse().unwrap()));
+                } else if value_type == "string" {
+                    self.bytecode
+                        .insert(i, Instruction::PushString(folded_value.into()));
+                }
 
                 i += 1;
             } else {
